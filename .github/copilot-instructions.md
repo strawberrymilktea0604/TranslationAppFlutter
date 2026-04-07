@@ -9,7 +9,7 @@
 
 | Thành phần | Công nghệ |
 |---|---|
-| Mobile App | Flutter (iOS & Android) |
+| Mobile App | Flutter (Android) |
 | Web Dashboard | Flutter Web |
 | Backend API | FastAPI (Python) |
 | Local Database | Isar DB |
