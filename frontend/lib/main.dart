@@ -1,6 +1,8 @@
 import 'package:dartz/dartz.dart' hide State;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/core/router/app_router.dart';
@@ -10,18 +12,35 @@ import 'package:frontend/features/auth/domain/repositories/auth_repository.dart'
 import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/register_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
+import 'package:frontend/core/database/isar_database.dart';
 import 'app_config.dart';
 
 late AppConfig config;
+late IsarDatabase isarDatabase;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Isar database
+  isarDatabase = IsarDatabase();
+  await isarDatabase.init();
 
   // TODO: Initialize dependencies after packages are added.
   // await initDependencies();
 
   // TODO: Initialize BlocObserver for global state observation.
   // Bloc.observer = AppBlocObserver();
+
+  // Initialize config if not already initialized
+  // This is a workaround since config is usually initialized in main_dev.dart etc.
+  try {
+    config;
+  } catch (e) {
+    config = const AppConfig(
+      appName: 'Translation App',
+      apiUrl: 'http://localhost:8000/api/v1',
+    );
+  }
 
   runApp(const MyApp());
 }
@@ -79,12 +98,24 @@ class _AppWithRouterState extends State<_AppWithRouter> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: config.appName,
+      onGenerateTitle: (context) {
+        return AppLocalizations.of(context)?.appTitle ?? config.appName;
+      },
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'), // English
+        Locale('vi'), // Vietnamese
+      ],
     );
   }
 }

@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -63,34 +66,40 @@ dependencies:
   # JSON serialization annotations
   json_annotation: ^4.9.0
 
-dev_dependencies:
+  # Isar Database
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+  path_provider: ^2.1.2
+
+  # Fonts
+  google_fonts: ^6.2.1
   flutter_test:
     sdk: flutter
+  flutter_gen: ^5.13.0+1
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
-  flutter_lints: ^6.0.0
+dev_dependencies:
+  # flutter_test:
+  #   sdk: flutter
 
-  # Bloc testing utilities
-  bloc_test: ^10.0.0
-
-  # Mocking library for tests
-  mocktail: ^1.0.4
+  # flutter_lints: ^6.0.0
+  # bloc_test: ^10.0.0
+  # mocktail: ^1.0.4
 
   # JSON serialization code generator
-  json_serializable: ^6.9.4
+  json_serializable: ^6.8.0
+
+  # Isar Code Generator
+  isar_generator: ^3.1.0+1
 
   # Code generation runner
-  build_runner: ^2.4.15
+  build_runner: ^2.4.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
+  generate: true
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -129,3 +138,7 @@ flutter:
 
 dependency_overrides:
   connectivity_plus: ^5.0.2
+  analyzer: 5.13.0
+  dart_style: 2.3.2
+  build_resolvers: 2.4.0
+

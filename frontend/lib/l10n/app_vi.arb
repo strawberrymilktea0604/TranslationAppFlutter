@@ -1,0 +1,16 @@
+{
+  "@@locale": "vi",
+  "appTitle": "Ứng dụng Dịch thuật",
+  "login": "Đăng nhập",
+  "register": "Đăng ký",
+  "translate": "Dịch",
+  "history": "Lịch sử",
+  "vocabulary": "Từ vựng",
+  "settings": "Cài đặt",
+  "email": "Email",
+  "password": "Mật khẩu",
+  "sourceText": "Nhập văn bản cần dịch...",
+  "translatedText": "Bản dịch sẽ hiển thị ở đây...",
+  "offlineMode": "Chế độ ngoại tuyến",
+  "syncData": "Đồng bộ dữ liệu"
+}

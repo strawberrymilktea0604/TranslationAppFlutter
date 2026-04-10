@@ -1,0 +1,19 @@
+{
+  "@@locale": "en",
+  "appTitle": "Translation App",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "login": "Login",
+  "register": "Register",
+  "translate": "Translate",
+  "history": "History",
+  "vocabulary": "Vocabulary",
+  "settings": "Settings",
+  "email": "Email",
+  "password": "Password",
+  "sourceText": "Enter text to translate...",
+  "translatedText": "Translation will appear here...",
+  "offlineMode": "Offline Mode",
+  "syncData": "Sync Data"
+}
