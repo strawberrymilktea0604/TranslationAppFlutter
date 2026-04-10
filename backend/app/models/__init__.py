@@ -1,3 +1,9 @@
-from app.models.user import User
+# Import Base gốc từ database.py
+from app.core.database import Base
 
-__all__ = ["User"]
+# Import các model
+from .user import User, RefreshToken
+from .translation import TranslationHistory, Flashcard
+from .system import ApiMetric
+
+__all__ = ["Base", "User", "RefreshToken", "TranslationHistory", "Flashcard", "ApiMetric"]
