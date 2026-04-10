@@ -1,2 +1,44 @@
 .agent/flutter
 .agents/skills
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.staging.local
+.env.production.local
+
+# Secrets (Python/FastAPI)
+.secrets/
+secrets.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+.postgresql/
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE 
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS 
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+.agents/skills
