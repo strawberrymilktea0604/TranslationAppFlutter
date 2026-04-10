@@ -1,5 +1,6 @@
-/// Application-wide constants.
+// Application-wide constants.
 
+/// Contains application-wide constant values.
 class AppConstants {
   AppConstants._();
 

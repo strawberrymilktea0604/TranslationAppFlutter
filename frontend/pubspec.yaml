@@ -54,8 +54,8 @@ dependencies:
   # Secure token storage — JWT must NOT be in SharedPreferences (copilot-instructions §3.5)
   flutter_secure_storage: ^9.2.4
 
-  # Network connectivity checker
-  connectivity_plus: ^6.1.4
+  # Network connectivity checker (verifies real internet access)
+  internet_connection_checker_plus: ^2.7.1
 
   # HTTP client for API calls
   http: ^1.3.0
@@ -125,5 +125,7 @@ flutter:
   #       - asset: fonts/TrajanPro_Bold.ttf
   #         weight: 700
   #
-  # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+dependency_overrides:
+  connectivity_plus: ^5.0.2

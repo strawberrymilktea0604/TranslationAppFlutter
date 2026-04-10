@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-/// Base failure class used with Either<Failure, T>
+/// Base failure class used with `Either<Failure, T>`
 /// from the dartz package. All failures extend this class.
 abstract class Failure extends Equatable {
   final String message;

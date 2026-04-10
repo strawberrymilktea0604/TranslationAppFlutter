@@ -6,7 +6,7 @@ import 'package:frontend/features/translation/domain/entities/translation_entity
 import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
 
 /// UC01 — Dịch văn bản thuần (Translate plain text).
-/// One use case = one file, extends UseCase<T, P>.
+/// One use case = one file, extends `UseCase<T, P>`.
 class TranslateTextUseCase
     extends UseCase<TranslationEntity, TranslateTextParams> {
   final TranslationRepository repository;

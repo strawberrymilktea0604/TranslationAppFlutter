@@ -1,6 +1,6 @@
-/// Custom exceptions for the data layer.
-/// These are thrown by DataSources and caught by Repositories
-/// to be converted into [Failure] objects.
+// Custom exceptions for the data layer.
+// These are thrown by DataSources and caught by Repositories
+// to be converted into Failure objects.
 
 /// Exception thrown when a server request fails.
 class ServerException implements Exception {
