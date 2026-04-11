@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.api.v1.endpoints import auth, translate, user
-from app.api.endpoints import quota
+from app.api.v1.endpoints import quota
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
