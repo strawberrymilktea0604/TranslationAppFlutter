@@ -21,6 +21,10 @@ app.include_router(quota.router, prefix="/api/quotas", tags=["AI Quotas"])
 
 @app.get("/health")
 async def health_check():
+    return {"status": "healthy"}
+
+@app.get("/health")
+async def health_check():
     return {
         "status": "ok",
         "environment": settings.ENVIRONMENT,
