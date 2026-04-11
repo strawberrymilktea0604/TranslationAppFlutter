@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter
 from app.core.config import settings
-from app.services.user_service import UserService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
