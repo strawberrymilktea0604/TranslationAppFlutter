@@ -18,11 +18,6 @@ app.include_router(user.router)
 
 # Đăng ký API Quota
 app.include_router(quota.router, prefix="/api/quotas", tags=["AI Quotas"])
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
-
 @app.get("/health")
 async def health_check():
     return {
