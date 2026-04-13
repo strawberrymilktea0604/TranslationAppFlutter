@@ -1,6 +1,6 @@
 from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey, Boolean, text
 from sqlalchemy.orm import relationship
-from app.core.database import Base
+from app.models.base import Base
 
 class Translation(Base):
     __tablename__ = "translations"

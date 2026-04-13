@@ -1,4 +1,4 @@
-from app.core.database import Base
+from .base import Base
 
 # Gom model User
 from .user import User, UserToken, UserAiQuota

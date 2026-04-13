@@ -2,7 +2,6 @@ from fastapi import FastAPI
 
 from app.api.v1.api import api_router
 from app.core.config import settings
-from app.api.v1.endpoints import auth, translate, user
 from app.api.v1.endpoints import quota
 
 app = FastAPI(
@@ -12,9 +11,8 @@ app = FastAPI(
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # Include routers
-app.include_router(auth.router)
-app.include_router(translate.router)
-app.include_router(user.router)
+# app.include_router(translate.router)
+# app.include_router(user.router)
 
 # Đăng ký API Quota
 app.include_router(quota.router, prefix="/api/quotas", tags=["AI Quotas"])

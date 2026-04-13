@@ -1,5 +1,5 @@
 from sqlalchemy import Column, BigInteger, Integer, String, DateTime, Boolean, ForeignKey, text
-from app.core.database import Base
+from app.models.base import Base
 
 class ApiMetric(Base):
     __tablename__ = "api_metrics"
