@@ -10,7 +10,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="user") # 'user' hoặc 'admin'
     status = Column(String(50), default="active") # 'active' hoặc 'locked'
-    is_verified = Column(Boolean, default=False)
+    is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
     updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=text('now()'))
 

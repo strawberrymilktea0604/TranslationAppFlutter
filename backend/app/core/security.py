@@ -1,6 +1,3 @@
-# JWT policy constants for future token implementation.
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
-REFRESH_TOKEN_EXPIRE_DAYS = 7
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt

@@ -18,28 +18,23 @@ async def login(
     db: DBSession,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ):
-    # Tìm user theo email (trường username của form)
+    # 1. Tìm user theo email
     result = await db.execute(select(User).filter(User.email == form_data.username))
     user = result.scalars().first()
     
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    if not security.verify_password(form_data.password, str(user.password_hash)):
+    # 2. Kiểm tra tài khoản và mật khẩu
+    if not user or not security.verify_password(form_data.password, str(user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
         
+    # 3. Kiểm tra trạng thái khóa
     if str(user.status) == "locked":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account locked")
 
-    # Tạo JWT Token
+    # 4. Tạo JWT Token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     
@@ -61,6 +56,7 @@ async def register(
     db: DBSession,
     user_in: schemas.UserCreate,
 ):
+    # 1. Kiểm tra email trùng lặp
     result = await db.execute(select(User).filter(User.email == user_in.email))
     existing_user = result.scalars().first()
     
@@ -70,20 +66,19 @@ async def register(
             detail="Email already registered",
         )
         
-    # Tạo user mới, is_verified=False mặc định
+    # 2. Tạo user mới (Đã loại bỏ is_verified để khớp với ERD)
     hashed_password = security.hash_password(user_in.password)
     new_user = User(
         email=user_in.email,
         password_hash=hashed_password,
         role="user",
-        status="active",
-        is_verified=False
+        status="active"
     )
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
     
-    # Tạo Token luôn
+    # 3. Cấp Token ngay sau khi đăng ký thành công
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     
