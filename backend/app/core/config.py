@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import Field, validator
+from pydantic import Field, field_validator # Đổi sang field_validator chuẩn V2
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     
     # Database (PostgreSQL)
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/translation_app"
+        default="postgresql+asyncpg://postgres:123456@127.0.0.1:5432/translation_app"
     )
     
     # Security - JWT
@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
+    # Redis (for token blacklisting & session management)
+    REDIS_URL: str = Field(default="redis://localhost:6379/0")
+    TOKEN_BLACKLIST_EXPIRY_MINUTES: int = 1440  # 24 hours: clear old blacklist entries
     
     # AI Services
     TRANSLATION_SERVICE_TIMEOUT: int = 10  # seconds
@@ -47,11 +51,13 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
-        extra="forbid",  # Không cho unknown fields
+        extra="ignore",  
     )
     
-    @validator("SECRET_KEY")
-    def validate_secret_key(cls, v):
+    # CẬP NHẬT chuẩn Pydantic V2
+    @field_validator("SECRET_KEY")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
         """Đảm bảo SECRET_KEY thực sự từ .env, không phải default"""
         if len(v) < 32:
             raise ValueError("SECRET_KEY must be at least 32 characters")
@@ -59,8 +65,9 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY không được là placeholder!")
         return v
     
-    @validator("ENVIRONMENT")
-    def validate_environment(cls, v):
+    @field_validator("ENVIRONMENT")
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
         allowed = {"development", "staging", "production"}
         if v not in allowed:
             raise ValueError(f"ENVIRONMENT phải là một trong {allowed}")

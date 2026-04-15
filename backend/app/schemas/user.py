@@ -33,11 +33,34 @@ class UserRead(UserBase):
 
 
 class Token(BaseModel):
+    """Token response schema (login, register, refresh)"""
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    expires_in: int = Field(description="Access token expiration time in seconds")
 
 
 class TokenPayload(BaseModel):
+    """JWT payload after decoding"""
     sub: str | None = None
     exp: int | None = None
+    jti: str | None = None
+    iat: int | None = None
+    type: str | None = None
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request body for refresh token endpoint"""
+    refresh_token: str = Field(description="Refresh token from login response")
+
+
+class LogoutRequest(BaseModel):
+    """Request body for logout endpoint"""
+    access_token: str = Field(description="Access token to validate logout request")
+    refresh_token: str = Field(description="Refresh token to revoke")
+
+
+class LogoutResponse(BaseModel):
+    """Response from logout endpoint"""
+    detail: str = "Successfully logged out"
+

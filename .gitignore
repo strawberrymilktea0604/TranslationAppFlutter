@@ -5,6 +5,7 @@
 .env
 .env.local
 .env.*.local
+*.env
 .env.development.local
 .env.staging.local
 .env.production.local

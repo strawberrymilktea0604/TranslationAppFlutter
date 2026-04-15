@@ -10,3 +10,5 @@ passlib==1.7.4
 bcrypt==3.2.2
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.18
+redis==5.0.1
+aioredis==2.0.1

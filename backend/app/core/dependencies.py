@@ -7,7 +7,8 @@ from sqlalchemy.future import select
 
 from app.core.database import get_db
 from app.core import security
-from app.models.user import User
+from app.core.redis_client import is_token_revoked
+from app.models.user import User, UserToken
 
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -21,10 +22,20 @@ async def get_current_user(
         # 1. Giải mã token
         payload = security.verify_token(token)
         user_id_str = payload.get("sub")
+        jti = payload.get("jti")
+        
         if user_id_str is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token payload invalid",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            
+        # 2. Check if token is revoked (blacklist check - fast path)
+        if jti and await is_token_revoked(jti):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked",
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
@@ -37,6 +48,8 @@ async def get_current_user(
                 detail="Invalid user ID format in token"
             )
             
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -44,11 +57,11 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 2. Lấy thông tin User từ Database
+    # 3. Lấy thông tin User từ Database
     result = await db.execute(select(User).filter(User.id == user_id))
     user = result.scalars().first()
     
-    # 3. Kiểm tra các điều kiện của User
+    # 4. Kiểm tra các điều kiện của User
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
         

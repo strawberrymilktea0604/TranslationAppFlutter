@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, text
+from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, text, Index
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
@@ -22,12 +22,17 @@ class User(Base):
 
 class UserToken(Base):
     __tablename__ = "user_tokens"
+    __table_args__ = (
+        Index('ix_user_tokens_user_id_is_revoked', 'user_id', 'is_revoked'),
+        Index('ix_user_tokens_jti', 'jti'),
+    )
     
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    jti = Column(String(255), unique=True, nullable=False)  # JWT ID for tracking & revocation
     refresh_token = Column(String, nullable=False, unique=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
-    is_revoked = Column(Boolean, default=False)
+    is_revoked = Column(Boolean, default=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
 
     user = relationship("User", back_populates="tokens")
