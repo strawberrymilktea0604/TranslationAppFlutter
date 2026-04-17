@@ -49,7 +49,7 @@ class _RegisterPageState extends State<RegisterPage> {
           switch (state) {
             case AuthAuthenticated():
               context.go(AppRoutes.home);
-            case AuthFailure(:final message):
+            case AuthFailureState(:final message):
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(message),

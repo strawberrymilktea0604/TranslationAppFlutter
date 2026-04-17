@@ -44,7 +44,7 @@ class _LoginPageState extends State<LoginPage> {
           switch (state) {
             case AuthAuthenticated():
               context.go(AppRoutes.home);
-            case AuthFailure(:final message):
+            case AuthFailureState(:final message):
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(message),

@@ -89,7 +89,7 @@ class AppTheme {
     navigationBarTheme: NavigationBarThemeData(
       height: 72,
       backgroundColor: Colors.white,
-      indicatorColor: primaryColor.withOpacity(0.2),
+      indicatorColor: primaryColor.withValues(alpha: 0.2),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
@@ -164,7 +164,7 @@ class AppTheme {
     navigationBarTheme: NavigationBarThemeData(
       height: 72,
       backgroundColor: const Color(0xFF1E1E1E),
-      indicatorColor: primaryColor.withOpacity(0.3),
+      indicatorColor: primaryColor.withValues(alpha: 0.3),
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {

@@ -1,4 +1,20 @@
 import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
+
+import 'package:frontend/core/network/network_info.dart';
+import 'package:frontend/core/storage/secure_storage_service.dart';
+import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
+import 'package:frontend/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:frontend/features/auth/domain/repositories/auth_repository.dart';
+import 'package:frontend/features/auth/domain/usecases/get_current_user_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/logout_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/register_usecase.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
+
+import 'main.dart' show config;
 
 /// Global service locator instance for Dependency Injection.
 /// Use get_it to register and resolve dependencies.
@@ -15,56 +31,66 @@ final sl = GetIt.instance;
 /// Must be called before runApp() in main.dart.
 Future<void> initDependencies() async {
   // ==============================
-  //  Core
+  //  Core — External Services
   // ==============================
-  // TODO: Register NetworkInfo, HttpClient, Isar, SecureStorage
-  // sl.registerLazySingleton<NetworkInfo>(() => NetworkInfoImpl(...));
+
+  // HTTP client for REST API calls.
+  sl.registerLazySingleton<http.Client>(() => http.Client());
+
+  // Network connectivity checker — verifies real internet access.
+  sl.registerLazySingleton<NetworkInfo>(
+    () => NetworkInfoImpl(InternetConnection()),
+  );
+
+  // Secure storage — encrypted Keychain (iOS) /
+  // EncryptedSharedPreferences (Android).
+  // JWT tokens MUST be stored here, NEVER in SharedPreferences.
+  sl.registerLazySingleton<SecureStorageService>(
+    () => SecureStorageService(),
+  );
 
   // ==============================
   //  Feature: Auth
   // ==============================
+
   // DataSources
-  // sl.registerLazySingleton<AuthRemoteDataSource>(
-  //   () => AuthRemoteDataSourceImpl(client: sl()),
-  // );
-  // sl.registerLazySingleton<AuthLocalDataSource>(
-  //   () => AuthLocalDataSourceImpl(secureStorage: sl()),
-  // );
+  sl.registerLazySingleton<AuthLocalDataSource>(
+    () => AuthLocalDataSourceImpl(secureStorage: sl()),
+  );
+  sl.registerLazySingleton<AuthRemoteDataSource>(
+    () => AuthRemoteDataSourceImpl(
+      client: sl(),
+      baseUrl: config.apiUrl,
+    ),
+  );
 
-  // Repository
-  // sl.registerLazySingleton<AuthRepository>(
-  //   () => AuthRepositoryImpl(
-  //     remoteDataSource: sl(),
-  //     localDataSource: sl(),
-  //     networkInfo: sl(),
-  //   ),
-  // );
+  // Repository — binds implementation to abstract interface.
+  sl.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(
+      remoteDataSource: sl(),
+      localDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
 
-  // UseCases
-  // sl.registerLazySingleton(() => LoginUseCase(sl()));
-  // sl.registerLazySingleton(() => RegisterUseCase(sl()));
+  // UseCases — one use case = one business action.
+  sl.registerLazySingleton(() => LoginUseCase(sl()));
+  sl.registerLazySingleton(() => RegisterUseCase(sl()));
+  sl.registerLazySingleton(() => LogoutUseCase(sl()));
+  sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
 
-  // Cubits
-  // sl.registerFactory(() => AuthCubit(
-  //   loginUseCase: sl(),
-  //   registerUseCase: sl(),
-  // ));
+  // Cubits — registered as factory (new instance per provider).
+  sl.registerFactory(() => AuthCubit(
+        loginUseCase: sl(),
+        registerUseCase: sl(),
+        logoutUseCase: sl(),
+        getCurrentUserUseCase: sl(),
+      ));
 
   // ==============================
   //  Feature: Translation
   // ==============================
-  // DataSources
-  // sl.registerLazySingleton<TranslationRemoteDataSource>(...);
-  // sl.registerLazySingleton<TranslationLocalDataSource>(...);
-
-  // Repository
-  // sl.registerLazySingleton<TranslationRepository>(...);
-
-  // UseCases
-  // sl.registerLazySingleton(() => TranslateTextUseCase(sl()));
-
-  // Cubits
-  // sl.registerFactory(() => TranslationCubit(sl()));
+  // TODO: Register DataSources, Repository, UseCases, Cubits
 
   // ==============================
   //  Feature: Vocabulary
