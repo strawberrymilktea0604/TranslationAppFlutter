@@ -28,6 +28,10 @@ dist/
 build/
 .venv/
 venv/
+env/
+ENV/
+backend/venv/
+backend/env/
 
 # IDE 
 .vscode/

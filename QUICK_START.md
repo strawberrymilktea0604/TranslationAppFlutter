@@ -15,26 +15,69 @@ Your backend now has a **secure token refresh and logout system** with:
 
 ---
 
-## ⚡ 1-Minute Setup
+## ⚡ Setup Guide
 
-### Step 1: Run the migration
+This project supports 3 different development environments. Please copy the `.env.example` file to `.env` and choose the setup scenario that fits your needs:
+
+```bash
+cp .env.example .env
+```
+
+### Scenario 1: All-in-Docker
+*Recommended for beginners for the quickest setup and testing.*
+In your `.env` file, ensure you use: a `DATABASE_URL` containing `@db:5432` and a `REDIS_URL` containing `redis:6379`.
+
+**Step 1: Start the entire system**
+```bash
+docker-compose up -d
+```
+**Step 2: Run Migration to create Database tables**
+```bash
+docker-compose exec backend alembic upgrade head
+```
+
+---
+
+### Scenario 2: Hybrid (Backend on Host PC + DB & Redis in Docker)
+*Recommended for Development: Running the backend on the host machine makes debugging and hot-reloading easier without affecting your local PC's database.*
+In your `.env` file, ensure you use: a `DATABASE_URL` containing `@localhost:5433` (to avoid port conflicts) and a `REDIS_URL` containing `localhost:6379`.
+
+**Step 1: Start only the Database and Redis using Docker**
+```bash
+docker-compose up -d db redis
+```
+**Step 2: Create a virtual environment and install Backend dependencies**
 ```bash
 cd backend
-alembic upgrade head
-```
-
-### Step 2: Install dependencies
-```bash
+python -m venv venv
+# Windows: .\venv\Scripts\activate | Mac/Linux: source venv/bin/activate
 pip install -r requirements.txt
 ```
+**Step 3: Run Migration and start the Backend**
+```bash
+alembic upgrade head
+uvicorn app.main:app --reload
+```
 
-### Step 3: Start Redis (if using Docker)
+---
+
+### Scenario 3: Custom (Backend & DB on Host PC + Redis in Docker)
+*For cases where you already have PostgreSQL installed natively on your machine and want to use it.*
+In your `.env` file, ensure you use: a `DATABASE_URL` containing `@localhost:5432` and a `REDIS_URL` containing `localhost:6379`. Make sure you have already created a database named `translation_app` in pgAdmin.
+
+**Step 1: Start only Redis using Docker**
 ```bash
 docker-compose up -d redis
 ```
-
-### Step 4: Restart backend
+**Step 2: Activate the virtual environment and install dependencies (If not done yet)**
 ```bash
+cd backend
+# Windows: .\venv\Scripts\activate | Mac/Linux: source venv/bin/activate
+pip install -r requirements.txt
+```
+**Step 3: Run Migration and start the Backend**
+```bash
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
