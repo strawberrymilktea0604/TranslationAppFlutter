@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 import 'package:frontend/core/network/network_info.dart';
+import 'package:frontend/core/network/bloc/network_cubit.dart';
 import 'package:frontend/core/storage/secure_storage_service.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:frontend/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -40,6 +41,11 @@ Future<void> initDependencies() async {
   // Network connectivity checker — verifies real internet access.
   sl.registerLazySingleton<NetworkInfo>(
     () => NetworkInfoImpl(InternetConnection()),
+  );
+
+  // Global network connectivity state
+  sl.registerLazySingleton<NetworkCubit>(
+    () => NetworkCubit(networkInfo: sl()),
   );
 
   // Secure storage — encrypted Keychain (iOS) /

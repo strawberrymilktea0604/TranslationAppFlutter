@@ -7,6 +7,7 @@ import 'package:frontend/core/database/isar_database.dart';
 import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
+import 'package:frontend/core/network/bloc/network_cubit.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 
@@ -54,6 +55,9 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider<AuthCubit>(
           create: (_) => sl<AuthCubit>()..checkAuthStatus(),
+        ),
+        BlocProvider<NetworkCubit>(
+          create: (_) => sl<NetworkCubit>(),
         ),
       ],
       child: const _AppWithRouter(),
