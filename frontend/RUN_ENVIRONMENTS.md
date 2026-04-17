@@ -13,19 +13,19 @@ Dưới đây là các lệnh cần thiết để chạy và build cho từng m�
 ### 🐛 Development (Dev)
 *Sử dụng trong khi phát triển, gọi đến server dev hoặc mock APIs, hiển thị đầy đủ log.*
 ```bash
-flutter run -t lib/main_dev.dart
+flutter run --flavor dev -t lib/main_dev.dart
 ```
 
 ### 🧪 Staging (Stage)
 *Môi trường dùng cho QA/Tester hoặc khách hàng trải nghiệm trước khi phát hành (có cùng tính chất với Prod).*
 ```bash
-flutter run -t lib/main_staging.dart
+flutter run --flavor staging -t lib/main_staging.dart
 ```
 
 ### 🚀 Production (Prod)
 *Môi trường thực tế, trỏ tới server thật được sử dụng bởi end-users. (Log debug thường bị tắt ở môi trường này).*
 ```bash
-flutter run -t lib/main_prod.dart
+flutter run --flavor prod -t lib/main_prod.dart
 ```
 
 ---
@@ -39,27 +39,27 @@ Khi cần xuất file ứng dụng (.apk, .ipa) để cài trực tiếp hoặc 
 **Build APK (thường dùng để test cài thủ công và chia sẻ file):**
 - Dev:
   ```bash
-  flutter build apk -t lib/main_dev.dart --debug
+  flutter build apk --flavor dev -t lib/main_dev.dart --debug
   ```
 - Staging:
   ```bash
-  flutter build apk -t lib/main_staging.dart --release
+  flutter build apk --flavor staging -t lib/main_staging.dart --release
   ```
 - Prod (Release):
   ```bash
-  flutter build apk -t lib/main_prod.dart --release
+  flutter build apk --flavor prod -t lib/main_prod.dart --release
   ```
 
 **Build AppBundle (AAB) (Dùng để upload lên Google Play Store):**
 ```bash
-flutter build appbundle -t lib/main_prod.dart --release
+flutter build appbundle --flavor prod -t lib/main_prod.dart --release
 ```
 
 ### 🍎 Build cho nền tảng iOS (Cần chạy trên MacOS)
 
 **Build IPA gốc (Đẩy lên TestFlight hoặc App Store):**
 ```bash
-flutter build ipa -t lib/main_prod.dart --release
+flutter build ipa --flavor prod -t lib/main_prod.dart --release
 ```
 
 ---
@@ -78,19 +78,22 @@ Cách làm: Tạo hoặc chỉnh sửa file ở đường dẫn `.vscode/launch.
             "name": "⭐ Flutter: Run Dev",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main_dev.dart"
+            "program": "lib/main_dev.dart",
+            "args": ["--flavor", "dev"]
         },
         {
             "name": "🧪 Flutter: Run Staging",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main_staging.dart"
+            "program": "lib/main_staging.dart",
+            "args": ["--flavor", "staging"]
         },
         {
             "name": "🚀 Flutter: Run Prod",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main_prod.dart"
+            "program": "lib/main_prod.dart",
+            "args": ["--flavor", "prod"]
         }
     ]
 }

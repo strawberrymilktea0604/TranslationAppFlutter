@@ -497,10 +497,10 @@ packages:
     dependency: "direct main"
     description:
       name: internet_connection_checker_plus
-      sha256: ef43530f24de6309f99802358f8a543ea1f2babc153effc84a75133751716892
+      sha256: "7daf4458c62923f4c7f3b54b1b3191bc3d8813e69a45722ef0ff5fc3ef2ef686"
       url: "https://pub.dev"
     source: hosted
-    version: "2.9.1+2"
+    version: "2.2.0"
   intl:
     dependency: "direct main"
     description:
