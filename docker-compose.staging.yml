@@ -1,15 +1,16 @@
+version: "3.9"
 
 services:
   db:
     image: postgres:15
     ports:
-      - "5433:5432"
+      - "5434:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: translation_app
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_staging_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -35,13 +36,11 @@ services:
       - db
       - redis
     ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
+      - "8001:8000"
     env_file:
-      - ./backend/.env
+      - ./backend/.env.staging.local
     environment:
-      - ENVIRONMENT=development
+      - ENVIRONMENT=staging
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health'); print('ok')"]
@@ -50,4 +49,4 @@ services:
       retries: 3
 
 volumes:
-  db_data:
+  db_staging_data:
