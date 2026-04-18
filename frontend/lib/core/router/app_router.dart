@@ -98,9 +98,14 @@ GoRouter createRouter(BuildContext context) {
       GoRoute(
         path: AppRoutes.passwordSetup,
         name: 'password_setup',
-        builder: (context, state) => PasswordSetupPage(
-          email: state.extra as String? ?? '',
-        ),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, String>? ?? {};
+          return PasswordSetupPage(
+            email: extra['email'] ?? '',
+            firstName: extra['firstName'] ?? '',
+            lastName: extra['lastName'] ?? '',
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.success,

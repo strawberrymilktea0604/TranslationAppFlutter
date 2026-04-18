@@ -9,9 +9,13 @@ import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 /// This is part of the signup flow after the user enters their email address.
 class PasswordSetupPage extends StatefulWidget {
   final String email;
+  final String firstName;
+  final String lastName;
 
   const PasswordSetupPage({
     required this.email,
+    required this.firstName,
+    required this.lastName,
     super.key,
   });
 
@@ -31,6 +35,32 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required';
+    }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Password must contain at least one number';
+    }
+    if (!value.contains(RegExp(r'[a-zA-Z]'))) {
+      return 'Password must contain at least one letter';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm password';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
   }
 
   @override
@@ -104,8 +134,12 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Password field
-                  TextFormField(
+                  Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        // Password field
+                        TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     enabled: !isLoading,
@@ -151,16 +185,13 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
                         horizontal: 16,
                         vertical: 16,
                       ),
+                      helperText: 'Min 8 chars, 1 letter & 1 number',
+                      helperStyle: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
-                      }
-                      return null;
-                    },
+                    validator: _validatePassword,
                   ),
                   const SizedBox(height: 20),
 
@@ -213,15 +244,10 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
                         vertical: 16,
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please confirm password';
-                      }
-                      if (value != _passwordController.text) {
-                        return 'Passwords do not match';
-                      }
-                      return null;
-                    },
+                    validator: _validateConfirmPassword,
+                  ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 32),
 
@@ -310,10 +336,11 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
 
   void _onSignUpPressed() {
     if (_formKey.currentState?.validate() ?? false) {
-      // TODO: Implement actual signup with password
-      // For now, just show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign up successful!')),
+      // Call register usecase with first/last name and email from previous step
+      context.read<AuthCubit>().register(
+        email: widget.email,
+        password: _passwordController.text,
+        name: '', // Note: Backend will need to be updated to support first_name and last_name
       );
     }
   }

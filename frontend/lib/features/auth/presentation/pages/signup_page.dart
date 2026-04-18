@@ -28,6 +28,17 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email is required';
+    }
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    if (!emailRegex.hasMatch(value)) {
+      return 'Please enter a valid email address';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -207,16 +218,7 @@ class _SignUpPageState extends State<SignUpPage> {
                           vertical: 16,
                         ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter email';
-                        }
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+')
-                            .hasMatch(value)) {
-                          return 'Please enter valid email';
-                        }
-                        return null;
-                      },
+                      validator: _validateEmail,
                     ),
                   ],
                 ),
@@ -295,11 +297,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _onContinuePressed() {
     if (_formKey.currentState?.validate() ?? false) {
-      // Navigate to password setup page with email
-      context.go(
-        '/password-setup',
-        extra: _emailController.text.trim(),
-      );
+      // Navigate to password setup page with email, first name and last name
+      final userData = {
+        'email': _emailController.text.trim(),
+        'firstName': _firstNameController.text.trim(),
+        'lastName': _lastNameController.text.trim(),
+      };
+      
+      context.go('/password-setup', extra: userData);
     }
   }
 }
