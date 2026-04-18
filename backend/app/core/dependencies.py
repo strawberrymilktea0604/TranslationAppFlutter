@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -8,18 +8,69 @@ from sqlalchemy.future import select
 from app.core.database import get_db
 from app.core import security
 from app.core.redis_client import is_token_revoked
-from app.models.user import User, UserToken
+from app.models.user import User
 
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 
-# Đường dẫn chuẩn để Swagger UI gọi nút Authorize
+# For standard authentication required
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+# For optional authentication (Guest allowed)
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+async def _verify_token_and_get_user(db: AsyncSession, token: str) -> Optional[User]:
+    try:
+        # 1. Decode token
+        payload = security.verify_token(token)
+        user_id_str = payload.get("sub")
+        jti = payload.get("jti")
+        
+        if user_id_str is None:
+            return None
+            
+        # 2. Check if token is revoked
+        if jti and await is_token_revoked(jti):
+            return None
+            
+        # Ensure user_id format is correct
+        try:
+            user_id = int(user_id_str)
+        except ValueError:
+            return None
+            
+    except Exception:
+        return None
+    
+    # 3. Retrieve user
+    result = await db.execute(select(User).filter(User.id == user_id))
+    user = result.scalars().first()
+    
+    # 4. Check user status
+    if user is None or str(user.status) == "locked" or user.is_deleted is True:
+        return None
+        
+    return user
+
+
+async def get_current_user_optional(
+    db: DBSession, token: Annotated[Optional[str], Depends(oauth2_scheme_optional)]
+) -> Optional[User]:
+    """
+    Dependency for endpoints that allow Guest access but can identify Users.
+    Guest will receive None. Authenticated users will receive their User object.
+    """
+    if not token:
+        return None
+    return await _verify_token_and_get_user(db, token)
+
 
 async def get_current_user(
     db: DBSession, token: Annotated[str, Depends(oauth2_scheme)]
 ) -> User:
+    """Dependency for endpoints that require at least User role."""
+    # Catch token parse exceptions or revoked status through _verify_token_and_get_user
+    # but we need to strictly raise HTTP 401/403 for existing clients
     try:
-        # 1. Giải mã token
         payload = security.verify_token(token)
         user_id_str = payload.get("sub")
         jti = payload.get("jti")
@@ -31,7 +82,6 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
-        # 2. Check if token is revoked (blacklist check - fast path)
         if jti and await is_token_revoked(jti):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -39,7 +89,6 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
             
-        # Kiểm tra an toàn phòng trường hợp token bị sai format
         try:
             user_id = int(user_id_str)
         except ValueError:
@@ -57,23 +106,20 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 3. Lấy thông tin User từ Database
     result = await db.execute(select(User).filter(User.id == user_id))
     user = result.scalars().first()
     
-    # 4. Kiểm tra các điều kiện của User
-    if user is None:
+    if user is None or user.is_deleted is True:
         raise HTTPException(status_code=404, detail="User not found")
         
     if str(user.status) == "locked":
         raise HTTPException(status_code=403, detail="Account locked")
         
-    # Trả về TOÀN BỘ object User thay vì chỉ trả về mỗi cái ID
     return user
 
 
 async def get_admin_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
-    """Dependency dành riêng cho các API yêu cầu quyền Admin"""
+    """Dependency specifically for API endpoints requiring Admin permissions."""
     if str(current_user.role) != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
