@@ -1,5 +1,6 @@
 .agent/flutter
 .agents/skills
+mockup
 
 # Environment Variables
 .env
