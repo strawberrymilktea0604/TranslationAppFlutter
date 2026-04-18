@@ -1,35 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 
-/// Login page — entry point for authenticated users.
+/// Password setup page — allows users to create a password after entering their email.
 ///
-/// Uses [BlocConsumer] to:
-/// - Rebuild the UI based on [AuthState] (BlocBuilder part).
-/// - Navigate to home on [AuthAuthenticated] (BlocListener part).
-/// - Show error snackbar on [AuthFailure].
-///
-/// Reference: copilot-instructions §3.1, §3.2
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+/// This is part of the signup flow after the user enters their email address.
+class PasswordSetupPage extends StatefulWidget {
+  final String email;
+
+  const PasswordSetupPage({
+    required this.email,
+    super.key,
+  });
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<PasswordSetupPage> createState() => _PasswordSetupPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _PasswordSetupPageState extends State<PasswordSetupPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -39,20 +39,13 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
-          switch (state) {
-            case AuthAuthenticated():
-              context.go(AppRoutes.home);
-            case AuthFailureState(:final message):
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(message),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            case AuthInitial():
-            case AuthInProgress():
-            case AuthUnauthenticated():
-              break;
+          if (state is AuthFailureState) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         },
         builder: (context, state) {
@@ -87,57 +80,27 @@ class _LoginPageState extends State<LoginPage> {
 
                   // Subtitle
                   const Text(
-                    'Welcome Back!',
+                    'Welcome! Let\'s break the language barrier together',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF2563EB),
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
 
-                  // Email field
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    enabled: !isLoading,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      labelStyle: const TextStyle(
+                  // "Choose a password" heading
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Choose a password',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         color: Color(0xFF2563EB),
-                        fontSize: 14,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF2563EB),
-                          width: 2,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter email';
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 20),
 
@@ -193,17 +156,81 @@ class _LoginPageState extends State<LoginPage> {
                       if (value == null || value.trim().isEmpty) {
                         return 'Please enter password';
                       }
+                      if (value.length < 6) {
+                        return 'Password must be at least 6 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Confirm Password field
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    enabled: !isLoading,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      labelStyle: const TextStyle(
+                        color: Color(0xFF2563EB),
+                        fontSize: 14,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: const Color(0xFF2563EB),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword =
+                                !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2563EB),
+                          width: 2,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please confirm password';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 32),
 
-                  // Sign In button
+                  // Sign Up button
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: isLoading ? null : _onLoginPressed,
+                      onPressed: isLoading ? null : _onSignUpPressed,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF2563EB),
                         shape: RoundedRectangleBorder(
@@ -223,7 +250,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             )
                           : const Text(
-                              'Sign In',
+                              'Sign Up',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -234,21 +261,21 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Don't have account? Sign Up
+                  // Already you member? Login
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
-                        "Don't have account? ",
+                        'Already you member? ',
                         style: TextStyle(
                           color: Colors.grey,
                           fontSize: 14,
                         ),
                       ),
                       GestureDetector(
-                        onTap: isLoading ? null : () => context.go('/signup'),
+                        onTap: isLoading ? null : () => context.go('/login'),
                         child: const Text(
-                          'Sign Up',
+                          'Login',
                           style: TextStyle(
                             color: Color(0xFF2563EB),
                             fontSize: 14,
@@ -260,11 +287,11 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Try as Guest
+                  // Or Browse as Guest
                   GestureDetector(
-                    onTap: isLoading ? null : () => context.go(AppRoutes.home),
+                    onTap: isLoading ? null : () => context.go('/home'),
                     child: const Text(
-                      'Try as Guest',
+                      'Or Browse as Guest',
                       style: TextStyle(
                         color: Color(0xFF2563EB),
                         fontSize: 14,
@@ -281,12 +308,13 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _onLoginPressed() {
+  void _onSignUpPressed() {
     if (_formKey.currentState?.validate() ?? false) {
-      context.read<AuthCubit>().login(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+      // TODO: Implement actual signup with password
+      // For now, just show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign up successful!')),
+      );
     }
   }
 }

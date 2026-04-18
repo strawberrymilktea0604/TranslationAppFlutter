@@ -5,7 +5,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
+import 'package:frontend/features/auth/presentation/pages/splash_page.dart';
+import 'package:frontend/features/auth/presentation/pages/welcome_page.dart';
 import 'package:frontend/features/auth/presentation/pages/login_page.dart';
+import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
+import 'package:frontend/features/auth/presentation/pages/password_setup_page.dart';
+import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
 import 'package:frontend/features/home/presentation/pages/home_page.dart';
 
@@ -13,7 +18,12 @@ import 'package:frontend/features/home/presentation/pages/home_page.dart';
 class AppRoutes {
   AppRoutes._();
 
+  static const String splash = '/splash';
+  static const String welcome = '/welcome';
   static const String login = '/login';
+  static const String signup = '/signup';
+  static const String passwordSetup = '/password-setup';
+  static const String success = '/success';
   static const String register = '/register';
   static const String home = '/';
 }
@@ -26,7 +36,7 @@ class AppRoutes {
 /// When authenticated, accessing auth pages redirects to home.
 GoRouter createRouter(BuildContext context) {
   return GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
 
     /// Redirect logic based on authentication state.
@@ -36,7 +46,11 @@ GoRouter createRouter(BuildContext context) {
       final isAuthenticated = authState is AuthAuthenticated;
 
       final isOnAuthPage = state.matchedLocation == AppRoutes.login ||
-          state.matchedLocation == AppRoutes.register;
+          state.matchedLocation == AppRoutes.register ||
+          state.matchedLocation == AppRoutes.signup ||
+          state.matchedLocation == AppRoutes.passwordSetup ||
+          state.matchedLocation == AppRoutes.welcome ||
+          state.matchedLocation == AppRoutes.success;
 
       // If not authenticated and not on an auth page, redirect to login.
       if (!isAuthenticated && !isOnAuthPage) {
@@ -57,6 +71,16 @@ GoRouter createRouter(BuildContext context) {
 
     routes: <RouteBase>[
       GoRoute(
+        path: AppRoutes.splash,
+        name: 'splash',
+        builder: (context, state) => const SplashPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.welcome,
+        name: 'welcome',
+        builder: (context, state) => const WelcomePage(),
+      ),
+      GoRoute(
         path: AppRoutes.home,
         name: 'home',
         builder: (context, state) => const HomePage(),
@@ -65,6 +89,23 @@ GoRouter createRouter(BuildContext context) {
         path: AppRoutes.login,
         name: 'login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.signup,
+        name: 'signup',
+        builder: (context, state) => const SignUpPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.passwordSetup,
+        name: 'password_setup',
+        builder: (context, state) => PasswordSetupPage(
+          email: state.extra as String? ?? '',
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.success,
+        name: 'success',
+        builder: (context, state) => const SuccessPage(),
       ),
       GoRoute(
         path: AppRoutes.register,
