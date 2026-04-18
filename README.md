@@ -56,3 +56,21 @@ uvicorn app.main:app --reload
 ```text
 GET http://127.0.0.1:8000/api/v1/health
 ```
+
+### Staging environment
+
+To run the backend in a local staging-like environment:
+
+1. Copy `backend/.env.staging.example` to `backend/.env.staging.local`.
+2. Update `SECRET_KEY`, `DATABASE_URL`, and `REDIS_URL` as needed.
+3. Start staging services:
+
+```powershell
+docker-compose -f docker-compose.staging.yml up -d
+```
+
+4. Check staging health:
+
+```text
+GET http://127.0.0.1:8001/api/v1/health
+```
