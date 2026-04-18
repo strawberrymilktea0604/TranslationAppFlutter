@@ -42,10 +42,19 @@ class Settings(BaseSettings):
     TRANSLATION_SERVICE_TIMEOUT: int = 10  # seconds
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = 3600  # 1 hour
-    
+
+    # CORS configuration
+    BACKEND_CORS_ORIGINS: list[str] = Field(
+        default_factory=lambda: ["*"],
+        description="Allowed CORS origins. Use comma-separated values in env."
+    )
+    BACKEND_CORS_ALLOW_CREDENTIALS: bool = True
+    BACKEND_CORS_ALLOW_METHODS: list[str] = Field(default_factory=lambda: ["*"])
+    BACKEND_CORS_ALLOW_HEADERS: list[str] = Field(default_factory=lambda: ["*"])
+
     # External APIs (Optional)
     GOOGLE_CLOUD_API_KEY: Optional[str] = None
-    
+
     # Pydantic V2 configuration
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -63,6 +72,13 @@ class Settings(BaseSettings):
             raise ValueError("SECRET_KEY must be at least 32 characters")
         if v == "your-secret-key-here":
             raise ValueError("SECRET_KEY không được là placeholder!")
+        return v
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def split_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
     
     @field_validator("ENVIRONMENT")
