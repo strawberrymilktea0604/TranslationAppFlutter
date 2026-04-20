@@ -134,7 +134,7 @@ GoRouter createRouter(BuildContext context) {
         path: AppRoutes.passwordSetup,
         name: 'password_setup',
         pageBuilder: (context, state) {
-          final extra = state.extra as Map<String, String>? ?? {};
+          final extra = Map<String, String>.from(state.extra as Map? ?? {});
           return CustomTransitionPage(
             key: state.pageKey,
             child: PasswordSetupPage(
