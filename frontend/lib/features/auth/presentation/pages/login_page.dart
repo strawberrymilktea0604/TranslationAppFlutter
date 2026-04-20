@@ -70,9 +70,25 @@ class _LoginPageState extends State<LoginPage> {
         builder: (context, state) {
           final isLoading = state is AuthInProgress;
 
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          return Stack(
+            children: [
+              // Background Image anchored to the bottom
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Opacity(
+                  opacity: 0.45,
+                  child: Image.asset(
+                    'images/Symbols1.png',
+                    fit: BoxFit.fitWidth,
+                  ),
+                ),
+              ),
+              
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -81,18 +97,17 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 40),
                     // Logo
                     Image.asset(
-                      'mockup/logo.png',
+                      'images/logo.png',
                       width: 80,
                       height: 80,
                     ),
                     const SizedBox(height: 32),
-
                     // Title
                     const Text(
                       'Translation App',
                       style: TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w900,
                         color: Color(0xFF2563EB),
                       ),
                       textAlign: TextAlign.center,
@@ -103,8 +118,8 @@ class _LoginPageState extends State<LoginPage> {
                     const Text(
                       'Welcome Back!',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                         color: Color(0xFF2563EB),
                       ),
                       textAlign: TextAlign.center,
@@ -285,6 +300,8 @@ class _LoginPageState extends State<LoginPage> {
               ),
               ),
             ),
+            ),
+            ],
           );
         },
       ),

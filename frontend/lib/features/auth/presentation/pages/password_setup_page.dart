@@ -81,9 +81,25 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
         builder: (context, state) {
           final isLoading = state is AuthInProgress;
 
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          return Stack(
+            children: [
+              // Background Image anchored to the bottom
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Opacity(
+                  opacity: 0.45,
+                  child: Image.asset(
+                    'images/Symbols1.png',
+                    fit: BoxFit.fitWidth,
+                  ),
+                ),
+              ),
+              
+              SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -101,7 +117,7 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
                     'Translation App',
                     style: TextStyle(
                       fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                       color: Color(0xFF2563EB),
                     ),
                     textAlign: TextAlign.center,
@@ -113,7 +129,7 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
                     'Welcome! Let\'s break the language barrier together',
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                       color: Color(0xFF2563EB),
                     ),
                     textAlign: TextAlign.center,
@@ -122,12 +138,12 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
 
                   // "Choose a password" heading
                   const Align(
-                    alignment: Alignment.centerLeft,
+                    alignment: Alignment.center,
                     child: Text(
                       'Choose a password',
                       style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                         color: Color(0xFF2563EB),
                       ),
                     ),
@@ -289,7 +305,7 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
 
                   // Already you member? Login
                   Row(
-                    mainAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
                         'Already you member? ',
@@ -328,6 +344,8 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
                 ],
               ),
             ),
+            ),
+            ],
           );
         },
       ),

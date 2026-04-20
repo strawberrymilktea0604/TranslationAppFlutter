@@ -45,6 +45,11 @@ GoRouter createRouter(BuildContext context) {
       final authState = context.read<AuthCubit>().state;
       final isAuthenticated = authState is AuthAuthenticated;
 
+      // The splash screen handles its own routing after the animation completes
+      if (state.matchedLocation == AppRoutes.splash) {
+        return null;
+      }
+
       final isOnAuthPage = state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register ||
           state.matchedLocation == AppRoutes.signup ||
@@ -78,7 +83,16 @@ GoRouter createRouter(BuildContext context) {
       GoRoute(
         path: AppRoutes.welcome,
         name: 'welcome',
-        builder: (context, state) => const WelcomePage(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const WelcomePage(),
+          transitionDuration: const Duration(milliseconds: 600),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+          },
+        ),
       ),
       GoRoute(
         path: AppRoutes.home,
@@ -88,29 +102,65 @@ GoRouter createRouter(BuildContext context) {
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        builder: (context, state) => const LoginPage(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const LoginPage(),
+          transitionDuration: const Duration(milliseconds: 600),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+          },
+        ),
       ),
       GoRoute(
         path: AppRoutes.signup,
         name: 'signup',
-        builder: (context, state) => const SignUpPage(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const SignUpPage(),
+          transitionDuration: const Duration(milliseconds: 600),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+          },
+        ),
       ),
       GoRoute(
         path: AppRoutes.passwordSetup,
         name: 'password_setup',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra as Map<String, String>? ?? {};
-          return PasswordSetupPage(
-            email: extra['email'] ?? '',
-            firstName: extra['firstName'] ?? '',
-            lastName: extra['lastName'] ?? '',
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: PasswordSetupPage(
+              email: extra['email'] ?? '',
+              firstName: extra['firstName'] ?? '',
+              lastName: extra['lastName'] ?? '',
+            ),
+            transitionDuration: const Duration(milliseconds: 600),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+              final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+              return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+            },
           );
         },
       ),
       GoRoute(
         path: AppRoutes.success,
         name: 'success',
-        builder: (context, state) => const SuccessPage(),
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const SuccessPage(),
+          transitionDuration: const Duration(milliseconds: 600),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+          },
+        ),
       ),
       GoRoute(
         path: AppRoutes.register,

@@ -43,9 +43,25 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      body: Stack(
+        children: [
+          // Background Image anchored to the bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Opacity(
+              opacity: 0.45,
+              child: Image.asset(
+                'images/Symbols1.png',
+                fit: BoxFit.fitWidth,
+              ),
+            ),
+          ),
+          
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -63,7 +79,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 'Translation App',
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w900,
                   color: Color(0xFF2563EB),
                 ),
                 textAlign: TextAlign.center,
@@ -75,21 +91,21 @@ class _SignUpPageState extends State<SignUpPage> {
                 'Welcome! Let\'s break the language barrier together',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: Color(0xFF2563EB),
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
 
-              // "Create a account" heading
+              // "Create an account" heading
               const Align(
-                alignment: Alignment.centerLeft,
+                alignment: Alignment.center,
                 child: Text(
-                  'Create a account',
+                  'Create an account',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
                     color: Color(0xFF2563EB),
                   ),
                 ),
@@ -291,6 +307,8 @@ class _SignUpPageState extends State<SignUpPage> {
             ],
           ),
         ),
+      ),
+      ],
       ),
     );
   }
