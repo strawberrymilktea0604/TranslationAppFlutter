@@ -6,9 +6,13 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 class UserBase(BaseModel):
     email: EmailStr
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 class UserCreate(UserBase):
+    first_name: str
+    last_name: str
     password: str = Field(min_length=8, max_length=72)
 
     @field_validator("password")
@@ -63,4 +67,12 @@ class LogoutRequest(BaseModel):
 class LogoutResponse(BaseModel):
     """Response from logout endpoint"""
     detail: str = "Successfully logged out"
+
+
+class EmailCheckRequest(BaseModel):
+    email: EmailStr
+
+class EmailCheckResponse(BaseModel):
+    is_available: bool
+
 

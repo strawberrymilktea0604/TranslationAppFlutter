@@ -16,7 +16,8 @@ class RegisterUseCase extends UseCase<UserEntity, RegisterParams> {
     return await repository.register(
       email: params.email,
       password: params.password,
-      name: params.name,
+      firstName: params.firstName,
+      lastName: params.lastName,
     );
   }
 }
@@ -25,14 +26,16 @@ class RegisterUseCase extends UseCase<UserEntity, RegisterParams> {
 class RegisterParams extends Equatable {
   final String email;
   final String password;
-  final String name;
+  final String firstName;
+  final String lastName;
 
   const RegisterParams({
     required this.email,
     required this.password,
-    required this.name,
+    required this.firstName,
+    required this.lastName,
   });
 
   @override
-  List<Object?> get props => [email, password, name];
+  List<Object?> get props => [email, password, firstName, lastName];
 }

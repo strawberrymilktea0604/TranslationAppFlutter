@@ -358,7 +358,8 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
       context.read<AuthCubit>().register(
         email: widget.email,
         password: _passwordController.text,
-        name: '', // Note: Backend will need to be updated to support first_name and last_name
+        firstName: widget.firstName,
+        lastName: widget.lastName,
       );
     }
   }

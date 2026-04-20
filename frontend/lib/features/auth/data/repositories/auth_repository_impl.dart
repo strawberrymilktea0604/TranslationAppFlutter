@@ -87,10 +87,26 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, bool>> checkEmail(String email) async {
+    if (!await _networkInfo.isConnected) {
+      return const Left(NetworkFailure('No internet connection'));
+    }
+    try {
+      final isAvailable = await _remoteDataSource.checkEmail(email: email);
+      return Right(isAvailable);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, UserEntity>> register({
     required String email,
     required String password,
-    required String name,
+    required String firstName,
+    required String lastName,
   }) async {
     if (!await _networkInfo.isConnected) {
       return const Left(
@@ -100,10 +116,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
     try {
       // 1. Call BE register API.
-      // Note: Backend UserCreate schema does not have a `name` field.
-      // The name is stored locally for client-side display.
       final tokenModel = await _remoteDataSource.register(
         email: email,
+        firstName: firstName,
+        lastName: lastName,
         password: password,
       );
 
@@ -125,14 +141,14 @@ class AuthRepositoryImpl implements AuthRepository {
       await _localDataSource.saveUserData(
         userId: userId,
         email: email,
-        name: name,
+        name: '$firstName $lastName'.trim(),
       );
 
       // 5. Return UserEntity to the domain layer.
       return Right(UserEntity(
         id: userId,
         email: email,
-        name: name,
+        name: '$firstName $lastName'.trim(),
         createdAt: DateTime.now(),
       ));
     } on AuthException catch (e) {

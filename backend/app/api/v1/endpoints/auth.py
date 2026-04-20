@@ -53,6 +53,21 @@ async def login(
     return token_response
 
 
+@router.post("/check-email", response_model=schemas.EmailCheckResponse)
+async def check_email(
+    db: DBSession,
+    request: schemas.EmailCheckRequest,
+):
+    """
+    Check if an email is already registered.
+    Returns is_available = True if email is NOT registered.
+    """
+    result = await db.execute(select(User).filter(User.email == request.email))
+    existing_user = result.scalars().first()
+    
+    return {"is_available": existing_user is None}
+
+
 @router.post("/register", response_model=schemas.Token)
 async def register(
     db: DBSession,
@@ -77,6 +92,8 @@ async def register(
     hashed_password = security.hash_password(user_in.password)
     new_user = User(
         email=user_in.email,
+        first_name=user_in.first_name,
+        last_name=user_in.last_name,
         password_hash=hashed_password,
         role="user",
         status="active"

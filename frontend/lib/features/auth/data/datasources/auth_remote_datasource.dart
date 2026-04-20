@@ -20,12 +20,20 @@ abstract class AuthRemoteDataSource {
     required String password,
   });
 
+  /// Calls `POST /api/v1/auth/check-email`.
+  ///
+  /// Returns true if email is available, false if already registered.
+  Future<bool> checkEmail({
+    required String email,
+  });
+
   /// Calls `POST /api/v1/auth/register`.
   ///
-  /// Backend expects JSON body with `email` and `password`.
-  /// Note: Backend does not support a `name` field in UserCreate.
+  /// Backend expects JSON body with `email`, `first_name`, `last_name`, and `password`.
   Future<AuthTokenModel> register({
     required String email,
+    required String firstName,
+    required String lastName,
     required String password,
   });
 
@@ -79,8 +87,30 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
+  Future<bool> checkEmail({required String email}) async {
+    final response = await client.post(
+      Uri.parse('$baseUrl/auth/check-email'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    if (response.statusCode == 200) {
+      final body = _decodeBody(response);
+      return body['is_available'] as bool? ?? false;
+    } else {
+      final body = _decodeBody(response);
+      throw ServerException(
+        message: body['detail'] as String? ?? 'Email check failed',
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
+  @override
   Future<AuthTokenModel> register({
     required String email,
+    required String firstName,
+    required String lastName,
     required String password,
   }) async {
     final response = await client.post(
@@ -88,6 +118,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'email': email,
+        'first_name': firstName,
+        'last_name': lastName,
         'password': password,
       }),
     );

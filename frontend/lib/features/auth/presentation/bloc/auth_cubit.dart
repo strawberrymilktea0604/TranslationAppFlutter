@@ -5,6 +5,7 @@ import 'package:frontend/features/auth/domain/usecases/get_current_user_usecase.
 import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/register_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/check_email_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 
 /// AuthCubit manages authentication state.
@@ -18,16 +19,19 @@ class AuthCubit extends Cubit<AuthState> {
   final RegisterUseCase _registerUseCase;
   final LogoutUseCase _logoutUseCase;
   final GetCurrentUserUseCase _getCurrentUserUseCase;
+  final CheckEmailUseCase _checkEmailUseCase;
 
   AuthCubit({
     required LoginUseCase loginUseCase,
     required RegisterUseCase registerUseCase,
     required LogoutUseCase logoutUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
+    required CheckEmailUseCase checkEmailUseCase,
   })  : _loginUseCase = loginUseCase,
         _registerUseCase = registerUseCase,
         _logoutUseCase = logoutUseCase,
         _getCurrentUserUseCase = getCurrentUserUseCase,
+        _checkEmailUseCase = checkEmailUseCase,
         super(const AuthInitial());
 
   /// Checks if the user has a valid session on app startup.
@@ -73,17 +77,33 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> register({
     required String email,
     required String password,
-    required String name,
+    required String firstName,
+    required String lastName,
   }) async {
     emit(const AuthInProgress());
 
     final result = await _registerUseCase(
-      RegisterParams(email: email, password: password, name: name),
+      RegisterParams(
+        email: email,
+        password: password,
+        firstName: firstName,
+        lastName: lastName,
+      ),
     );
 
     result.fold(
       (failure) => emit(AuthFailureState(failure.message)),
       (user) => emit(AuthAuthenticated(user)),
+    );
+  }
+
+  /// Checks if an email is available for registration.
+  /// Returns null if available, or an error message if not.
+  Future<String?> checkEmail(String email) async {
+    final result = await _checkEmailUseCase(email);
+    return result.fold(
+      (failure) => failure.message,
+      (isAvailable) => isAvailable ? null : 'Email is already registered. Please login.',
     );
   }
 

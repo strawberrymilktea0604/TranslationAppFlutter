@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:frontend/core/router/app_router.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 
 /// Sign Up form page — allows users to enter basic account information.
 ///
@@ -19,6 +22,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -246,7 +250,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _onContinuePressed,
+                  onPressed: _isLoading ? null : _onContinuePressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2563EB),
                     shape: RoundedRectangleBorder(
@@ -254,14 +258,20 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isLoading 
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Continue',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -294,7 +304,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
               // Or Browse as Guest
               GestureDetector(
-                onTap: () => context.go('/home'),
+                onTap: () => context.go(AppRoutes.guestHome),
                 child: const Text(
                   'Or Browse as Guest',
                   style: TextStyle(
@@ -313,16 +323,87 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  void _onContinuePressed() {
+  Future<void> _onContinuePressed() async {
     if (_formKey.currentState?.validate() ?? false) {
-      // Navigate to password setup page with email, first name and last name
-      final userData = {
-        'email': _emailController.text.trim(),
-        'firstName': _firstNameController.text.trim(),
-        'lastName': _lastNameController.text.trim(),
-      };
-      
-      context.go('/password-setup', extra: userData);
+      final email = _emailController.text.trim();
+      final firstName = _firstNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+
+      setState(() => _isLoading = true);
+
+      try {
+        final errorMsg = await context.read<AuthCubit>().checkEmail(email);
+
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+
+        if (errorMsg != null) {
+          _showError(_friendlyError(errorMsg));
+        } else {
+          final userData = {
+            'email': email,
+            'firstName': firstName,
+            'lastName': lastName,
+          };
+          context.go('/password-setup', extra: userData);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        _showError('Cannot connect to server. Please check your connection.');
+      }
     }
+  }
+
+  /// Maps raw error strings to user-friendly Vietnamese messages.
+  String _friendlyError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('network') ||
+        lower.contains('no internet')) {
+      return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra internet.';
+    }
+    if (lower.contains('already registered') || lower.contains('email')) {
+      return 'Email này đã được đăng ký. Vui lòng đăng nhập.';
+    }
+    if (lower.contains('timeout')) {
+      return 'Kết nối quá chậm. Vui lòng thử lại.';
+    }
+    return raw;
+  }
+
+  void _showError(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.error_outline, color: Colors.red, size: 40),
+        title: const Text(
+          'Có lỗi xảy ra',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 15, height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              minimumSize: const Size(120, 44),
+            ),
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

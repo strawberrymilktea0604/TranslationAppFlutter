@@ -55,12 +55,7 @@ class _LoginPageState extends State<LoginPage> {
             case AuthAuthenticated():
               context.go(AppRoutes.home);
             case AuthFailureState(:final message):
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(message),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              _showError(context, _friendlyError(message));
             case AuthInitial():
             case AuthInProgress():
             case AuthUnauthenticated():
@@ -286,7 +281,7 @@ class _LoginPageState extends State<LoginPage> {
 
                   // Try as Guest
                   GestureDetector(
-                    onTap: isLoading ? null : () => context.go(AppRoutes.home),
+                    onTap: isLoading ? null : () => context.go(AppRoutes.guestHome),
                     child: const Text(
                       'Try as Guest',
                       style: TextStyle(
@@ -315,5 +310,59 @@ class _LoginPageState extends State<LoginPage> {
             password: _passwordController.text,
           );
     }
+  }
+
+  /// Maps raw error strings to user-friendly messages.
+  String _friendlyError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('network') ||
+        lower.contains('no internet')) {
+      return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra internet.';
+    }
+    if (lower.contains('invalid credentials') ||
+        lower.contains('unauthorized') ||
+        lower.contains('incorrect')) {
+      return 'Email hoặc mật khẩu không đúng.';
+    }
+    if (lower.contains('timeout')) {
+      return 'Kết nối quá chậm. Vui lòng thử lại.';
+    }
+    return raw;
+  }
+
+  void _showError(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.error_outline, color: Colors.red, size: 40),
+        title: const Text(
+          'Có lỗi xảy ra',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 15, height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              minimumSize: const Size(120, 44),
+            ),
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:frontend/core/router/app_router.dart';
 
 /// Welcome/Onboarding page — introduces app features to first-time users.
 class WelcomePage extends StatefulWidget {
@@ -305,7 +306,7 @@ class _WelcomePageState extends State<WelcomePage> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: () => context.go('/home'),
+            onPressed: () => context.go(AppRoutes.guestHome),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1868F8),
               shape: RoundedRectangleBorder(

@@ -13,6 +13,7 @@ import 'package:frontend/features/auth/presentation/pages/password_setup_page.da
 import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
 import 'package:frontend/features/home/presentation/pages/home_page.dart';
+import 'package:frontend/features/home/presentation/pages/guest_home_mockup_page.dart';
 
 /// Route path constants to avoid hardcoded strings.
 class AppRoutes {
@@ -25,6 +26,7 @@ class AppRoutes {
   static const String passwordSetup = '/password-setup';
   static const String success = '/success';
   static const String register = '/register';
+  static const String guestHome = '/guest-home';
   static const String home = '/';
 }
 
@@ -55,7 +57,8 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.signup ||
           state.matchedLocation == AppRoutes.passwordSetup ||
           state.matchedLocation == AppRoutes.welcome ||
-          state.matchedLocation == AppRoutes.success;
+          state.matchedLocation == AppRoutes.success ||
+          state.matchedLocation == AppRoutes.guestHome;
 
       // If not authenticated and not on an auth page, redirect to login.
       if (!isAuthenticated && !isOnAuthPage) {
@@ -166,6 +169,20 @@ GoRouter createRouter(BuildContext context) {
         path: AppRoutes.register,
         name: 'register',
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.guestHome,
+        name: 'guest_home',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const GuestHomeMockupPage(),
+          transitionDuration: const Duration(milliseconds: 600),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+          },
+        ),
       ),
     ],
   );

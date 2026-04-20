@@ -1,4 +1,5 @@
 .agent/flutter
+.agent/fastapi
 .agents/skills
 
 # Environment Variables

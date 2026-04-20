@@ -313,10 +313,16 @@ class _RegisterPageState extends State<RegisterPage> {
 
   void _onRegisterPressed() {
     if (_formKey.currentState?.validate() ?? false) {
+      final fullName = _nameController.text.trim();
+      final parts = fullName.split(' ');
+      final firstName = parts.first;
+      final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
+
       context.read<AuthCubit>().register(
             email: _emailController.text.trim(),
             password: _passwordController.text,
-            name: _nameController.text.trim(),
+            firstName: firstName,
+            lastName: lastName,
           );
     }
   }
