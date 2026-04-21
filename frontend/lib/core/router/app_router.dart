@@ -12,8 +12,8 @@ import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
 import 'package:frontend/features/auth/presentation/pages/password_setup_page.dart';
 import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
-import 'package:frontend/features/home/presentation/pages/home_page.dart';
 import 'package:frontend/features/home/presentation/pages/guest_home_mockup_page.dart';
+import 'package:frontend/features/home/presentation/pages/authenticated_home_mockup_page.dart';
 
 /// Route path constants to avoid hardcoded strings.
 class AppRoutes {
@@ -27,6 +27,7 @@ class AppRoutes {
   static const String success = '/success';
   static const String register = '/register';
   static const String guestHome = '/guest-home';
+  static const String authenticatedHome = '/authenticated-home';
   static const String home = '/';
 }
 
@@ -42,17 +43,29 @@ GoRouter createRouter(BuildContext context) {
     debugLogDiagnostics: true,
 
     /// Redirect logic based on authentication state.
-    /// Listens to AuthCubit state to determine redirect rules.
+    ///
+    /// IMPORTANT: Only guards unauthenticated users from protected routes.
+    /// Post-authentication navigation (e.g., register → success page) is
+    /// handled exclusively by BlocConsumer listeners inside each page.
+    /// This avoids a race condition where GoRouter fires before BlocConsumer.
+    ///
+    /// Route classification:
+    ///   - Public/auth pages: accessible without login (login, signup, etc.)
+    ///   - Protected pages: /authenticated-home, / — require authentication.
     redirect: (BuildContext context, GoRouterState state) {
       final authState = context.read<AuthCubit>().state;
       final isAuthenticated = authState is AuthAuthenticated;
 
-      // The splash screen handles its own routing after the animation completes
+      // The splash screen handles its own routing after the animation completes.
       if (state.matchedLocation == AppRoutes.splash) {
         return null;
       }
 
-      final isOnAuthPage = state.matchedLocation == AppRoutes.login ||
+      // Pages that do NOT require authentication.
+      // NOTE: authenticatedHome is intentionally excluded — it is a protected
+      // route so that logout correctly redirects the user back to /login.
+      final isPublicPage =
+          state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register ||
           state.matchedLocation == AppRoutes.signup ||
           state.matchedLocation == AppRoutes.passwordSetup ||
@@ -60,17 +73,15 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.success ||
           state.matchedLocation == AppRoutes.guestHome;
 
-      // If not authenticated and not on an auth page, redirect to login.
-      if (!isAuthenticated && !isOnAuthPage) {
+      // Guard: unauthenticated users cannot access protected routes.
+      // Covers /authenticated-home, / (home), and any future protected routes.
+      if (!isAuthenticated && !isPublicPage) {
         return AppRoutes.login;
       }
 
-      // If already authenticated and on an auth page, redirect to home.
-      if (isAuthenticated && isOnAuthPage) {
-        return AppRoutes.home;
-      }
-
-      // No redirect needed.
+      // Do NOT redirect authenticated users away from public pages here.
+      // BlocConsumer listeners in each page drive post-auth navigation so that
+      // the success page (and other intermediate screens) are not skipped.
       return null;
     },
 
@@ -100,7 +111,7 @@ GoRouter createRouter(BuildContext context) {
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        builder: (context, state) => const HomePage(),
+        builder: (context, state) => const AuthenticatedHomeMockupPage(),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -181,6 +192,25 @@ GoRouter createRouter(BuildContext context) {
             final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
             final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
             return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+          },
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.authenticatedHome,
+        name: 'authenticated_home',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const AuthenticatedHomeMockupPage(),
+          transitionDuration: const Duration(milliseconds: 700),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+            final scale = Tween<double>(begin: 0.97, end: 1.0).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            );
+            return ScaleTransition(
+              scale: scale,
+              child: FadeTransition(opacity: fade, child: child),
+            );
           },
         ),
       ),

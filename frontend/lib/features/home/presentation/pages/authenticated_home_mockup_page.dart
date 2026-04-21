@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 
 class AuthenticatedHomeMockupPage extends StatelessWidget {
   const AuthenticatedHomeMockupPage({super.key});
@@ -10,8 +15,16 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        // React directly to logout — belt-and-suspenders alongside
+        // GoRouter's redirect guard.
+        if (state is AuthUnauthenticated) {
+          context.go(AppRoutes.login);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -62,6 +75,12 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
                         icon: const Icon(Icons.notifications_none),
                         color: colorScheme.onSurface,
                         onPressed: () {},
+                      ),
+                      IconButton(
+                        tooltip: 'Đăng xuất',
+                        icon: const Icon(Icons.logout_rounded),
+                        color: Colors.red[400],
+                        onPressed: () => _confirmLogout(context),
                       ),
                     ],
                   ),
@@ -209,6 +228,7 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
                     _buildHistoryItem(
                       context,
                       sourceText: 'Cảm ơn bạn rất nhiều!',
+
                       translatedText: 'Thank you very much!',
                       sourceLang: 'VI',
                       targetLang: 'EN',
@@ -220,6 +240,7 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
           ],
         ),
       ),
+      ), // BlocListener
     );
   }
 
@@ -316,6 +337,68 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppTheme.primaryColor,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Shows a confirmation dialog before logging out.
+  ///
+  /// [authCubit] is captured before the dialog opens to avoid
+  /// any stale-context issues inside the async callback.
+  void _confirmLogout(BuildContext context) {
+    // Capture ahead of time — safe even after dialog closes.
+    final authCubit = context.read<AuthCubit>();
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        icon: const Icon(
+          Icons.logout_rounded,
+          color: Colors.red,
+          size: 36,
+        ),
+        title: const Text(
+          'Đăng xuất?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Bạn có chắc muốn đăng xuất không?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              minimumSize: const Size(110, 44),
+            ),
+            child: const Text('Huỷ'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              // Uses the pre-captured reference — no context needed here.
+              authCubit.logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              minimumSize: const Size(110, 44),
+            ),
+            child: const Text('Đăng xuất'),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
+import 'package:frontend/core/router/app_router.dart';
 
 /// Password setup page — allows users to create a password after entering their email.
 ///
@@ -69,13 +70,16 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthCubit, AuthState>(
         listener: (context, state) {
-          if (state is AuthFailureState) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+          switch (state) {
+            case AuthAuthenticated():
+              // Backend confirmed registration — navigate to success page.
+              context.go(AppRoutes.success);
+            case AuthFailureState(:final message):
+              _showError(context, _friendlyError(message));
+            case AuthInitial():
+            case AuthInProgress():
+            case AuthUnauthenticated():
+              break;
           }
         },
         builder: (context, state) {
@@ -363,4 +367,59 @@ class _PasswordSetupPageState extends State<PasswordSetupPage> {
       );
     }
   }
+
+  /// Maps raw error strings to user-friendly messages.
+  String _friendlyError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('network') ||
+        lower.contains('no internet')) {
+      return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra internet.';
+    }
+    if (lower.contains('already registered') ||
+        lower.contains('email exists') ||
+        lower.contains('duplicate')) {
+      return 'Email này đã được đăng ký. Vui lòng đăng nhập.';
+    }
+    if (lower.contains('timeout')) {
+      return 'Kết nối quá chậm. Vui lòng thử lại.';
+    }
+    return raw;
+  }
+
+  void _showError(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.error_outline, color: Colors.red, size: 40),
+        title: const Text(
+          'Có lỗi xảy ra',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 15, height: 1.5),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              minimumSize: const Size(120, 44),
+            ),
+            child: const Text('OK', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
