@@ -15,13 +15,25 @@ class AppTheme {
   /// Typography Configuration
   static TextTheme _buildTextTheme(TextTheme base) {
     return GoogleFonts.interTextTheme(base).copyWith(
-      displayLarge: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 32),
-      displayMedium: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 28),
+      displayLarge: GoogleFonts.inter(
+        fontWeight: FontWeight.bold,
+        fontSize: 32,
+      ),
+      displayMedium: GoogleFonts.inter(
+        fontWeight: FontWeight.bold,
+        fontSize: 28,
+      ),
       titleLarge: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 22),
       titleMedium: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
       bodyLarge: GoogleFonts.inter(fontWeight: FontWeight.normal, fontSize: 16),
-      bodyMedium: GoogleFonts.inter(fontWeight: FontWeight.normal, fontSize: 14),
-      labelLarge: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14), // For buttons
+      bodyMedium: GoogleFonts.inter(
+        fontWeight: FontWeight.normal,
+        fontSize: 14,
+      ),
+      labelLarge: GoogleFonts.inter(
+        fontWeight: FontWeight.w500,
+        fontSize: 14,
+      ), // For buttons
     );
   }
 
@@ -36,7 +48,9 @@ class AppTheme {
       error: errorColor,
     ),
     textTheme: _buildTextTheme(ThemeData.light().textTheme),
-    scaffoldBackgroundColor: const Color(0xFFF5F7FA), // Light grayish-blue background
+    scaffoldBackgroundColor: const Color(
+      0xFFF5F7FA,
+    ), // Light grayish-blue background
     appBarTheme: AppBarTheme(
       centerTitle: true,
       elevation: 0,
@@ -93,9 +107,17 @@ class AppTheme {
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: primaryColor);
+          return GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: primaryColor,
+          );
         }
-        return GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.normal, color: Colors.grey);
+        return GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.normal,
+          color: Colors.grey,
+        );
       }),
     ),
   );
@@ -168,9 +190,17 @@ class AppTheme {
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white);
+          return GoogleFonts.inter(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          );
         }
-        return GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.normal, color: Colors.grey);
+        return GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.normal,
+          color: Colors.grey,
+        );
       }),
     ),
   );

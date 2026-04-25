@@ -10,13 +10,10 @@ class IsarDatabase {
 
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
-    isar = await Isar.open(
-      [
-        UserModelSchema,
-        HistoryModelSchema,
-        VocabularyModelSchema,
-      ],
-      directory: dir.path,
-    );
+    isar = await Isar.open([
+      UserModelSchema,
+      HistoryModelSchema,
+      VocabularyModelSchema,
+    ], directory: dir.path);
   }
 }

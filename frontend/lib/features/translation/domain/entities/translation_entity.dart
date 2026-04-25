@@ -27,14 +27,14 @@ class TranslationEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        sourceText,
-        translatedText,
-        sourceLanguage,
-        targetLanguage,
-        createdAt,
-        updatedAt,
-        isSynced,
-        isDeleted,
-      ];
+    id,
+    sourceText,
+    translatedText,
+    sourceLanguage,
+    targetLanguage,
+    createdAt,
+    updatedAt,
+    isSynced,
+    isDeleted,
+  ];
 }

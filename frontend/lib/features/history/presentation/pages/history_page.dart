@@ -59,8 +59,7 @@ class HistoryPlaceholderPage extends StatelessWidget {
             Text(
               'Lịch sử dịch sẽ hiển thị ở đây',
               style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant
-                    .withValues(alpha: 0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ],

@@ -4,7 +4,7 @@ import 'package:internet_connection_checker_plus/internet_connection_checker_plu
 /// Used by repositories to determine offline/online strategy.
 abstract class NetworkInfo {
   Future<bool> get isConnected;
-  
+
   /// Stream providing continuous updates on network internet access status
   Stream<bool> get onConnectedChange;
 }

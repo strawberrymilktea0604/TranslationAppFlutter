@@ -43,9 +43,8 @@ abstract class AuthLocalDataSource {
 class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   final SecureStorageService _secureStorage;
 
-  const AuthLocalDataSourceImpl({
-    required SecureStorageService secureStorage,
-  }) : _secureStorage = secureStorage;
+  const AuthLocalDataSourceImpl({required SecureStorageService secureStorage})
+    : _secureStorage = secureStorage;
 
   @override
   Future<void> saveTokens({
@@ -64,9 +63,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
         ),
       ]);
     } catch (e) {
-      throw CacheException(
-        message: 'Failed to save tokens: ${e.toString()}',
-      );
+      throw CacheException(message: 'Failed to save tokens: ${e.toString()}');
     }
   }
 
@@ -89,24 +86,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   }) async {
     try {
       await Future.wait([
-        _secureStorage.write(
-          key: SecureStorageKeys.userId,
-          value: userId,
-        ),
-        _secureStorage.write(
-          key: SecureStorageKeys.userEmail,
-          value: email,
-        ),
+        _secureStorage.write(key: SecureStorageKeys.userId, value: userId),
+        _secureStorage.write(key: SecureStorageKeys.userEmail, value: email),
         if (name != null)
-          _secureStorage.write(
-            key: SecureStorageKeys.userName,
-            value: name,
-          ),
+          _secureStorage.write(key: SecureStorageKeys.userName, value: name),
         if (role != null)
-          _secureStorage.write(
-            key: SecureStorageKeys.userRole,
-            value: role,
-          ),
+          _secureStorage.write(key: SecureStorageKeys.userRole, value: role),
       ]);
     } catch (e) {
       throw CacheException(
@@ -117,27 +102,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
   @override
   Future<Map<String, String?>?> getUserData() async {
-    final userId = await _secureStorage.read(
-      SecureStorageKeys.userId,
-    );
+    final userId = await _secureStorage.read(SecureStorageKeys.userId);
     if (userId == null) return null;
 
-    final email = await _secureStorage.read(
-      SecureStorageKeys.userEmail,
-    );
-    final name = await _secureStorage.read(
-      SecureStorageKeys.userName,
-    );
-    final role = await _secureStorage.read(
-      SecureStorageKeys.userRole,
-    );
+    final email = await _secureStorage.read(SecureStorageKeys.userEmail);
+    final name = await _secureStorage.read(SecureStorageKeys.userName);
+    final role = await _secureStorage.read(SecureStorageKeys.userRole);
 
-    return {
-      'userId': userId,
-      'email': email,
-      'name': name,
-      'role': role,
-    };
+    return {'userId': userId, 'email': email, 'name': name, 'role': role};
   }
 
   @override
@@ -145,17 +117,13 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     try {
       await _secureStorage.deleteAll();
     } catch (e) {
-      throw CacheException(
-        message: 'Failed to clear storage: ${e.toString()}',
-      );
+      throw CacheException(message: 'Failed to clear storage: ${e.toString()}');
     }
   }
 
   @override
   Future<bool> hasTokens() async {
-    final token = await _secureStorage.read(
-      SecureStorageKeys.accessToken,
-    );
+    final token = await _secureStorage.read(SecureStorageKeys.accessToken);
     return token != null;
   }
 }

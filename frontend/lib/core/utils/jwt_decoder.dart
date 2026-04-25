@@ -42,8 +42,6 @@ class JwtDecoder {
       (payload['exp'] as int) * 1000,
     );
     // Add a 30-second buffer to account for clock skew.
-    return DateTime.now().isAfter(
-      expiry.subtract(const Duration(seconds: 30)),
-    );
+    return DateTime.now().isAfter(expiry.subtract(const Duration(seconds: 30)));
   }
 }

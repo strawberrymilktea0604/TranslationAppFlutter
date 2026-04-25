@@ -56,12 +56,12 @@ class _WelcomePageState extends State<WelcomePage> {
           builder: (context, constraints) {
             // Thay vì dùng IntrinsicHeight (gây lỗi với PageView),
             // Ta tính toán chiều cao an toàn tối thiểu là 680px để không bao giờ bị overflow.
-            // Nếu màn hình cao hơn 680, nó chiếm toàn bộ màn hình. 
+            // Nếu màn hình cao hơn 680, nó chiếm toàn bộ màn hình.
             // Nếu màn hình thấp hơn 680, nó cho phép cuộn!
-            final double contentHeight = constraints.maxHeight > 680.0 
-                ? constraints.maxHeight 
+            final double contentHeight = constraints.maxHeight > 680.0
+                ? constraints.maxHeight
                 : 680.0;
-                
+
             return SingleChildScrollView(
               child: SizedBox(
                 height: contentHeight,
@@ -72,7 +72,10 @@ class _WelcomePageState extends State<WelcomePage> {
                       children: [
                         // Top Bar with Skip Button
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
@@ -87,7 +90,9 @@ class _WelcomePageState extends State<WelcomePage> {
                                       // Skip jumps instantly to slide 3
                                       _pageController.animateToPage(
                                         2,
-                                        duration: const Duration(milliseconds: 600),
+                                        duration: const Duration(
+                                          milliseconds: 600,
+                                        ),
                                         curve: Curves.easeOutCubic,
                                       );
                                     },
@@ -105,7 +110,7 @@ class _WelcomePageState extends State<WelcomePage> {
                             ],
                           ),
                         ),
-                        
+
                         // Expanded PageView
                         Expanded(
                           child: PageView.builder(
@@ -117,24 +122,30 @@ class _WelcomePageState extends State<WelcomePage> {
                               });
                             },
                             itemBuilder: (context, index) {
-                               return AnimatedBuilder(
-                                 animation: _pageController,
-                                 builder: (context, child) {
-                                   double value = 1.0;
-                                   if (_pageController.position.haveDimensions) {
-                                     value = _pageController.page! - index;
-                                     value = (1 - (value.abs() * 0.3)).clamp(0.0, 1.0);
-                                   }
-                                   return Transform.scale(
-                                     scale: Curves.easeOut.transform(value),
-                                     child: Opacity(
-                                        opacity: value.clamp(0.4, 1.0),
-                                        child: child,
-                                     ),
-                                   );
-                                 },
-                                 child: _buildSlideContent(_slides[index], index),
-                               );
+                              return AnimatedBuilder(
+                                animation: _pageController,
+                                builder: (context, child) {
+                                  double value = 1.0;
+                                  if (_pageController.position.haveDimensions) {
+                                    value = _pageController.page! - index;
+                                    value = (1 - (value.abs() * 0.3)).clamp(
+                                      0.0,
+                                      1.0,
+                                    );
+                                  }
+                                  return Transform.scale(
+                                    scale: Curves.easeOut.transform(value),
+                                    child: Opacity(
+                                      opacity: value.clamp(0.4, 1.0),
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: _buildSlideContent(
+                                  _slides[index],
+                                  index,
+                                ),
+                              );
                             },
                           ),
                         ),
@@ -143,7 +154,7 @@ class _WelcomePageState extends State<WelcomePage> {
 
                     // 2. Fixed Dots Overlay
                     // Được cố định tuyệt đối ở lớp Stack bằng Positioned, do đó
-                    // khi quẹt ngang PageView thì Dấu Chấm KHÔNG bị trôi ngang, 
+                    // khi quẹt ngang PageView thì Dấu Chấm KHÔNG bị trôi ngang,
                     // nhưng khi cuộn dọc màn hình thì nó cuộn theo văn bản cực khớp!
                     Positioned(
                       bottom: 375, // Cố định chuẩn xác bên trên khối text 360px
@@ -179,76 +190,73 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   Widget _buildSlideContent(WelcomeSlide slide, int index) {
-     return Padding(
-       padding: const EdgeInsets.symmetric(horizontal: 32),
-       child: Column(
-         mainAxisAlignment: MainAxisAlignment.center,
-         children: [
-            // Image Area
-            Expanded(
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 200),
-                padding: const EdgeInsets.only(bottom: 24, top: 12),
-                child: Center(
-                  child: Image.asset(
-                    slide.image,
-                    fit: BoxFit.contain,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Image Area
+          Expanded(
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 200),
+              padding: const EdgeInsets.only(bottom: 24, top: 12),
+              child: Center(
+                child: Image.asset(slide.image, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+
+          // Fixed Bottom Area: Cố định độ cao 360 pixel trên mọi slide.
+          // Điều này đảm bảo cụm Dots tĩnh nằm chính xác ở vị trí trống ở trên!
+          SizedBox(
+            height: 360,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+
+                // Title
+                Text(
+                  slide.title,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1868F8),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+
+                // Description
+                Text(
+                  slide.description,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF6B7280), // Gray 500
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const Spacer(),
+
+                // Footer Dynamic Content
+                // Ẩn đi ở những trang đầu mà không làm mất khoảng không (Opactiy).
+                // Dính chặt IgnorePointer cùng với chỉ mục 'index' đảm bảo slide 1, 2 không bấm lầm được.
+                Opacity(
+                  opacity: index == 2 ? 1.0 : 0.0,
+                  child: IgnorePointer(
+                    ignoring: index != 2,
+                    child: _buildFinalSlideButtons(),
                   ),
                 ),
-              ),
+                const SizedBox(height: 32),
+              ],
             ),
-            
-            // Fixed Bottom Area: Cố định độ cao 360 pixel trên mọi slide.
-            // Điều này đảm bảo cụm Dots tĩnh nằm chính xác ở vị trí trống ở trên!
-            SizedBox(
-              height: 360,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
-                  
-                  // Title
-                  Text(
-                    slide.title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1868F8),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Description
-                  Text(
-                    slide.description,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Color(0xFF6B7280), // Gray 500
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  const Spacer(),
-                  
-                  // Footer Dynamic Content
-                  // Ẩn đi ở những trang đầu mà không làm mất khoảng không (Opactiy).
-                  // Dính chặt IgnorePointer cùng với chỉ mục 'index' đảm bảo slide 1, 2 không bấm lầm được.
-                  Opacity(
-                     opacity: index == 2 ? 1.0 : 0.0,
-                     child: IgnorePointer(
-                       ignoring: index != 2,
-                       child: _buildFinalSlideButtons(),
-                     )
-                  ),
-                  const SizedBox(height: 32),
-                ],
-              ),
-            ),
-         ],
-       ),
-     );
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildFinalSlideButtons() {

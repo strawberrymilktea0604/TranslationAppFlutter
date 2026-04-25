@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/features/translation/presentation/widgets/translation_widgets.dart';
 
 class GuestHomeMockupPage extends StatelessWidget {
   const GuestHomeMockupPage({super.key});
@@ -45,7 +46,10 @@ class GuestHomeMockupPage extends StatelessWidget {
                     Container(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
+                          colors: [
+                            AppTheme.primaryColor,
+                            AppTheme.secondaryColor,
+                          ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -70,7 +74,11 @@ class GuestHomeMockupPage extends StatelessWidget {
                                   color: Colors.white.withValues(alpha: 0.2),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.person_outline, color: Colors.white, size: 28),
+                                child: const Icon(
+                                  Icons.person_outline,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -88,7 +96,9 @@ class GuestHomeMockupPage extends StatelessWidget {
                                     Text(
                                       'Your data won\'t be synced',
                                       style: textTheme.bodyMedium?.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.9),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.9,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -106,11 +116,17 @@ class GuestHomeMockupPage extends StatelessWidget {
                                     backgroundColor: Colors.white,
                                     foregroundColor: AppTheme.primaryColor,
                                     elevation: 0,
+                                    minimumSize: const Size.fromHeight(44),
+                                    padding: EdgeInsets.zero,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text('Sign In'),
+                                  child: const Text(
+                                    'Sign In',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -118,13 +134,22 @@ class GuestHomeMockupPage extends StatelessWidget {
                                 child: OutlinedButton(
                                   onPressed: () => context.push('/signup'),
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(color: Colors.white, width: 1.5),
+                                    side: const BorderSide(
+                                      color: Colors.white,
+                                      width: 1.5,
+                                    ),
                                     foregroundColor: Colors.white,
+                                    minimumSize: const Size.fromHeight(44),
+                                    padding: EdgeInsets.zero,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                   ),
-                                  child: const Text('Create Account'),
+                                  child: const Text(
+                                    'Create Account',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
                                 ),
                               ),
                             ],
@@ -134,75 +159,31 @@ class GuestHomeMockupPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 32),
 
-                    // Quick Translate Mockup
+                    // Quick Translate — shared widget (same as authenticated home)
                     Text(
                       'Quick Translate',
-                      style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: theme.cardTheme.color,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              TextButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.language),
-                                label: const Text('English'),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.sync_alt),
-                                color: colorScheme.primary,
-                                onPressed: () {},
-                              ),
-                              TextButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.language),
-                                label: const Text('Vietnamese'),
-                              ),
-                            ],
-                          ),
-                          const Divider(),
-                          const SizedBox(height: 12),
-                          const TextField(
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              hintText: 'Enter text to translate...',
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              filled: false,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    const QuickTranslateWidget(),
                     const SizedBox(height: 32),
 
-                    // Restricted Features
+                    // Unlock More Features
                     Text(
                       'Unlock More Features',
-                      style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     _buildFeatureLockBox(
                       context,
                       icon: Icons.history,
                       title: 'Translation History',
-                      subtitle: 'Access your previous translations across all devices.',
+                      subtitle:
+                          'Access your previous translations across all devices.',
                     ),
                     const SizedBox(height: 12),
                     _buildFeatureLockBox(
@@ -211,6 +192,7 @@ class GuestHomeMockupPage extends StatelessWidget {
                       title: 'Vocabulary Notebook',
                       subtitle: 'Save important words and practice them daily.',
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -221,7 +203,8 @@ class GuestHomeMockupPage extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureLockBox(BuildContext context, {
+  Widget _buildFeatureLockBox(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required String subtitle,
@@ -264,9 +247,9 @@ class GuestHomeMockupPage extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[500],
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
                 ),
               ],
             ),

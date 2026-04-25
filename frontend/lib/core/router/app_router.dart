@@ -14,6 +14,7 @@ import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
 import 'package:frontend/features/home/presentation/pages/guest_home_mockup_page.dart';
 import 'package:frontend/features/home/presentation/pages/authenticated_home_mockup_page.dart';
+import 'package:frontend/features/translation/presentation/pages/translation_page.dart';
 
 /// Route path constants to avoid hardcoded strings.
 class AppRoutes {
@@ -29,6 +30,7 @@ class AppRoutes {
   static const String guestHome = '/guest-home';
   static const String authenticatedHome = '/authenticated-home';
   static const String home = '/';
+  static const String translate = '/translate';
 }
 
 /// Creates and configures the application router.
@@ -103,8 +105,20 @@ GoRouter createRouter(BuildContext context) {
           transitionDuration: const Duration(milliseconds: 600),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+            final slide =
+                Tween<Offset>(
+                  begin: const Offset(0, 0.05),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
+            return SlideTransition(
+              position: slide,
+              child: FadeTransition(opacity: fade, child: child),
+            );
           },
         ),
       ),
@@ -122,8 +136,20 @@ GoRouter createRouter(BuildContext context) {
           transitionDuration: const Duration(milliseconds: 600),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+            final slide =
+                Tween<Offset>(
+                  begin: const Offset(0, 0.05),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
+            return SlideTransition(
+              position: slide,
+              child: FadeTransition(opacity: fade, child: child),
+            );
           },
         ),
       ),
@@ -136,8 +162,20 @@ GoRouter createRouter(BuildContext context) {
           transitionDuration: const Duration(milliseconds: 600),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+            final slide =
+                Tween<Offset>(
+                  begin: const Offset(0, 0.05),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
+            return SlideTransition(
+              position: slide,
+              child: FadeTransition(opacity: fade, child: child),
+            );
           },
         ),
       ),
@@ -154,11 +192,26 @@ GoRouter createRouter(BuildContext context) {
               lastName: extra['lastName'] ?? '',
             ),
             transitionDuration: const Duration(milliseconds: 600),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-              final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-              return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
-            },
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+                  final fade = CurveTween(
+                    curve: Curves.easeInOut,
+                  ).animate(animation);
+                  final slide =
+                      Tween<Offset>(
+                        begin: const Offset(0, 0.05),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      );
+                  return SlideTransition(
+                    position: slide,
+                    child: FadeTransition(opacity: fade, child: child),
+                  );
+                },
           );
         },
       ),
@@ -171,8 +224,20 @@ GoRouter createRouter(BuildContext context) {
           transitionDuration: const Duration(milliseconds: 600),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+            final slide =
+                Tween<Offset>(
+                  begin: const Offset(0, 0.05),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
+            return SlideTransition(
+              position: slide,
+              child: FadeTransition(opacity: fade, child: child),
+            );
           },
         ),
       ),
@@ -190,8 +255,20 @@ GoRouter createRouter(BuildContext context) {
           transitionDuration: const Duration(milliseconds: 600),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-            return SlideTransition(position: slide, child: FadeTransition(opacity: fade, child: child));
+            final slide =
+                Tween<Offset>(
+                  begin: const Offset(0, 0.05),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
+            return SlideTransition(
+              position: slide,
+              child: FadeTransition(opacity: fade, child: child),
+            );
           },
         ),
       ),
@@ -214,6 +291,32 @@ GoRouter createRouter(BuildContext context) {
           },
         ),
       ),
+      GoRoute(
+        path: AppRoutes.translate,
+        name: 'translate',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const TranslationPage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+            final slide =
+                Tween<Offset>(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                  ),
+                );
+            return SlideTransition(
+              position: slide,
+              child: FadeTransition(opacity: fade, child: child),
+            );
+          },
+        ),
+      ),
     ],
   );
 }
@@ -224,10 +327,9 @@ class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(BuildContext context) {
     // Subscribe to the AuthCubit's state stream.
     // Whenever auth state changes, notify GoRouter to re-evaluate.
-    _subscription = context
-        .read<AuthCubit>()
-        .stream
-        .listen((_) => notifyListeners());
+    _subscription = context.read<AuthCubit>().stream.listen(
+      (_) => notifyListeners(),
+    );
   }
 
   late final StreamSubscription<dynamic> _subscription;

@@ -14,11 +14,11 @@ class VocabularyModel {
   late String translation;
   late String sourceLanguage;
   late String targetLanguage;
-  
+
   @Index()
   late DateTime createdAt;
   late DateTime updatedAt;
-  
+
   late bool isSynced;
   late bool isDeleted;
 

@@ -15,6 +15,11 @@ import 'package:frontend/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/register_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/check_email_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
+import 'package:frontend/features/translation/data/datasources/translation_remote_datasource.dart';
+import 'package:frontend/features/translation/data/repositories/translation_repository_impl.dart';
+import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
+import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
+import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 
 import 'main.dart' show config;
 
@@ -45,16 +50,12 @@ Future<void> initDependencies() async {
   );
 
   // Global network connectivity state
-  sl.registerLazySingleton<NetworkCubit>(
-    () => NetworkCubit(networkInfo: sl()),
-  );
+  sl.registerLazySingleton<NetworkCubit>(() => NetworkCubit(networkInfo: sl()));
 
   // Secure storage — encrypted Keychain (iOS) /
   // EncryptedSharedPreferences (Android).
   // JWT tokens MUST be stored here, NEVER in SharedPreferences.
-  sl.registerLazySingleton<SecureStorageService>(
-    () => SecureStorageService(),
-  );
+  sl.registerLazySingleton<SecureStorageService>(() => SecureStorageService());
 
   // ==============================
   //  Feature: Auth
@@ -65,10 +66,7 @@ Future<void> initDependencies() async {
     () => AuthLocalDataSourceImpl(secureStorage: sl()),
   );
   sl.registerLazySingleton<AuthRemoteDataSource>(
-    () => AuthRemoteDataSourceImpl(
-      client: sl(),
-      baseUrl: config.apiUrl,
-    ),
+    () => AuthRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
   );
 
   // Repository — binds implementation to abstract interface.
@@ -88,18 +86,32 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => CheckEmailUseCase(sl()));
 
   // Cubits — registered as factory (new instance per provider).
-  sl.registerFactory(() => AuthCubit(
-        loginUseCase: sl(),
-        registerUseCase: sl(),
-        logoutUseCase: sl(),
-        getCurrentUserUseCase: sl(),
-        checkEmailUseCase: sl(),
-      ));
+  sl.registerFactory(
+    () => AuthCubit(
+      loginUseCase: sl(),
+      registerUseCase: sl(),
+      logoutUseCase: sl(),
+      getCurrentUserUseCase: sl(),
+      checkEmailUseCase: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Translation
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  sl.registerLazySingleton<TranslationRemoteDataSource>(
+    () => TranslationRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  sl.registerLazySingleton<TranslationRepository>(
+    () => TranslationRepositoryImpl(remoteDataSource: sl(), networkInfo: sl()),
+  );
+
+  sl.registerLazySingleton(() => TranslateTextUseCase(sl()));
+
+  // Factory: new cubit per screen/widget that provides it.
+  sl.registerFactory(() => TranslationCubit(sl()));
 
   // ==============================
   //  Feature: Vocabulary

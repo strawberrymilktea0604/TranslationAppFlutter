@@ -23,9 +23,7 @@ abstract class AuthRemoteDataSource {
   /// Calls `POST /api/v1/auth/check-email`.
   ///
   /// Returns true if email is available, false if already registered.
-  Future<bool> checkEmail({
-    required String email,
-  });
+  Future<bool> checkEmail({required String email});
 
   /// Calls `POST /api/v1/auth/register`.
   ///
@@ -41,9 +39,7 @@ abstract class AuthRemoteDataSource {
   ///
   /// Sends the refresh token to obtain new access + refresh tokens.
   /// Implements single-use refresh token pattern.
-  Future<AuthTokenModel> refreshToken({
-    required String refreshToken,
-  });
+  Future<AuthTokenModel> refreshToken({required String refreshToken});
 
   /// Calls `POST /api/v1/auth/logout`.
   ///
@@ -60,10 +56,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final http.Client client;
   final String baseUrl;
 
-  const AuthRemoteDataSourceImpl({
-    required this.client,
-    required this.baseUrl,
-  });
+  const AuthRemoteDataSourceImpl({required this.client, required this.baseUrl});
 
   @override
   Future<AuthTokenModel> login({
@@ -74,13 +67,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     // The `username` field maps to the user's email.
     final response = await client.post(
       Uri.parse('$baseUrl/auth/login'),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: {
-        'username': email,
-        'password': password,
-      },
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: {'username': email, 'password': password},
     );
 
     return _handleTokenResponse(response, 'Login');
@@ -128,15 +116,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<AuthTokenModel> refreshToken({
-    required String refreshToken,
-  }) async {
+  Future<AuthTokenModel> refreshToken({required String refreshToken}) async {
     final response = await client.post(
       Uri.parse('$baseUrl/auth/refresh'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'refresh_token': refreshToken,
-      }),
+      body: jsonEncode({'refresh_token': refreshToken}),
     );
 
     return _handleTokenResponse(response, 'Refresh token');
@@ -197,34 +181,36 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         return AuthTokenModel.fromJson(body);
       case 401:
         throw AuthException(
-          message: body['detail'] as String? ??
+          message:
+              body['detail'] as String? ??
               '$operation failed: Invalid credentials',
         );
       case 400:
         throw AuthException(
-          message: body['detail'] as String? ??
-              '$operation failed: Bad request',
+          message:
+              body['detail'] as String? ?? '$operation failed: Bad request',
         );
       case 403:
         throw AuthException(
-          message: body['detail'] as String? ??
-              '$operation failed: Account locked',
+          message:
+              body['detail'] as String? ?? '$operation failed: Account locked',
         );
       case 422:
         // Pydantic validation error from backend.
         final detail = body['detail'];
         String message;
         if (detail is List && detail.isNotEmpty) {
-          message = (detail[0]['msg'] as String?) ??
+          message =
+              (detail[0]['msg'] as String?) ??
               '$operation failed: Validation error';
         } else {
-          message = detail?.toString() ??
-              '$operation failed: Validation error';
+          message = detail?.toString() ?? '$operation failed: Validation error';
         }
         throw ValidationException(message: message);
       default:
         throw ServerException(
-          message: body['detail'] as String? ??
+          message:
+              body['detail'] as String? ??
               '$operation failed with status ${response.statusCode}',
           statusCode: response.statusCode,
         );

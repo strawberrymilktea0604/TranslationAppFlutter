@@ -15,7 +15,8 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -32,16 +33,26 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     );
 
     _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)),
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+      ),
     );
 
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: const Interval(0.0, 0.5, curve: Curves.easeIn)),
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
+      ),
     );
 
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 1.2), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animationController, curve: const Interval(0.5, 1.0, curve: Curves.easeOutCirc)),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 1.2), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: const Interval(0.5, 1.0, curve: Curves.easeOutCirc),
+          ),
+        );
 
     // Kích hoạt check auth ngầm dưới nền ngay khi bắt đầu
     context.read<AuthCubit>().checkAuthStatus();
@@ -60,7 +71,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   void _navigateBasedOnAuth(AuthState state) {
-    if (!_animationFinished) return; // Tuyệt đối không điều hướng khi animation chưa xong
+    if (!_animationFinished)
+      return; // Tuyệt đối không điều hướng khi animation chưa xong
 
     if (state is AuthAuthenticated) {
       context.go(AppRoutes.home);
@@ -79,7 +91,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1868F8), // Match the bright blue background
+      backgroundColor: const Color(
+        0xFF1868F8,
+      ), // Match the bright blue background
       body: BlocListener<AuthCubit, AuthState>(
         listenWhen: (previous, current) => _animationFinished,
         listener: (context, state) {
@@ -115,7 +129,9 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                               letterSpacing: 0.5,
                             ),
                           ),
-                          const SizedBox(height: 100), // Slightly offset upwards
+                          const SizedBox(
+                            height: 100,
+                          ), // Slightly offset upwards
                         ],
                       ),
                     ),
@@ -123,7 +139,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                 },
               ),
             ),
-            
+
             // Bottom wave decoration
             Align(
               alignment: Alignment.bottomCenter,

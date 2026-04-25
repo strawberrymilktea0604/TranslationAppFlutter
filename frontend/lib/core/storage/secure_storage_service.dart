@@ -22,11 +22,12 @@ class SecureStorageService {
   );
 
   SecureStorageService({FlutterSecureStorage? storage})
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              aOptions: _androidOptions,
-              iOptions: _iosOptions,
-            );
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            aOptions: _androidOptions,
+            iOptions: _iosOptions,
+          );
 
   /// Reads a value for the given [key].
   /// Returns `null` if the key does not exist or on read error.
@@ -41,10 +42,7 @@ class SecureStorageService {
   }
 
   /// Writes a [value] for the given [key].
-  Future<void> write({
-    required String key,
-    required String value,
-  }) async {
+  Future<void> write({required String key, required String value}) async {
     await _storage.write(key: key, value: value);
   }
 

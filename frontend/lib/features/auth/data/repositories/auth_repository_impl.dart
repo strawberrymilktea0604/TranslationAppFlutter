@@ -25,9 +25,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required AuthRemoteDataSource remoteDataSource,
     required AuthLocalDataSource localDataSource,
     required NetworkInfo networkInfo,
-  })  : _remoteDataSource = remoteDataSource,
-        _localDataSource = localDataSource,
-        _networkInfo = networkInfo;
+  }) : _remoteDataSource = remoteDataSource,
+       _localDataSource = localDataSource,
+       _networkInfo = networkInfo;
 
   @override
   Future<Either<Failure, UserEntity>> login({
@@ -35,9 +35,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
   }) async {
     if (!await _networkInfo.isConnected) {
-      return const Left(
-        NetworkFailure('No internet connection'),
-      );
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -50,9 +48,7 @@ class AuthRepositoryImpl implements AuthRepository {
       // 2. Decode JWT to extract user ID.
       final userId = JwtDecoder.getUserId(tokenModel.accessToken);
       if (userId == null) {
-        return const Left(
-          AuthFailure('Invalid token received from server'),
-        );
+        return const Left(AuthFailure('Invalid token received from server'));
       }
 
       // 3. Store tokens securely (flutter_secure_storage).
@@ -62,17 +58,12 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       // 4. Cache user data alongside tokens.
-      await _localDataSource.saveUserData(
-        userId: userId,
-        email: email,
-      );
+      await _localDataSource.saveUserData(userId: userId, email: email);
 
       // 5. Return UserEntity to the domain layer.
-      return Right(UserEntity(
-        id: userId,
-        email: email,
-        createdAt: DateTime.now(),
-      ));
+      return Right(
+        UserEntity(id: userId, email: email, createdAt: DateTime.now()),
+      );
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
     } on ValidationException catch (e) {
@@ -109,9 +100,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String lastName,
   }) async {
     if (!await _networkInfo.isConnected) {
-      return const Left(
-        NetworkFailure('No internet connection'),
-      );
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -126,9 +115,7 @@ class AuthRepositoryImpl implements AuthRepository {
       // 2. Decode JWT to extract user ID.
       final userId = JwtDecoder.getUserId(tokenModel.accessToken);
       if (userId == null) {
-        return const Left(
-          AuthFailure('Invalid token received from server'),
-        );
+        return const Left(AuthFailure('Invalid token received from server'));
       }
 
       // 3. Store tokens securely (flutter_secure_storage).
@@ -145,12 +132,14 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       // 5. Return UserEntity to the domain layer.
-      return Right(UserEntity(
-        id: userId,
-        email: email,
-        name: '$firstName $lastName'.trim(),
-        createdAt: DateTime.now(),
-      ));
+      return Right(
+        UserEntity(
+          id: userId,
+          email: email,
+          name: '$firstName $lastName'.trim(),
+          createdAt: DateTime.now(),
+        ),
+      );
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
     } on ValidationException catch (e) {
@@ -169,8 +158,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       // 1. Read stored tokens for backend revocation.
       final accessToken = await _localDataSource.getAccessToken();
-      final refreshTokenValue =
-          await _localDataSource.getRefreshToken();
+      final refreshTokenValue = await _localDataSource.getRefreshToken();
 
       // 2. Best-effort: try to revoke tokens on the server.
       //    Even if the BE call fails, we MUST clear local tokens.
@@ -209,17 +197,13 @@ class AuthRepositoryImpl implements AuthRepository {
       // 1. Check if tokens exist in secure storage.
       final hasTokens = await _localDataSource.hasTokens();
       if (!hasTokens) {
-        return const Left(
-          AuthFailure('No authenticated session'),
-        );
+        return const Left(AuthFailure('No authenticated session'));
       }
 
       // 2. Check access token validity.
       final accessToken = await _localDataSource.getAccessToken();
       if (accessToken == null) {
-        return const Left(
-          AuthFailure('No access token found'),
-        );
+        return const Left(AuthFailure('No access token found'));
       }
 
       // 3. If token is expired, try to refresh.
@@ -228,27 +212,25 @@ class AuthRepositoryImpl implements AuthRepository {
         if (refreshResult.isLeft()) {
           // Refresh failed — user must re-login.
           await _localDataSource.clearAll();
-          return const Left(
-            AuthFailure('Session expired, please login again'),
-          );
+          return const Left(AuthFailure('Session expired, please login again'));
         }
       }
 
       // 4. Read cached user data.
       final userData = await _localDataSource.getUserData();
       if (userData == null || userData['userId'] == null) {
-        return const Left(
-          AuthFailure('No user data found'),
-        );
+        return const Left(AuthFailure('No user data found'));
       }
 
-      return Right(UserEntity(
-        id: userData['userId']!,
-        email: userData['email'] ?? '',
-        name: userData['name'],
-        role: userData['role'] ?? 'user',
-        createdAt: DateTime.now(),
-      ));
+      return Right(
+        UserEntity(
+          id: userData['userId']!,
+          email: userData['email'] ?? '',
+          name: userData['name'],
+          role: userData['role'] ?? 'user',
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
@@ -257,19 +239,14 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, void>> refreshToken() async {
     if (!await _networkInfo.isConnected) {
-      return const Left(
-        NetworkFailure('No internet connection'),
-      );
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
       // 1. Get stored refresh token.
-      final refreshTokenValue =
-          await _localDataSource.getRefreshToken();
+      final refreshTokenValue = await _localDataSource.getRefreshToken();
       if (refreshTokenValue == null) {
-        return const Left(
-          AuthFailure('No refresh token available'),
-        );
+        return const Left(AuthFailure('No refresh token available'));
       }
 
       // 2. Call BE refresh endpoint.

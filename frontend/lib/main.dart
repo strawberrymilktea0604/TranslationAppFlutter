@@ -56,9 +56,7 @@ class MyApp extends StatelessWidget {
         BlocProvider<AuthCubit>(
           create: (_) => sl<AuthCubit>()..checkAuthStatus(),
         ),
-        BlocProvider<NetworkCubit>(
-          create: (_) => sl<NetworkCubit>(),
-        ),
+        BlocProvider<NetworkCubit>(create: (_) => sl<NetworkCubit>()),
       ],
       child: const _AppWithRouter(),
     );

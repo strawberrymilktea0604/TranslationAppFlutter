@@ -33,17 +33,12 @@ class _SuccessPageState extends State<SuccessPage>
       duration: const Duration(milliseconds: 700),
     );
 
-    _fadeAnim = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
 
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.06),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _controller.forward();
   }
@@ -73,10 +68,7 @@ class _SuccessPageState extends State<SuccessPage>
               bottom: 0,
               child: Opacity(
                 opacity: 0.45,
-                child: Image.asset(
-                  'images/Symbols1.png',
-                  fit: BoxFit.fitWidth,
-                ),
+                child: Image.asset('images/Symbols1.png', fit: BoxFit.fitWidth),
               ),
             ),
 

@@ -26,14 +26,14 @@ class VocabularyEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        word,
-        translation,
-        sourceLanguage,
-        targetLanguage,
-        createdAt,
-        updatedAt,
-        isSynced,
-        isDeleted,
-      ];
+    id,
+    word,
+    translation,
+    sourceLanguage,
+    targetLanguage,
+    createdAt,
+    updatedAt,
+    isSynced,
+    isDeleted,
+  ];
 }

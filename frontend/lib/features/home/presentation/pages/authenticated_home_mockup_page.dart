@@ -5,6 +5,7 @@ import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
+import 'package:frontend/features/translation/presentation/widgets/translation_widgets.dart';
 
 class AuthenticatedHomeMockupPage extends StatelessWidget {
   const AuthenticatedHomeMockupPage({super.key});
@@ -17,230 +18,181 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
 
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
-        // React directly to logout — belt-and-suspenders alongside
-        // GoRouter's redirect guard.
         if (state is AuthUnauthenticated) {
           context.go(AppRoutes.login);
         }
       },
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              floating: true,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              expandedHeight: 80,
-              flexibleSpace: FlexibleSpaceBar(
-                background: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
-                        child: const Text(
-                          'MT',
-                          style: TextStyle(
-                            color: AppTheme.primaryColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
+        body: SafeArea(
+          child: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                floating: true,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                expandedHeight: 80,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 12.0,
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: AppTheme.primaryColor.withValues(
+                            alpha: 0.2,
+                          ),
+                          child: const Text(
+                            'MT',
+                            style: TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Chào buổi sáng,',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              Text(
+                                'Minh Trí',
+                                style: textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none),
+                          color: colorScheme.onSurface,
+                          onPressed: () {},
+                        ),
+                        IconButton(
+                          tooltip: 'Đăng xuất',
+                          icon: const Icon(Icons.logout_rounded),
+                          color: Colors.red[400],
+                          onPressed: () => _confirmLogout(context),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Stats Row
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              icon: Icons.translate,
+                              title: 'Bản dịch',
+                              value: '1,248',
+                              color: const Color(0xFF1868F8),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              icon: Icons.book,
+                              title: 'Từ vựng',
+                              value: '342',
+                              color: const Color(0xFF4CAF50),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildStatCard(
+                              context,
+                              icon: Icons.local_fire_department,
+                              title: 'Chuỗi ngày',
+                              value: '14',
+                              color: const Color(0xFFFF9800),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Chào buổi sáng,',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            Text(
-                              'Minh Trí',
-                              style: textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 32),
+
+                      // Quick Translate — shared widget (same as guest home)
+                      Text(
+                        'Dịch Nhanh',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none),
-                        color: colorScheme.onSurface,
-                        onPressed: () {},
+                      const SizedBox(height: 16),
+                      const QuickTranslateWidget(isAuthenticated: true),
+                      const SizedBox(height: 32),
+
+                      // Recent History
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Lịch sử gần đây',
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {},
+                            child: const Text('Xem tất cả'),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        tooltip: 'Đăng xuất',
-                        icon: const Icon(Icons.logout_rounded),
-                        color: Colors.red[400],
-                        onPressed: () => _confirmLogout(context),
+                      const SizedBox(height: 8),
+                      _buildHistoryItem(
+                        context,
+                        sourceText: 'Good morning, how are you?',
+                        translatedText: 'Chào buổi sáng, bạn khỏe không?',
+                        sourceLang: 'EN',
+                        targetLang: 'VI',
                       ),
+                      const SizedBox(height: 12),
+                      _buildHistoryItem(
+                        context,
+                        sourceText: 'I would like to order a coffee.',
+                        translatedText: 'Tôi muốn gọi một tách cà phê.',
+                        sourceLang: 'EN',
+                        targetLang: 'VI',
+                      ),
+                      const SizedBox(height: 12),
+                      _buildHistoryItem(
+                        context,
+                        sourceText: 'Cảm ơn bạn rất nhiều!',
+                        translatedText: 'Thank you very much!',
+                        sourceLang: 'VI',
+                        targetLang: 'EN',
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Stats Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            icon: Icons.translate,
-                            title: 'Bản dịch',
-                            value: '1,248',
-                            color: const Color(0xFF1868F8), // AppTheme.primaryColor fallback
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            icon: Icons.book,
-                            title: 'Từ vựng',
-                            value: '342',
-                            color: const Color(0xFF4CAF50), // successColor fallback
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildStatCard(
-                            context,
-                            icon: Icons.local_fire_department,
-                            title: 'Chuỗi ngày',
-                            value: '14',
-                            color: const Color(0xFFFF9800), // warningColor fallback
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Quick Translate Mockup
-                    Text(
-                      'Dịch Nhanh',
-                      style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: theme.cardTheme.color,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              TextButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.language),
-                                label: const Text('Tiếng Anh'),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.sync_alt),
-                                color: colorScheme.primary,
-                                onPressed: () {},
-                              ),
-                              TextButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.language),
-                                label: const Text('Tiếng Việt'),
-                              ),
-                            ],
-                          ),
-                          const Divider(),
-                          const SizedBox(height: 12),
-                          const TextField(
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              hintText: 'Nhập văn bản cần dịch...',
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              filled: false,
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: IconButton(
-                              icon: const Icon(Icons.mic, color: AppTheme.primaryColor),
-                              onPressed: () {},
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Recent History
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Lịch sử gần đây',
-                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('Xem tất cả'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    _buildHistoryItem(
-                      context,
-                      sourceText: 'Good morning, how are you?',
-                      translatedText: 'Chào buổi sáng, bạn khỏe không?',
-                      sourceLang: 'EN',
-                      targetLang: 'VI',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildHistoryItem(
-                      context,
-                      sourceText: 'I would like to order a coffee.',
-                      translatedText: 'Tôi muốn gọi một tách cà phê.',
-                      sourceLang: 'EN',
-                      targetLang: 'VI',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildHistoryItem(
-                      context,
-                      sourceText: 'Cảm ơn bạn rất nhiều!',
-
-                      translatedText: 'Thank you very much!',
-                      sourceLang: 'VI',
-                      targetLang: 'EN',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      ), // BlocListener
     );
   }
 
@@ -271,16 +223,16 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey[600],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
           ),
         ],
       ),
@@ -327,41 +279,30 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             sourceText,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 4),
           Text(
             translatedText,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppTheme.primaryColor,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.primaryColor),
           ),
         ],
       ),
     );
   }
 
-  /// Shows a confirmation dialog before logging out.
-  ///
-  /// [authCubit] is captured before the dialog opens to avoid
-  /// any stale-context issues inside the async callback.
   void _confirmLogout(BuildContext context) {
-    // Capture ahead of time — safe even after dialog closes.
     final authCubit = context.read<AuthCubit>();
 
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        icon: const Icon(
-          Icons.logout_rounded,
-          color: Colors.red,
-          size: 36,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(Icons.logout_rounded, color: Colors.red, size: 36),
         title: const Text(
           'Đăng xuất?',
           textAlign: TextAlign.center,
@@ -387,7 +328,6 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              // Uses the pre-captured reference — no context needed here.
               authCubit.logout();
             },
             style: ElevatedButton.styleFrom(

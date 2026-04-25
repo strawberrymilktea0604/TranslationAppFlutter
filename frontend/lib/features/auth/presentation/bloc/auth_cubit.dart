@@ -27,12 +27,12 @@ class AuthCubit extends Cubit<AuthState> {
     required LogoutUseCase logoutUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
     required CheckEmailUseCase checkEmailUseCase,
-  })  : _loginUseCase = loginUseCase,
-        _registerUseCase = registerUseCase,
-        _logoutUseCase = logoutUseCase,
-        _getCurrentUserUseCase = getCurrentUserUseCase,
-        _checkEmailUseCase = checkEmailUseCase,
-        super(const AuthInitial());
+  }) : _loginUseCase = loginUseCase,
+       _registerUseCase = registerUseCase,
+       _logoutUseCase = logoutUseCase,
+       _getCurrentUserUseCase = getCurrentUserUseCase,
+       _checkEmailUseCase = checkEmailUseCase,
+       super(const AuthInitial());
 
   /// Checks if the user has a valid session on app startup.
   ///
@@ -54,10 +54,7 @@ class AuthCubit extends Cubit<AuthState> {
   ///
   /// Calls the BE login API, stores tokens in flutter_secure_storage,
   /// and emits [AuthAuthenticated] on success.
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     emit(const AuthInProgress());
 
     final result = await _loginUseCase(
@@ -103,7 +100,8 @@ class AuthCubit extends Cubit<AuthState> {
     final result = await _checkEmailUseCase(email);
     return result.fold(
       (failure) => failure.message,
-      (isAvailable) => isAvailable ? null : 'Email is already registered. Please login.',
+      (isAvailable) =>
+          isAvailable ? null : 'Email is already registered. Please login.',
     );
   }
 

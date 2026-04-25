@@ -117,20 +117,16 @@ class _RegisterPageState extends State<RegisterPage> {
                           TextFormField(
                             controller: _nameController,
                             enabled: !isLoading,
-                            textCapitalization:
-                                TextCapitalization.words,
+                            textCapitalization: TextCapitalization.words,
                             decoration: InputDecoration(
                               labelText: 'Họ và tên',
-                              prefixIcon: const Icon(
-                                  Icons.person_outline),
+                              prefixIcon: const Icon(Icons.person_outline),
                               border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Vui lòng nhập họ tên';
                               }
                               return null;
@@ -141,22 +137,18 @@ class _RegisterPageState extends State<RegisterPage> {
                           // Email field
                           TextFormField(
                             controller: _emailController,
-                            keyboardType:
-                                TextInputType.emailAddress,
+                            keyboardType: TextInputType.emailAddress,
                             enabled: !isLoading,
                             decoration: InputDecoration(
                               labelText: 'Email',
                               hintText: 'example@email.com',
-                              prefixIcon:
-                                  const Icon(Icons.email_outlined),
+                              prefixIcon: const Icon(Icons.email_outlined),
                               border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Vui lòng nhập email';
                               }
                               return null;
@@ -171,8 +163,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             enabled: !isLoading,
                             decoration: InputDecoration(
                               labelText: 'Mật khẩu',
-                              prefixIcon:
-                                  const Icon(Icons.lock_outline),
+                              prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword
@@ -181,19 +172,16 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    _obscurePassword =
-                                        !_obscurePassword;
+                                    _obscurePassword = !_obscurePassword;
                                   });
                                 },
                               ),
                               border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Vui lòng nhập mật khẩu';
                               }
                               if (value.length < 6) {
@@ -206,15 +194,12 @@ class _RegisterPageState extends State<RegisterPage> {
 
                           // Confirm password field
                           TextFormField(
-                            controller:
-                                _confirmPasswordController,
-                            obscureText:
-                                _obscureConfirmPassword,
+                            controller: _confirmPasswordController,
+                            obscureText: _obscureConfirmPassword,
                             enabled: !isLoading,
                             decoration: InputDecoration(
                               labelText: 'Xác nhận mật khẩu',
-                              prefixIcon: const Icon(
-                                  Icons.lock_outline),
+                              prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscureConfirmPassword
@@ -229,17 +214,14 @@ class _RegisterPageState extends State<RegisterPage> {
                                 },
                               ),
                               border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             validator: (value) {
-                              if (value == null ||
-                                  value.trim().isEmpty) {
+                              if (value == null || value.trim().isEmpty) {
                                 return 'Vui lòng xác nhận mật khẩu';
                               }
-                              if (value !=
-                                  _passwordController.text) {
+                              if (value != _passwordController.text) {
                                 return 'Mật khẩu không khớp';
                               }
                               return null;
@@ -252,26 +234,21 @@ class _RegisterPageState extends State<RegisterPage> {
                             width: double.infinity,
                             height: 52,
                             child: FilledButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : _onRegisterPressed,
+                              onPressed: isLoading ? null : _onRegisterPressed,
                               child: isLoading
                                   ? SizedBox(
                                       width: 24,
                                       height: 24,
-                                      child:
-                                          CircularProgressIndicator(
+                                      child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        color: colorScheme
-                                            .onPrimary,
+                                        color: colorScheme.onPrimary,
                                       ),
                                     )
                                   : const Text(
                                       'Đăng ký',
                                       style: TextStyle(
                                         fontSize: 16,
-                                        fontWeight:
-                                            FontWeight.w600,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                             ),
@@ -283,8 +260,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     // Login link
                     Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           'Đã có tài khoản? ',
@@ -295,8 +271,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         TextButton(
                           onPressed: isLoading
                               ? null
-                              : () =>
-                                  context.go(AppRoutes.login),
+                              : () => context.go(AppRoutes.login),
                           child: const Text('Đăng nhập'),
                         ),
                       ],
@@ -319,11 +294,11 @@ class _RegisterPageState extends State<RegisterPage> {
       final lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
 
       context.read<AuthCubit>().register(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-            firstName: firstName,
-            lastName: lastName,
-          );
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        firstName: firstName,
+        lastName: lastName,
+      );
     }
   }
 }

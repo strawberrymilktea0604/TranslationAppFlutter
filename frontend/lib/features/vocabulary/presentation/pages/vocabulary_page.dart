@@ -50,8 +50,7 @@ class VocabularyPlaceholderPage extends StatelessWidget {
             Text(
               'Lưu từ vựng khi dịch để ôn tập sau',
               style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant
-                    .withValues(alpha: 0.7),
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ],

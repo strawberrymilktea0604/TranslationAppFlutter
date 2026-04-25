@@ -7,22 +7,18 @@ class ServerException implements Exception {
   final String message;
   final int? statusCode;
 
-  const ServerException({
-    required this.message,
-    this.statusCode,
-  });
+  const ServerException({required this.message, this.statusCode});
 
   @override
-  String toString() => 'ServerException(message: $message, statusCode: $statusCode)';
+  String toString() =>
+      'ServerException(message: $message, statusCode: $statusCode)';
 }
 
 /// Exception thrown when there is a network connectivity issue.
 class NetworkException implements Exception {
   final String message;
 
-  const NetworkException({
-    this.message = 'No internet connection',
-  });
+  const NetworkException({this.message = 'No internet connection'});
 
   @override
   String toString() => 'NetworkException(message: $message)';
@@ -32,9 +28,7 @@ class NetworkException implements Exception {
 class CacheException implements Exception {
   final String message;
 
-  const CacheException({
-    required this.message,
-  });
+  const CacheException({required this.message});
 
   @override
   String toString() => 'CacheException(message: $message)';
@@ -44,9 +38,7 @@ class CacheException implements Exception {
 class AuthException implements Exception {
   final String message;
 
-  const AuthException({
-    required this.message,
-  });
+  const AuthException({required this.message});
 
   @override
   String toString() => 'AuthException(message: $message)';
@@ -57,10 +49,7 @@ class ValidationException implements Exception {
   final String message;
   final Map<String, String>? fieldErrors;
 
-  const ValidationException({
-    required this.message,
-    this.fieldErrors,
-  });
+  const ValidationException({required this.message, this.fieldErrors});
 
   @override
   String toString() => 'ValidationException(message: $message)';
