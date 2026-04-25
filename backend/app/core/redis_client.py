@@ -127,3 +127,155 @@ async def health_check() -> bool:
         return True
     except Exception:
         return False
+
+
+# ==================== TRANSLATION CACHING ====================
+
+import hashlib
+import json
+from typing import Optional, Dict, Any
+
+
+def _generate_cache_key(source_text: str, source_lang: str, target_lang: str) -> str:
+    """
+    Generate cache key for translation cache lookup.
+    
+    Format: translation:{hash}:{source_lang}:{target_lang}
+    Uses SHA256 hash of source_text to handle long texts efficiently.
+    
+    Args:
+        source_text: Original text to translate
+        source_lang: Source language code (e.g., 'en')
+        target_lang: Target language code (e.g., 'vi')
+    
+    Returns:
+        Cache key string
+    """
+    # Normalize text: strip whitespace, lowercase for consistency
+    normalized_text = source_text.strip().lower()
+    text_hash = hashlib.sha256(normalized_text.encode('utf-8')).hexdigest()[:16]
+    return f"translation:{text_hash}:{source_lang}:{target_lang}"
+
+
+async def get_cached_translation(
+    source_text: str, 
+    source_lang: str, 
+    target_lang: str
+) -> Optional[str]:
+    """
+    Retrieve cached translation from Redis.
+    
+    Args:
+        source_text: Original text
+        source_lang: Source language code
+        target_lang: Target language code
+    
+    Returns:
+        Cached translation if found, None otherwise
+    """
+    if not settings.CACHE_ENABLED:
+        return None
+    
+    try:
+        client = await get_redis_client()
+        cache_key = _generate_cache_key(source_text, source_lang, target_lang)
+        cached_result = await client.get(cache_key)
+        
+        if cached_result:
+            logger.info(f"✅ Cache HIT: {cache_key}")
+            return cached_result
+        else:
+            logger.debug(f"❌ Cache MISS: {cache_key}")
+            return None
+            
+    except Exception as e:
+        logger.warning(f"Redis cache retrieval failed: {e}. Proceeding without cache.")
+        return None
+
+
+async def set_cached_translation(
+    source_text: str,
+    source_lang: str,
+    target_lang: str,
+    translated_text: str,
+    ttl_seconds: Optional[int] = None
+) -> bool:
+    """
+    Store translation result in Redis cache.
+    
+    Args:
+        source_text: Original text
+        source_lang: Source language code
+        target_lang: Target language code
+        translated_text: Translated text result
+        ttl_seconds: Time to live (default: from settings.CACHE_TTL_SECONDS)
+    
+    Returns:
+        True if successful, False if cache fails (system continues without cache)
+    """
+    if not settings.CACHE_ENABLED:
+        return False
+    
+    try:
+        client = await get_redis_client()
+        cache_key = _generate_cache_key(source_text, source_lang, target_lang)
+        ttl = ttl_seconds or settings.CACHE_TTL_SECONDS
+        
+        # Store with expiry
+        await client.setex(cache_key, ttl, translated_text)
+        logger.info(f"💾 Cached translation: {cache_key} (TTL: {ttl}s)")
+        return True
+        
+    except Exception as e:
+        logger.warning(f"Redis cache storage failed: {e}. Proceeding without cache.")
+        return False
+
+
+async def invalidate_user_translation_cache(user_id: int) -> bool:
+    """
+    Clear all translation cache entries for a specific user.
+    This is useful when user settings change (language preferences, etc).
+    
+    Args:
+        user_id: User ID whose cache should be cleared
+    
+    Returns:
+        True if successful, False if operation fails
+    """
+    try:
+        client = await get_redis_client()
+        pattern = f"translation:*"
+        # Note: This clears ALL translation cache, not user-specific
+        # If you need user-specific caching, modify _generate_cache_key to include user_id
+        keys = await client.keys(pattern)
+        if keys:
+            await client.delete(*keys)
+            logger.info(f"Cleared {len(keys)} translation cache entries")
+        return True
+    except Exception as e:
+        logger.warning(f"Redis cache invalidation failed: {e}")
+        return False
+
+
+async def get_cache_stats() -> Dict[str, Any]:
+    """
+    Get translation cache statistics.
+    
+    Returns:
+        Dictionary with cache info (hit rate, count, etc.)
+    """
+    try:
+        client = await get_redis_client()
+        pattern = "translation:*"
+        keys = await client.keys(pattern)
+        
+        # Get info from Redis
+        info = await client.info("keyspace")
+        
+        return {
+            "translation_cache_count": len(keys),
+            "redis_info": info
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get cache stats: {e}")
+        return {}
