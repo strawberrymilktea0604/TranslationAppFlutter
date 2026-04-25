@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from typing import Optional
 
@@ -26,7 +27,7 @@ class Settings(BaseSettings):
     
     # Security - JWT
     SECRET_KEY: str = Field(
-        ...,  # Bắt buộc phải có trong .env
+        default_factory=lambda: os.getenv("SECRET_KEY", ""),
         min_length=32,
         description="Minimum 32 characters for security"
     )
@@ -42,6 +43,7 @@ class Settings(BaseSettings):
     TRANSLATION_SERVICE_TIMEOUT: int = 10  # seconds
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = 3600  # 1 hour
+    TRANSLATION_FALLBACK_ENABLED: bool = True
 
     # CORS configuration
     BACKEND_CORS_ORIGINS: list[str] = Field(

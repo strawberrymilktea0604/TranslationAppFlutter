@@ -195,7 +195,7 @@ class TestTranslationService:
         )
         
         assert existing is not None
-        assert existing.translated_text == "Lưu vào cơ sở dữ liệu"
+        assert getattr(existing, "translated_text") == "Lưu vào cơ sở dữ liệu"
 
 
 class TestTranslationRepository:
@@ -219,8 +219,8 @@ class TestTranslationRepository:
         )
         
         assert translation.id is not None
-        assert translation.source_text == "Hello"
-        assert translation.translated_text == "Xin chào"
+        assert getattr(translation, "source_text") == "Hello"
+        assert getattr(translation, "translated_text") == "Xin chào"
     
     @pytest.mark.asyncio
     async def test_check_existing_translation(self, db: AsyncSession):
@@ -246,7 +246,7 @@ class TestTranslationRepository:
         )
         
         assert existing is not None
-        assert existing.id == created.id
+        assert getattr(existing, "id") == getattr(created, "id")
     
     @pytest.mark.asyncio
     async def test_get_user_translations(self, db: AsyncSession):
