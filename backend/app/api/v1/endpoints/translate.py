@@ -29,11 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/translate", tags=["translate"])
 
 # ==================== RATE LIMIT CONFIG ====================
-GUEST_MAX_REQUESTS_PER_HOUR = 10
-GUEST_MAX_CHAR_LENGTH = 500
-USER_MAX_REQUESTS_PER_HOUR = 100
-USER_MAX_CHAR_LENGTH = 5000
-RATE_LIMIT_WINDOW_SECONDS = 3600  # 1 hour
+# These values are configurable via .env through app.core.config.Settings
 
 
 async def _check_rate_limit(identifier: str, max_requests: int) -> dict:
@@ -66,12 +62,12 @@ async def _check_rate_limit(identifier: str, max_requests: int) -> dict:
             # First request in this window
             pipe = client.pipeline()
             pipe.incr(rate_key)
-            pipe.expire(rate_key, RATE_LIMIT_WINDOW_SECONDS)
+            pipe.expire(rate_key, settings.RATE_LIMIT_WINDOW_SECONDS)
             await pipe.execute()
             return {
                 "allowed": True,
                 "remaining": max_requests - 1,
-                "reset_in_seconds": RATE_LIMIT_WINDOW_SECONDS,
+                "reset_in_seconds": settings.RATE_LIMIT_WINDOW_SECONDS,
             }
 
         current_count = int(current_count)
@@ -205,8 +201,12 @@ async def translate_text(
     # ==================== DETERMINE ROLE & LIMITS ====================
     is_guest = current_user is None
     role = "guest" if is_guest else "user"
-    max_chars = GUEST_MAX_CHAR_LENGTH if is_guest else USER_MAX_CHAR_LENGTH
-    max_requests = GUEST_MAX_REQUESTS_PER_HOUR if is_guest else USER_MAX_REQUESTS_PER_HOUR
+    max_chars = (
+        settings.GUEST_MAX_CHAR_LENGTH if is_guest else settings.USER_MAX_CHAR_LENGTH
+    )
+    max_requests = (
+        settings.GUEST_MAX_REQUESTS_PER_HOUR if is_guest else settings.USER_MAX_REQUESTS_PER_HOUR
+    )
 
     # ==================== VALIDATE TEXT LENGTH BY ROLE ====================
     if len(body.text) > max_chars:
