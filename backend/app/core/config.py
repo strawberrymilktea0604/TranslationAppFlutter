@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     CACHE_TTL_SECONDS: int = 3600  # 1 hour
     TRANSLATION_FALLBACK_ENABLED: bool = True
 
+    # Rate limiting / throttling
+    GUEST_MAX_REQUESTS_PER_HOUR: int = 10
+    GUEST_MAX_CHAR_LENGTH: int = 500
+    USER_MAX_REQUESTS_PER_HOUR: int = 100
+    USER_MAX_CHAR_LENGTH: int = 5000
+    RATE_LIMIT_WINDOW_SECONDS: int = 3600  # 1 hour
+
     # CORS configuration
     BACKEND_CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: ["*"],
