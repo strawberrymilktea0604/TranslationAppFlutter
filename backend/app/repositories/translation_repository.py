@@ -8,7 +8,7 @@ from sqlalchemy.future import select
 from sqlalchemy import desc
 
 from app.models.translation import Translation
-from app.schemas.translation import TranslationCreateDB, TranslationResponse
+from app.schemas.translation import TranslationCreateDB
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class TranslationRepository:
         count_result = await db.execute(
             select(Translation).filter(
                 Translation.user_id == user_id,
-                Translation.is_deleted == False
+                Translation.is_deleted.is_(False)
             )
         )
         total = len(count_result.scalars().all())
@@ -100,7 +100,7 @@ class TranslationRepository:
             select(Translation)
             .filter(
                 Translation.user_id == user_id,
-                Translation.is_deleted == False
+                Translation.is_deleted.is_(False)
             )
             .order_by(desc(Translation.created_at))
             .offset(skip)
@@ -138,7 +138,7 @@ class TranslationRepository:
                 Translation.source_text == source_text,
                 Translation.source_language == source_language,
                 Translation.target_language == target_language,
-                Translation.is_deleted == False
+                Translation.is_deleted.is_(False)
             )
         )
         return result.scalars().first()
@@ -204,7 +204,7 @@ class TranslationRepository:
                 Translation.user_id == user_id,
                 Translation.source_language == source_language,
                 Translation.target_language == target_language,
-                Translation.is_deleted == False
+                Translation.is_deleted.is_(False)
             )
             .order_by(desc(Translation.created_at))
             .limit(limit)

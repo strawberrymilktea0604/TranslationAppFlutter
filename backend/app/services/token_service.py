@@ -262,7 +262,7 @@ async def revoke_all_user_tokens(user_id: int, db: AsyncSession) -> int:
         result = await db.execute(
             select(UserToken).where(
                 UserToken.user_id == user_id,
-                UserToken.is_revoked == False
+                UserToken.is_revoked.is_(False)
             )
         )
         tokens_to_revoke = result.scalars().all()

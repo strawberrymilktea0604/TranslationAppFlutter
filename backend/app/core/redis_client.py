@@ -2,7 +2,8 @@
 Redis client for token revocation (blacklist), session management
 """
 import logging
-from typing import Optional
+import hashlib
+from typing import Optional, Dict, Any
 from redis.asyncio import Redis, from_url
 from app.core.config import settings
 
@@ -131,11 +132,6 @@ async def health_check() -> bool:
 
 # ==================== TRANSLATION CACHING ====================
 
-import hashlib
-import json
-from typing import Optional, Dict, Any
-
-
 def _generate_cache_key(source_text: str, source_lang: str, target_lang: str) -> str:
     """
     Generate cache key for translation cache lookup.
@@ -244,7 +240,7 @@ async def invalidate_user_translation_cache(user_id: int) -> bool:
     """
     try:
         client = await get_redis_client()
-        pattern = f"translation:*"
+        pattern = "translation:*"
         # Note: This clears ALL translation cache, not user-specific
         # If you need user-specific caching, modify _generate_cache_key to include user_id
         keys = await client.keys(pattern)

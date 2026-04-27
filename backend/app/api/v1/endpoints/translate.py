@@ -21,7 +21,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user_optional
 from app.models.user import User
 from app.schemas.common import SuccessResponse
-from app.schemas.translation import TranslationRequest, TranslationQuickResponse
+from app.schemas.translation import TranslationRequest
 from app.services.translation_service import TranslationService
 
 logger = logging.getLogger(__name__)

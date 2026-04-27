@@ -10,11 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.redis_client import (
     get_cached_translation,
-    set_cached_translation,
-    get_redis_client
+    set_cached_translation
 )
 from app.repositories.translation_repository import TranslationRepository
-from app.schemas.translation import TranslationRequest, TranslationResponse, TranslationCreateDB
+from app.schemas.translation import TranslationRequest, TranslationCreateDB
 from app.models.translation import Translation
 from app.services.google_translate_service import GoogleTranslateError, GoogleTranslateService
 from app.services.googletrans_fallback_service import (

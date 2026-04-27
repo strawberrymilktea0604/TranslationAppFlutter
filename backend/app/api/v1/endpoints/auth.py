@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,9 +5,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.future import select
 
 from app.core import security
-from app.core.config import settings
 from app.core.dependencies import DBSession, get_current_user
-from app.models.user import User, UserToken
+from app.models.user import User
 from app.schemas import user as schemas
 from app.services import token_service
 
@@ -215,6 +213,6 @@ async def logout_all(
     )
     
     return {
-        "detail": f"All sessions logged out",
+        "detail": "All sessions logged out",
         "revoked_tokens_count": revoked_count
     }

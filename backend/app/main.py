@@ -6,7 +6,6 @@ from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.redis_client import get_redis_client, close_redis, health_check
 from app.api.v1.endpoints import quota
-from app.api.v1.endpoints import auth
 
 logger = logging.getLogger(__name__)
 

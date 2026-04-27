@@ -275,7 +275,7 @@ class GoogleTranslateService:
 
                 else:
                     raise GoogleTranslateError(
-                        message=f"Failed to fetch supported languages",
+                        message="Failed to fetch supported languages",
                         status_code=response.status_code,
                         error_code="LANGUAGES_FAILED"
                     )

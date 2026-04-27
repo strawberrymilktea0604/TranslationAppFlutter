@@ -4,7 +4,7 @@ Tests the complete cache flow: Redis → API → Database
 """
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis_client import (
