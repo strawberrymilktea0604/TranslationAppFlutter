@@ -9,6 +9,7 @@ import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
+import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 
 // ---------------------------------------------------------------------------
 // QuickTranslateWidget — compact version for home screens.
@@ -69,7 +70,7 @@ class _QuickTranslateViewState extends State<_QuickTranslateView> {
       context.read<TranslationCubit>().reset();
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+    _debounce = Timer(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       context.read<TranslationCubit>().translateText(
         text: value.trim(),
@@ -272,12 +273,7 @@ class _QuickTranslateViewState extends State<_QuickTranslateView> {
                     return const SizedBox.shrink();
                   }
                   if (state is TranslationInProgress) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: LinearProgressIndicator(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    );
+                    return const ShimmerTranslationLoadingCompact();
                   }
                   if (state is TranslationSuccess) {
                     return Column(

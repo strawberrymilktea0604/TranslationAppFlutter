@@ -76,6 +76,7 @@ dependencies:
   flutter_test:
     sdk: flutter
   flutter_gen: ^5.13.0+1
+  shimmer: ^3.0.0
 
 dev_dependencies:
   # flutter_test:

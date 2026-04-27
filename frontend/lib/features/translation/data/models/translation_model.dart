@@ -16,25 +16,33 @@ class TranslationModel extends TranslationEntity {
     super.isDeleted,
   });
 
+  /// Parses a JSON map into a [TranslationModel].
+  ///
+  /// Handles both camelCase (Dart convention) and snake_case
+  /// (backend convention from `/translate/text`).
   factory TranslationModel.fromJson(Map<String, dynamic> json) {
     return TranslationModel(
       id: json['id']?.toString() ?? '',
-      sourceText: (json['sourceText'] ?? json['source_text'] ?? '') as String,
+      sourceText:
+          (json['source_text'] ?? json['sourceText'] ?? '') as String,
       translatedText:
-          (json['translatedText'] ?? json['translated_text'] ?? '') as String,
+          (json['translated_text'] ?? json['translatedText'] ?? '') as String,
       sourceLanguage:
-          (json['sourceLanguage'] ?? json['source_language'] ?? '') as String,
+          (json['source_language'] ?? json['sourceLanguage'] ?? '') as String,
       targetLanguage:
-          (json['targetLanguage'] ?? json['target_language'] ?? '') as String,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : DateTime.now(),
-      isSynced: (json['isSynced'] ?? json['is_synced'] ?? false) as bool,
-      isDeleted: (json['isDeleted'] ?? json['is_deleted'] ?? false) as bool,
+          (json['target_language'] ?? json['targetLanguage'] ?? '') as String,
+      createdAt: _parseDateTime(json['created_at'] ?? json['createdAt']),
+      updatedAt: _parseDateTime(json['updated_at'] ?? json['updatedAt']),
+      isSynced: (json['is_synced'] ?? json['isSynced'] ?? false) as bool,
+      isDeleted: (json['is_deleted'] ?? json['isDeleted'] ?? false) as bool,
     );
+  }
+
+  /// Safely parses a datetime value that may be null or a string.
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is String) return DateTime.parse(value);
+    return DateTime.now();
   }
 
   Map<String, dynamic> toJson() => {

@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
+import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
 
 // ---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ class _TranslationViewState extends State<_TranslationView>
       _cubit.reset();
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 500), () {
+    _debounce = Timer(const Duration(milliseconds: 800), () {
       _cubit.translateText(
         text: value.trim(),
         sourceLanguage: _srcCode,
@@ -522,26 +523,9 @@ class _ResultLoading extends StatelessWidget {
   const _ResultLoading();
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        ...List.generate(
-          3,
-          (i) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Container(
-              height: 14,
-              width: i == 2 ? 120 : double.infinity,
-              decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-      ],
+    return const Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: ShimmerTranslationLoading(lineCount: 4),
     );
   }
 }

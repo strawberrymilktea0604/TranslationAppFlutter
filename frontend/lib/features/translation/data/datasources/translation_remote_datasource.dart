@@ -33,7 +33,7 @@ class TranslationRemoteDataSourceImpl implements TranslationRemoteDataSource {
   }) async {
     final response = await client
         .post(
-          Uri.parse('$baseUrl/translate'),
+          Uri.parse('$baseUrl/translate/text'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'text': text,
@@ -50,20 +50,42 @@ class TranslationRemoteDataSourceImpl implements TranslationRemoteDataSource {
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-      return TranslationModel.fromJson(body);
+
+      // Backend wraps responses in SuccessResponse:
+      // { "status": "success", "data": { ... } }
+      final data = (body['data'] as Map<String, dynamic>?) ?? body;
+      return TranslationModel.fromJson(data);
     }
 
+    // Parse error detail from backend error response format:
+    // { "detail": { "status": "error", "code": "...", "message": "..." } }
+    // or { "detail": "simple string" }
     Map<String, dynamic> errorBody;
     try {
-      errorBody = jsonDecode(response.body) as Map<String, dynamic>;
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        errorBody = decoded;
+      } else {
+        errorBody = {'detail': response.body};
+      }
     } catch (_) {
       errorBody = {'detail': response.body};
     }
 
+    String errorMessage;
+    final detail = errorBody['detail'];
+    if (detail is Map<String, dynamic>) {
+      errorMessage =
+          detail['message'] as String? ??
+          'Lỗi máy chủ ${response.statusCode}';
+    } else if (detail is String) {
+      errorMessage = detail;
+    } else {
+      errorMessage = 'Lỗi máy chủ ${response.statusCode}';
+    }
+
     throw ServerException(
-      message:
-          errorBody['detail'] as String? ??
-          'Lỗi máy chủ ${response.statusCode}',
+      message: errorMessage,
       statusCode: response.statusCode,
     );
   }
