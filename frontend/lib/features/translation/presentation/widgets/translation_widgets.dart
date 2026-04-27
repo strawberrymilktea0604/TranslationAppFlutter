@@ -66,14 +66,19 @@ class _QuickTranslateViewState extends State<_QuickTranslateView> {
 
   void _onTextChanged(String value) {
     _debounce?.cancel();
-    if (value.trim().isEmpty) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
       context.read<TranslationCubit>().reset();
+      return;
+    }
+    // Client-side validation: max 5,000 characters (§7.2).
+    if (trimmed.length > 5000) {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       context.read<TranslationCubit>().translateText(
-        text: value.trim(),
+        text: trimmed,
         sourceLanguage: _srcCode,
         targetLanguage: _tgtCode,
       );

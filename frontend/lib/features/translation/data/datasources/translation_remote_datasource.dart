@@ -7,7 +7,7 @@ import 'package:frontend/features/translation/data/models/translation_model.dart
 
 /// Abstract interface for remote translation API.
 abstract class TranslationRemoteDataSource {
-  /// Calls `POST /api/v1/translate`.
+  /// Calls `POST /api/v1/translate/text`.
   /// Throws [ServerException] on non-200 responses or timeout.
   Future<TranslationModel> translateText({
     required String text,

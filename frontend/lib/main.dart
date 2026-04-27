@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:frontend/core/database/isar_database.dart';
 import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/tts/bloc/tts_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/core/network/bloc/network_cubit.dart';
 import 'package:frontend/injection_container.dart';
@@ -57,6 +58,7 @@ class MyApp extends StatelessWidget {
           create: (_) => sl<AuthCubit>()..checkAuthStatus(),
         ),
         BlocProvider<NetworkCubit>(create: (_) => sl<NetworkCubit>()),
+        BlocProvider<TtsCubit>(create: (_) => sl<TtsCubit>()),
       ],
       child: const _AppWithRouter(),
     );

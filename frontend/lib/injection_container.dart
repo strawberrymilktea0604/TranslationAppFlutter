@@ -5,6 +5,8 @@ import 'package:internet_connection_checker_plus/internet_connection_checker_plu
 import 'package:frontend/core/network/network_info.dart';
 import 'package:frontend/core/network/bloc/network_cubit.dart';
 import 'package:frontend/core/storage/secure_storage_service.dart';
+import 'package:frontend/core/tts/tts_service.dart';
+import 'package:frontend/core/tts/bloc/tts_cubit.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:frontend/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
@@ -56,6 +58,13 @@ Future<void> initDependencies() async {
   // EncryptedSharedPreferences (Android).
   // JWT tokens MUST be stored here, NEVER in SharedPreferences.
   sl.registerLazySingleton<SecureStorageService>(() => SecureStorageService());
+
+  // Text-to-Speech engine — shared singleton so only one voice
+  // plays at a time across the entire app.
+  sl.registerLazySingleton<TtsService>(() => TtsServiceImpl());
+  sl.registerLazySingleton<TtsCubit>(
+    () => TtsCubit(ttsService: sl()),
+  );
 
   // ==============================
   //  Feature: Auth

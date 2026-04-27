@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
@@ -89,19 +90,39 @@ class _TranslationViewState extends State<_TranslationView>
     super.dispose();
   }
 
+  // ---- constants ----
+
+  /// Maximum character length per translation request (§7.2).
+  static const int _kMaxTextLength = 5000;
+
   // ---- helpers ----
 
   TranslationCubit get _cubit => context.read<TranslationCubit>();
 
   void _onTextChanged(String value) {
     _debounce?.cancel();
-    if (value.trim().isEmpty) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
       _cubit.reset();
+      return;
+    }
+    // Client-side validation: max 5,000 characters per request (§7.2).
+    if (trimmed.length > _kMaxTextLength) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Văn bản vượt quá $_kMaxTextLength ký tự '
+            '(hiện tại: ${trimmed.length})',
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 800), () {
       _cubit.translateText(
-        text: value.trim(),
+        text: trimmed,
         sourceLanguage: _srcCode,
         targetLanguage: _tgtCode,
       );
@@ -377,11 +398,10 @@ class _TranslationViewState extends State<_TranslationView>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(
-                  icon: const Icon(Icons.volume_up_outlined, size: 20),
-                  tooltip: 'Phát âm',
-                  color: cs.onSurfaceVariant,
-                  onPressed: () => _showComingSoon('Phát âm'),
+                TtsIconButton(
+                  text: _controller.text,
+                  languageCode: _srcCode == 'auto' ? 'en' : _srcCode,
+                  tooltip: 'Phát âm văn bản nguồn',
                 ),
                 IconButton(
                   icon: const Icon(Icons.copy_outlined, size: 20),
@@ -465,12 +485,12 @@ class _TranslationViewState extends State<_TranslationView>
                       onPressed: () => _showComingSoon('Lưu từ vựng'),
                     ),
                     const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.volume_up_outlined, size: 20),
-                      tooltip: 'Phát âm',
-                      color: cs.onSurfaceVariant,
-                      onPressed: () => _showComingSoon('Phát âm'),
-                    ),
+                    if (resultText != null)
+                      TtsIconButton(
+                        text: resultText,
+                        languageCode: _tgtCode,
+                        tooltip: 'Phát âm bản dịch',
+                      ),
                     IconButton(
                       icon: const Icon(Icons.copy_outlined, size: 20),
                       tooltip: 'Sao chép',
