@@ -111,10 +111,7 @@ class _QuickTranslateViewState extends State<_QuickTranslateView> {
   }
 
   Future<void> _pickLanguage({required bool isSource}) async {
-    if (!widget.isAuthenticated) {
-      context.push('/login');
-      return;
-    }
+    // UC02: Language switching is available to Guest and User (no auth needed).
 
     final langs = isSource ? _langNames : Map.of(_langNames)
       ..remove('auto');

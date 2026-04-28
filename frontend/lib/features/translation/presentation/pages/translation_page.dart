@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
@@ -205,39 +208,105 @@ class _TranslationViewState extends State<_TranslationView>
 
   // ---- build ----
 
+  /// Whether the current user is authenticated.
+  /// Used to show/hide features that require Auth (UC05, UC06, UC07).
+  bool get _isAuthenticated {
+    try {
+      return context.read<AuthCubit>().state is AuthAuthenticated;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final isAuth = _isAuthenticated;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dịch thuật'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.mic_outlined),
-            tooltip: 'Dịch bằng giọng nói',
-            onPressed: () => _showComingSoon('Dịch giọng nói'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.camera_alt_outlined),
-            tooltip: 'Dịch bằng hình ảnh',
-            onPressed: () => _showComingSoon('Dịch hình ảnh'),
-          ),
+          // UC05 — Dịch giọng nói: requires Auth
+          if (isAuth)
+            IconButton(
+              icon: const Icon(Icons.mic_outlined),
+              tooltip: 'Dịch bằng giọng nói',
+              onPressed: () => _showComingSoon('Dịch giọng nói'),
+            ),
+          // UC06 — Dịch hình ảnh (OCR): requires Auth
+          if (isAuth)
+            IconButton(
+              icon: const Icon(Icons.camera_alt_outlined),
+              tooltip: 'Dịch bằng hình ảnh',
+              onPressed: () => _showComingSoon('Dịch hình ảnh'),
+            ),
         ],
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Column(
           children: [
+            // Guest CTA banner — encourage sign-in for premium features
+            if (!isAuth) _buildGuestBanner(cs, theme),
             _buildLangBar(cs),
             const SizedBox(height: 12),
             Expanded(flex: 5, child: _buildSourceCard(theme)),
             const SizedBox(height: 12),
-            Expanded(flex: 5, child: _buildResultCard(theme)),
+            Expanded(flex: 5, child: _buildResultCard(theme, isAuth)),
           ],
         ),
+      ),
+    );
+  }
+
+  /// A compact banner shown to Guest users, informing them of the
+  /// benefits of signing in (UC05, UC06, UC07, higher limits).
+  Widget _buildGuestBanner(ColorScheme cs, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.primary.withValues(alpha: 0.08),
+            cs.tertiary.withValues(alpha: 0.06),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 18, color: cs.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Đăng nhập để dịch giọng nói, hình ảnh, lưu từ vựng và nâng giới hạn.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () => context.push('/login'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              'Đăng nhập',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -426,7 +495,7 @@ class _TranslationViewState extends State<_TranslationView>
 
   // ---- Result card ----
 
-  Widget _buildResultCard(ThemeData theme) {
+  Widget _buildResultCard(ThemeData theme, bool isAuth) {
     final cs = theme.colorScheme;
 
     return Container(
@@ -478,13 +547,29 @@ class _TranslationViewState extends State<_TranslationView>
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.bookmark_border_rounded, size: 20),
-                      tooltip: 'Lưu từ vựng',
-                      color: cs.onSurfaceVariant,
-                      onPressed: () => _showComingSoon('Lưu từ vựng'),
-                    ),
+                    // UC07 — Lưu từ vựng: requires Auth.
+                    // Guest: show lock icon; Authenticated: show bookmark.
+                    if (isAuth)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.bookmark_border_rounded,
+                          size: 20,
+                        ),
+                        tooltip: 'Lưu từ vựng',
+                        color: cs.onSurfaceVariant,
+                        onPressed: () => _showComingSoon('Lưu từ vựng'),
+                      )
+                    else
+                      Tooltip(
+                        message: 'Đăng nhập để lưu từ vựng',
+                        child: IconButton(
+                          icon: const Icon(Icons.lock_outline_rounded, size: 18),
+                          color: cs.onSurface.withValues(alpha: 0.3),
+                          onPressed: () => context.push('/login'),
+                        ),
+                      ),
                     const Spacer(),
+                    // UC03 — TTS: available to Guest and User.
                     if (resultText != null)
                       TtsIconButton(
                         text: resultText,

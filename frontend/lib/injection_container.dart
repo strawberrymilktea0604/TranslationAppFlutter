@@ -114,7 +114,11 @@ Future<void> initDependencies() async {
   );
 
   sl.registerLazySingleton<TranslationRepository>(
-    () => TranslationRepositoryImpl(remoteDataSource: sl(), networkInfo: sl()),
+    () => TranslationRepositoryImpl(
+      remoteDataSource: sl(),
+      authLocalDataSource: sl(),
+      networkInfo: sl(),
+    ),
   );
 
   sl.registerLazySingleton(() => TranslateTextUseCase(sl()));

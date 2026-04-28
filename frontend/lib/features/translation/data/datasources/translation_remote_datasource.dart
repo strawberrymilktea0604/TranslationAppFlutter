@@ -8,11 +8,18 @@ import 'package:frontend/features/translation/data/models/translation_model.dart
 /// Abstract interface for remote translation API.
 abstract class TranslationRemoteDataSource {
   /// Calls `POST /api/v1/translate/text`.
+  ///
+  /// When [authToken] is provided, attaches it as `Authorization: Bearer`
+  /// so the backend applies User-level rate limits (100 req/hour, 5000 chars).
+  /// Without a token, the backend treats the request as Guest (10 req/hour,
+  /// 500 chars).
+  ///
   /// Throws [ServerException] on non-200 responses or timeout.
   Future<TranslationModel> translateText({
     required String text,
     required String sourceLanguage,
     required String targetLanguage,
+    String? authToken,
   });
 }
 
@@ -30,11 +37,21 @@ class TranslationRemoteDataSourceImpl implements TranslationRemoteDataSource {
     required String text,
     required String sourceLanguage,
     required String targetLanguage,
+    String? authToken,
   }) async {
+    // Build headers — attach Bearer token when available so
+    // the backend applies User-level limits instead of Guest.
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+    };
+    if (authToken != null && authToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $authToken';
+    }
+
     final response = await client
         .post(
           Uri.parse('$baseUrl/translate/text'),
-          headers: {'Content-Type': 'application/json'},
+          headers: headers,
           body: jsonEncode({
             'text': text,
             'source_language': sourceLanguage,
@@ -90,3 +107,4 @@ class TranslationRemoteDataSourceImpl implements TranslationRemoteDataSource {
     );
   }
 }
+

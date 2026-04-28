@@ -66,6 +66,8 @@ GoRouter createRouter(BuildContext context) {
       // Pages that do NOT require authentication.
       // NOTE: authenticatedHome is intentionally excluded — it is a protected
       // route so that logout correctly redirects the user back to /login.
+      // UC01 (Dịch văn bản thuần) and UC02 (Chuyển đổi ngôn ngữ) are
+      // accessible by Guest — /translate must be a public route.
       final isPublicPage =
           state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register ||
@@ -73,7 +75,8 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.passwordSetup ||
           state.matchedLocation == AppRoutes.welcome ||
           state.matchedLocation == AppRoutes.success ||
-          state.matchedLocation == AppRoutes.guestHome;
+          state.matchedLocation == AppRoutes.guestHome ||
+          state.matchedLocation == AppRoutes.translate;
 
       // Guard: unauthenticated users cannot access protected routes.
       // Covers /authenticated-home, / (home), and any future protected routes.
