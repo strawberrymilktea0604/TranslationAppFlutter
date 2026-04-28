@@ -4,7 +4,6 @@ googletrans fallback service.
 Used when Google Cloud Translation API is unavailable.
 """
 
-import asyncio
 import logging
 from typing import Optional
 
