@@ -46,6 +46,8 @@ class TtsServiceImpl implements TtsService {
   }
 
   Future<void> _init() async {
+    // Await completion to ensure completion handlers fire on all platforms
+    await _tts.awaitSpeakCompletion(true);
     // Set default speech rate & pitch for natural sounding speech.
     await _tts.setSpeechRate(0.45);
     await _tts.setVolume(1.0);

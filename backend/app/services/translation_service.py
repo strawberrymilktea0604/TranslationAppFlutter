@@ -239,6 +239,7 @@ class TranslationService:
             "TIMEOUT",
             "CONNECTION_ERROR",
             "UNEXPECTED_ERROR",
+            "INVALID_REQUEST",  # Added because invalid API keys return 400 INVALID_REQUEST from Google
         }
         return error.error_code in unavailable_error_codes
 

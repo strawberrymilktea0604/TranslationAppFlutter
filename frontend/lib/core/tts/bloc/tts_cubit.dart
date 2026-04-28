@@ -65,8 +65,16 @@ class TtsCubit extends Cubit<TtsState> {
 
     try {
       await _ttsService.speak(text, languageCode: languageCode);
+      
+      // Since awaitSpeakCompletion(true) is set in the service,
+      // this line executes when speech is fully completed.
+      if (!isClosed && isSpeakingText(text, languageCode)) {
+        emit(const TtsIdle());
+      }
     } on Exception catch (e) {
-      emit(TtsFailure(e.toString()));
+      if (!isClosed) {
+        emit(TtsFailure(e.toString()));
+      }
     }
   }
 

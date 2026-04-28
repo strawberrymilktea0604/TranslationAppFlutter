@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     USER_MAX_REQUESTS_PER_HOUR: int = 100
     USER_MAX_CHAR_LENGTH: int = 5000
     RATE_LIMIT_WINDOW_SECONDS: int = 3600  # 1 hour
+    FALLBACK_MAX_REQUESTS_PER_MINUTE: int = 20  # Limit to avoid IP ban by Google (googletrans)
 
     # CORS configuration
     BACKEND_CORS_ORIGINS: list[str] = Field(
