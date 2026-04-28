@@ -12,8 +12,6 @@ import 'package:frontend/features/auth/presentation/pages/signup_page.dart';
 import 'package:frontend/features/auth/presentation/pages/password_setup_page.dart';
 import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
-import 'package:frontend/features/home/presentation/pages/guest_home_mockup_page.dart';
-import 'package:frontend/features/home/presentation/pages/authenticated_home_mockup_page.dart';
 import 'package:frontend/features/translation/presentation/pages/translation_page.dart';
 
 /// Route path constants to avoid hardcoded strings.
@@ -27,18 +25,20 @@ class AppRoutes {
   static const String passwordSetup = '/password-setup';
   static const String success = '/success';
   static const String register = '/register';
-  static const String guestHome = '/guest-home';
-  static const String authenticatedHome = '/authenticated-home';
   static const String home = '/';
   static const String translate = '/translate';
+
+  // Legacy routes — kept for backward compatibility, all resolve to
+  // TranslationPage (the new primary screen).
+  static const String guestHome = '/guest-home';
+  static const String authenticatedHome = '/authenticated-home';
 }
 
 /// Creates and configures the application router.
 ///
-/// Uses [GoRouter] for declarative navigation with deep linking
-/// and authentication-based redirect. When the user is not
-/// authenticated, they are redirected to the login page.
-/// When authenticated, accessing auth pages redirects to home.
+/// The primary screen is [TranslationPage], which serves both Guest
+/// and Authenticated users. Guest/Auth differentiation is handled
+/// within the page itself (inline CTA banner, menu items, feature guards).
 GoRouter createRouter(BuildContext context) {
   return GoRouter(
     initialLocation: AppRoutes.splash,
@@ -46,28 +46,25 @@ GoRouter createRouter(BuildContext context) {
 
     /// Redirect logic based on authentication state.
     ///
-    /// IMPORTANT: Only guards unauthenticated users from protected routes.
+    /// IMPORTANT: The translation page (home, translate, guest-home,
+    /// authenticated-home) is accessible to ALL users — both Guest and
+    /// Authenticated. Only truly protected routes (e.g., future /settings,
+    /// /profile) would be guarded here.
+    ///
     /// Post-authentication navigation (e.g., register → success page) is
     /// handled exclusively by BlocConsumer listeners inside each page.
-    /// This avoids a race condition where GoRouter fires before BlocConsumer.
-    ///
-    /// Route classification:
-    ///   - Public/auth pages: accessible without login (login, signup, etc.)
-    ///   - Protected pages: /authenticated-home, / — require authentication.
     redirect: (BuildContext context, GoRouterState state) {
       final authState = context.read<AuthCubit>().state;
       final isAuthenticated = authState is AuthAuthenticated;
 
-      // The splash screen handles its own routing after the animation completes.
+      // The splash screen handles its own routing after the animation.
       if (state.matchedLocation == AppRoutes.splash) {
         return null;
       }
 
-      // Pages that do NOT require authentication.
-      // NOTE: authenticatedHome is intentionally excluded — it is a protected
-      // route so that logout correctly redirects the user back to /login.
-      // UC01 (Dịch văn bản thuần) and UC02 (Chuyển đổi ngôn ngữ) are
-      // accessible by Guest — /translate must be a public route.
+      // All public pages — accessible without login.
+      // TranslationPage (home, translate, guest-home, authenticated-home)
+      // is public per UC01 & UC02 in copilot-instructions §6.
       final isPublicPage =
           state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register ||
@@ -75,18 +72,16 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.passwordSetup ||
           state.matchedLocation == AppRoutes.welcome ||
           state.matchedLocation == AppRoutes.success ||
+          state.matchedLocation == AppRoutes.home ||
+          state.matchedLocation == AppRoutes.translate ||
           state.matchedLocation == AppRoutes.guestHome ||
-          state.matchedLocation == AppRoutes.translate;
+          state.matchedLocation == AppRoutes.authenticatedHome;
 
       // Guard: unauthenticated users cannot access protected routes.
-      // Covers /authenticated-home, / (home), and any future protected routes.
       if (!isAuthenticated && !isPublicPage) {
         return AppRoutes.login;
       }
 
-      // Do NOT redirect authenticated users away from public pages here.
-      // BlocConsumer listeners in each page drive post-auth navigation so that
-      // the success page (and other intermediate screens) are not skipped.
       return null;
     },
 
@@ -106,30 +101,37 @@ GoRouter createRouter(BuildContext context) {
           key: state.pageKey,
           child: const WelcomePage(),
           transitionDuration: const Duration(milliseconds: 600),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide =
-                Tween<Offset>(
-                  begin: const Offset(0, 0.05),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            return SlideTransition(
-              position: slide,
-              child: FadeTransition(opacity: fade, child: child),
-            );
-          },
+          transitionsBuilder: _slideUpFade,
         ),
       ),
+      // ── Primary screen: TranslationPage ─────────────────────────────
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        builder: (context, state) => const AuthenticatedHomeMockupPage(),
+        builder: (context, state) => const TranslationPage(),
       ),
+      GoRoute(
+        path: AppRoutes.translate,
+        name: 'translate',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const TranslationPage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: _slideUpFade,
+        ),
+      ),
+      // Legacy routes — redirect to TranslationPage
+      GoRoute(
+        path: AppRoutes.guestHome,
+        name: 'guest_home',
+        redirect: (context, state) => AppRoutes.home,
+      ),
+      GoRoute(
+        path: AppRoutes.authenticatedHome,
+        name: 'authenticated_home',
+        redirect: (context, state) => AppRoutes.home,
+      ),
+      // ── Auth routes ─────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
@@ -137,23 +139,7 @@ GoRouter createRouter(BuildContext context) {
           key: state.pageKey,
           child: const LoginPage(),
           transitionDuration: const Duration(milliseconds: 600),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide =
-                Tween<Offset>(
-                  begin: const Offset(0, 0.05),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            return SlideTransition(
-              position: slide,
-              child: FadeTransition(opacity: fade, child: child),
-            );
-          },
+          transitionsBuilder: _slideUpFade,
         ),
       ),
       GoRoute(
@@ -163,23 +149,7 @@ GoRouter createRouter(BuildContext context) {
           key: state.pageKey,
           child: const SignUpPage(),
           transitionDuration: const Duration(milliseconds: 600),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide =
-                Tween<Offset>(
-                  begin: const Offset(0, 0.05),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            return SlideTransition(
-              position: slide,
-              child: FadeTransition(opacity: fade, child: child),
-            );
-          },
+          transitionsBuilder: _slideUpFade,
         ),
       ),
       GoRoute(
@@ -195,26 +165,7 @@ GoRouter createRouter(BuildContext context) {
               lastName: extra['lastName'] ?? '',
             ),
             transitionDuration: const Duration(milliseconds: 600),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  final fade = CurveTween(
-                    curve: Curves.easeInOut,
-                  ).animate(animation);
-                  final slide =
-                      Tween<Offset>(
-                        begin: const Offset(0, 0.05),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      );
-                  return SlideTransition(
-                    position: slide,
-                    child: FadeTransition(opacity: fade, child: child),
-                  );
-                },
+            transitionsBuilder: _slideUpFade,
           );
         },
       ),
@@ -225,23 +176,7 @@ GoRouter createRouter(BuildContext context) {
           key: state.pageKey,
           child: const SuccessPage(),
           transitionDuration: const Duration(milliseconds: 600),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide =
-                Tween<Offset>(
-                  begin: const Offset(0, 0.05),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            return SlideTransition(
-              position: slide,
-              child: FadeTransition(opacity: fade, child: child),
-            );
-          },
+          transitionsBuilder: _slideUpFade,
         ),
       ),
       GoRoute(
@@ -249,78 +184,27 @@ GoRouter createRouter(BuildContext context) {
         name: 'register',
         builder: (context, state) => const RegisterPage(),
       ),
-      GoRoute(
-        path: AppRoutes.guestHome,
-        name: 'guest_home',
-        pageBuilder: (context, state) => CustomTransitionPage(
-          key: state.pageKey,
-          child: const GuestHomeMockupPage(),
-          transitionDuration: const Duration(milliseconds: 600),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide =
-                Tween<Offset>(
-                  begin: const Offset(0, 0.05),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            return SlideTransition(
-              position: slide,
-              child: FadeTransition(opacity: fade, child: child),
-            );
-          },
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.authenticatedHome,
-        name: 'authenticated_home',
-        pageBuilder: (context, state) => CustomTransitionPage(
-          key: state.pageKey,
-          child: const AuthenticatedHomeMockupPage(),
-          transitionDuration: const Duration(milliseconds: 700),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final scale = Tween<double>(begin: 0.97, end: 1.0).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-            );
-            return ScaleTransition(
-              scale: scale,
-              child: FadeTransition(opacity: fade, child: child),
-            );
-          },
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.translate,
-        name: 'translate',
-        pageBuilder: (context, state) => CustomTransitionPage(
-          key: state.pageKey,
-          child: const TranslationPage(),
-          transitionDuration: const Duration(milliseconds: 400),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
-            final slide =
-                Tween<Offset>(
-                  begin: const Offset(0, 0.04),
-                  end: Offset.zero,
-                ).animate(
-                  CurvedAnimation(
-                    parent: animation,
-                    curve: Curves.easeOutCubic,
-                  ),
-                );
-            return SlideTransition(
-              position: slide,
-              child: FadeTransition(opacity: fade, child: child),
-            );
-          },
-        ),
-      ),
     ],
+  );
+}
+
+/// Shared slide-up + fade transition for consistency.
+Widget _slideUpFade(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) {
+  final fade = CurveTween(curve: Curves.easeInOut).animate(animation);
+  final slide = Tween<Offset>(
+    begin: const Offset(0, 0.05),
+    end: Offset.zero,
+  ).animate(
+    CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+  );
+  return SlideTransition(
+    position: slide,
+    child: FadeTransition(opacity: fade, child: child),
   );
 }
 

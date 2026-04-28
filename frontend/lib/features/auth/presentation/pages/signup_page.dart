@@ -299,7 +299,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   // Or Browse as Guest
                   GestureDetector(
-                    onTap: () => context.go(AppRoutes.guestHome),
+                    onTap: () => context.go(AppRoutes.home),
                     child: const Text(
                       'Or Browse as Guest',
                       style: TextStyle(

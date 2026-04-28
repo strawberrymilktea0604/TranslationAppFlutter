@@ -102,6 +102,14 @@ class _TranslationViewState extends State<_TranslationView>
 
   TranslationCubit get _cubit => context.read<TranslationCubit>();
 
+  bool get _isAuthenticated {
+    try {
+      return context.read<AuthCubit>().state is AuthAuthenticated;
+    } catch (_) {
+      return false;
+    }
+  }
+
   void _onTextChanged(String value) {
     _debounce?.cancel();
     final trimmed = value.trim();
@@ -124,6 +132,7 @@ class _TranslationViewState extends State<_TranslationView>
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
       _cubit.translateText(
         text: trimmed,
         sourceLanguage: _srcCode,
@@ -156,6 +165,7 @@ class _TranslationViewState extends State<_TranslationView>
   void _clear() {
     _controller.clear();
     _cubit.reset();
+    setState(() {}); // refresh hasText
   }
 
   void _copyText(String text, String label) {
@@ -206,17 +216,11 @@ class _TranslationViewState extends State<_TranslationView>
     }
   }
 
-  // ---- build ----
-
-  /// Whether the current user is authenticated.
-  /// Used to show/hide features that require Auth (UC05, UC06, UC07).
-  bool get _isAuthenticated {
-    try {
-      return context.read<AuthCubit>().state is AuthAuthenticated;
-    } catch (_) {
-      return false;
-    }
+  void _handleLogout() {
+    context.read<AuthCubit>().logout();
   }
+
+  // ---- build ----
 
   @override
   Widget build(BuildContext context) {
@@ -224,50 +228,146 @@ class _TranslationViewState extends State<_TranslationView>
     final cs = theme.colorScheme;
     final isAuth = _isAuthenticated;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dịch thuật'),
-        centerTitle: true,
-        actions: [
-          // UC05 — Dịch giọng nói: requires Auth
-          if (isAuth)
-            IconButton(
-              icon: const Icon(Icons.mic_outlined),
-              tooltip: 'Dịch bằng giọng nói',
-              onPressed: () => _showComingSoon('Dịch giọng nói'),
+    return BlocListener<AuthCubit, AuthState>(
+      listener: (context, state) {
+        // After logout, stay on the same page (TranslationPage is public).
+        // The UI will rebuild with isAuth = false.
+        if (state is AuthUnauthenticated) {
+          setState(() {});
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Dịch thuật'),
+          centerTitle: true,
+          leading: isAuth
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/welcome');
+                    }
+                  },
+                ),
+          actions: [
+            // UC05 — Dịch giọng nói: requires Auth
+            if (isAuth)
+              IconButton(
+                icon: const Icon(Icons.mic_outlined),
+                tooltip: 'Dịch bằng giọng nói',
+                onPressed: () => _showComingSoon('Dịch giọng nói'),
+              ),
+            // UC06 — Dịch hình ảnh (OCR): requires Auth
+            if (isAuth)
+              IconButton(
+                icon: const Icon(Icons.camera_alt_outlined),
+                tooltip: 'Dịch bằng hình ảnh',
+                onPressed: () => _showComingSoon('Dịch hình ảnh'),
+              ),
+            // Settings / Profile menu
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded),
+              onSelected: (value) {
+                switch (value) {
+                  case 'history':
+                    _showComingSoon('Lịch sử dịch');
+                  case 'vocabulary':
+                    _showComingSoon('Từ vựng đã lưu');
+                  case 'login':
+                    context.push('/login');
+                  case 'logout':
+                    _handleLogout();
+                }
+              },
+              itemBuilder: (ctx) => [
+                if (isAuth) ...[
+                  const PopupMenuItem(
+                    value: 'history',
+                    child: Row(
+                      children: [
+                        Icon(Icons.history_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('Lịch sử dịch'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'vocabulary',
+                    child: Row(
+                      children: [
+                        Icon(Icons.bookmark_outline_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('Từ vựng đã lưu'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('Đăng xuất'),
+                      ],
+                    ),
+                  ),
+                ] else
+                  const PopupMenuItem(
+                    value: 'login',
+                    child: Row(
+                      children: [
+                        Icon(Icons.login_rounded, size: 20),
+                        SizedBox(width: 12),
+                        Text('Đăng nhập'),
+                      ],
+                    ),
+                  ),
+              ],
             ),
-          // UC06 — Dịch hình ảnh (OCR): requires Auth
-          if (isAuth)
-            IconButton(
-              icon: const Icon(Icons.camera_alt_outlined),
-              tooltip: 'Dịch bằng hình ảnh',
-              onPressed: () => _showComingSoon('Dịch hình ảnh'),
-            ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Column(
-          children: [
-            // Guest CTA banner — encourage sign-in for premium features
-            if (!isAuth) _buildGuestBanner(cs, theme),
-            _buildLangBar(cs),
-            const SizedBox(height: 12),
-            Expanded(flex: 5, child: _buildSourceCard(theme)),
-            const SizedBox(height: 12),
-            Expanded(flex: 5, child: _buildResultCard(theme, isAuth)),
           ],
+        ),
+        // Use LayoutBuilder to prevent bottom overflow on small screens.
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 24,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        // Guest CTA banner
+                        if (!isAuth) _buildGuestBanner(cs, theme),
+                        _buildLangBar(cs),
+                        const SizedBox(height: 10),
+                        Expanded(child: _buildSourceCard(theme)),
+                        const SizedBox(height: 10),
+                        Expanded(child: _buildResultCard(theme, isAuth)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  /// A compact banner shown to Guest users, informing them of the
-  /// benefits of signing in (UC05, UC06, UC07, higher limits).
+  // ---- Guest CTA banner ----
+
   Widget _buildGuestBanner(ColorScheme cs, ThemeData theme) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -280,21 +380,22 @@ class _TranslationViewState extends State<_TranslationView>
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: 18, color: cs.primary),
-          const SizedBox(width: 10),
+          Icon(Icons.info_outline_rounded, size: 16, color: cs.primary),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Đăng nhập để dịch giọng nói, hình ảnh, lưu từ vựng và nâng giới hạn.',
+              'Đăng nhập để mở khóa giọng nói, hình ảnh, lưu từ vựng.',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.7),
+                color: cs.onSurface.withValues(alpha: 0.65),
+                fontSize: 12,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           TextButton(
             onPressed: () => context.push('/login'),
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
@@ -324,6 +425,7 @@ class _TranslationViewState extends State<_TranslationView>
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
       ),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Expanded(
@@ -333,20 +435,25 @@ class _TranslationViewState extends State<_TranslationView>
               ),
               onTap: () => _pickLanguage(isSource: true),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(src.flag, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(height: 4),
-                    Text(
-                      src.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: cs.primary,
+                    Text(src.flag, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        src.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: cs.primary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.arrow_drop_down, size: 18, color: cs.primary),
                   ],
                 ),
               ),
@@ -357,10 +464,12 @@ class _TranslationViewState extends State<_TranslationView>
               CurvedAnimation(parent: _swapAnim, curve: Curves.easeInOut),
             ),
             child: IconButton(
-              icon: const Icon(Icons.swap_horiz_rounded),
+              icon: const Icon(Icons.swap_horiz_rounded, size: 22),
               color: canSwap ? cs.primary : cs.onSurface.withValues(alpha: 0.3),
               tooltip: 'Đổi ngôn ngữ',
               onPressed: canSwap ? _swapLanguages : null,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           ),
           Expanded(
@@ -370,20 +479,25 @@ class _TranslationViewState extends State<_TranslationView>
               ),
               onTap: () => _pickLanguage(isSource: false),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(tgt.flag, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(height: 4),
-                    Text(
-                      tgt.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: cs.primary,
+                    Text(tgt.flag, style: const TextStyle(fontSize: 18)),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        tgt.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: cs.primary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 2),
+                    Icon(Icons.arrow_drop_down, size: 18, color: cs.primary),
                   ],
                 ),
               ),
@@ -401,6 +515,7 @@ class _TranslationViewState extends State<_TranslationView>
     final hasText = _controller.text.isNotEmpty;
 
     return Container(
+      constraints: const BoxConstraints(minHeight: 160),
       decoration: BoxDecoration(
         color: theme.cardTheme.color,
         borderRadius: BorderRadius.circular(20),
@@ -417,7 +532,7 @@ class _TranslationViewState extends State<_TranslationView>
         children: [
           // Header: label + clear button
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 4, 0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 4, 0),
             child: Row(
               children: [
                 Text(
@@ -433,7 +548,7 @@ class _TranslationViewState extends State<_TranslationView>
                     tooltip: 'Xóa',
                     color: cs.onSurfaceVariant,
                     onPressed: _clear,
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     constraints: const BoxConstraints(),
                   ),
               ],
@@ -457,13 +572,16 @@ class _TranslationViewState extends State<_TranslationView>
                   filled: false,
                   contentPadding: EdgeInsets.zero,
                 ),
-                onChanged: _onTextChanged,
+                onChanged: (v) {
+                  setState(() {}); // refresh hasText
+                  _onTextChanged(v);
+                },
               ),
             ),
           ),
           // Action bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -499,6 +617,7 @@ class _TranslationViewState extends State<_TranslationView>
     final cs = theme.colorScheme;
 
     return Container(
+      constraints: const BoxConstraints(minHeight: 160),
       decoration: BoxDecoration(
         color: cs.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
@@ -508,7 +627,7 @@ class _TranslationViewState extends State<_TranslationView>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Text(
               'Dịch · ${_findLang(_tgtCode).name}',
               style: theme.textTheme.labelMedium?.copyWith(
@@ -518,7 +637,7 @@ class _TranslationViewState extends State<_TranslationView>
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
               child: BlocBuilder<TranslationCubit, TranslationState>(
                 builder: (context, state) {
                   return switch (state) {
@@ -544,11 +663,10 @@ class _TranslationViewState extends State<_TranslationView>
                   ? state.translation.translatedText
                   : null;
               return Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
                 child: Row(
                   children: [
                     // UC07 — Lưu từ vựng: requires Auth.
-                    // Guest: show lock icon; Authenticated: show bookmark.
                     if (isAuth)
                       IconButton(
                         icon: const Icon(
@@ -611,10 +729,10 @@ class _ResultHint extends StatelessWidget {
       children: [
         Icon(
           Icons.translate_rounded,
-          size: 40,
+          size: 36,
           color: cs.primary.withValues(alpha: 0.3),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Text(
           'Bản dịch sẽ xuất hiện ở đây',
           style: TextStyle(color: cs.onSurface.withValues(alpha: 0.45)),
@@ -630,7 +748,7 @@ class _ResultLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.only(top: 8),
-      child: ShimmerTranslationLoading(lineCount: 4),
+      child: ShimmerTranslationLoading(lineCount: 3),
     );
   }
 }
@@ -662,10 +780,10 @@ class _ResultError extends StatelessWidget {
       children: [
         Icon(
           Icons.cloud_off_rounded,
-          size: 36,
+          size: 32,
           color: theme.colorScheme.error.withValues(alpha: 0.6),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Text(
           message,
           style: theme.textTheme.bodyMedium?.copyWith(

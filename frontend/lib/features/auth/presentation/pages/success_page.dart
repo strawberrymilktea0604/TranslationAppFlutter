@@ -126,7 +126,7 @@ class _SuccessPageState extends State<SuccessPage>
                             height: 52,
                             child: ElevatedButton(
                               onPressed: () =>
-                                  context.go(AppRoutes.authenticatedHome),
+                                  context.go(AppRoutes.home),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2563EB),
                                 foregroundColor: Colors.white,

@@ -71,8 +71,9 @@ class _SplashPageState extends State<SplashPage>
   }
 
   void _navigateBasedOnAuth(AuthState state) {
-    if (!_animationFinished)
+    if (!_animationFinished) {
       return; // Tuyệt đối không điều hướng khi animation chưa xong
+    }
 
     if (state is AuthAuthenticated) {
       context.go(AppRoutes.home);

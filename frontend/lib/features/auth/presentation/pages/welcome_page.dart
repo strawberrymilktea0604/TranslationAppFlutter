@@ -314,7 +314,7 @@ class _WelcomePageState extends State<WelcomePage> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: () => context.go(AppRoutes.guestHome),
+            onPressed: () => context.go(AppRoutes.home),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1868F8),
               shape: RoundedRectangleBorder(

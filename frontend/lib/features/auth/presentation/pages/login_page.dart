@@ -287,7 +287,7 @@ class _LoginPageState extends State<LoginPage> {
                         GestureDetector(
                           onTap: isLoading
                               ? null
-                              : () => context.go(AppRoutes.guestHome),
+                              : () => context.go(AppRoutes.home),
                           child: const Text(
                             'Try as Guest',
                             style: TextStyle(
