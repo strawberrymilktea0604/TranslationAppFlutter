@@ -7,6 +7,7 @@ class UserBase(BaseModel):
     email: EmailStr
     first_name: str | None = None
     last_name: str | None = None
+    avatar_url: str | None = None
 
 
 class UserCreate(UserBase):
@@ -30,9 +31,31 @@ class UserRead(UserBase):
     id: int
     role: str
     status: str
-    is_verified: bool
     created_at: datetime
     updated_at: datetime
+
+
+class UserUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+
+class UserAvatarResponse(BaseModel):
+    avatar_url: str
+
+
+class UserPasswordUpdate(BaseModel):
+    old_password: str
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if not any(char.isdigit() for char in v):
+            raise ValueError('Password must contain at least one digit')
+        if not any(char.isalpha() for char in v):
+            raise ValueError('Password must contain at least one letter')
+        return v
 
 
 class Token(BaseModel):

@@ -9,6 +9,7 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
+    avatar_url = Column(String(255), nullable=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="user") # 'user' hoặc 'admin'
     status = Column(String(50), default="active") # 'active' hoặc 'locked'
