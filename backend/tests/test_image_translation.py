@@ -5,10 +5,9 @@ Tests: OCR, image preprocessing, memory cleanup, caching
 import pytest
 import io
 from PIL import Image
-import numpy as np
 
-from app.services.image_service import ImageService, ImageError
-from app.services.ocr_service import OCRService, OCRError
+from app.services.image_service import ImageService
+from app.services.ocr_service import OCRService
 
 
 @pytest.fixture
@@ -23,7 +22,7 @@ def sample_image_bytes():
     # Try to use a default font, fallback to default if not available
     try:
         font = ImageFont.truetype("arial.ttf", 20)
-    except:
+    except Exception:
         font = ImageFont.load_default()
     
     draw.text((10, 10), "Hello World", fill='black', font=font)

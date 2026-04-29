@@ -22,14 +22,11 @@ from app.core.dependencies import get_current_user_optional
 from app.models.user import User
 from app.schemas.common import SuccessResponse
 from app.schemas.translation import (
-    ImageTranslationRequest,
     ImageTranslationResponse,
     ImageTranslationBatchResponse,
     TranslationRequest,
-    ImageMetadata,
-    OCRResult,
 )
-from app.services.image_service import ImageService, ImageError
+from app.services.image_service import ImageService
 from app.services.ocr_service import OCRService, OCRError
 from app.services.translation_service import TranslationService
 
@@ -196,9 +193,7 @@ async def translate_image(
         )
         
         # ==================== STEP 1: READ FILE FROM UPLOAD ====================
-        read_start = time.time()
         image_bytes = await file.read()
-        read_time = (time.time() - read_start) * 1000
         
         logger.info(
             f"📥 Image received: {len(image_bytes)/1024:.1f}KB, "
@@ -254,7 +249,6 @@ async def translate_image(
         )
         
         # ==================== STEP 5: TRANSLATE EXTRACTED TEXT ====================
-        translate_start = time.time()
         try:
             translation_request = TranslationRequest(
                 source_text=extracted_text,
@@ -276,8 +270,6 @@ async def translate_image(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Translation failed: {str(e)}"
             )
-        
-        translate_time = (time.time() - translate_start) * 1000
         
         cache_status = "🚀 HIT" if is_cached else "❌ MISS"
         logger.info(

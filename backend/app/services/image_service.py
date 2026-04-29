@@ -6,7 +6,7 @@ import logging
 import io
 import hashlib
 import time
-from typing import Optional, Tuple, BinaryIO
+from typing import Optional, Tuple
 from PIL import Image, ExifTags
 import cv2
 import numpy as np
