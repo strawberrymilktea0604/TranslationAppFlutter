@@ -7,7 +7,7 @@ import io
 import hashlib
 import time
 from typing import Optional, Tuple, BinaryIO
-from PIL import Image
+from PIL import Image, ExifTags
 import cv2
 import numpy as np
 
@@ -258,6 +258,138 @@ class ImageService:
             return True
         
         return False
+
+    @staticmethod
+    def auto_rotate_image(image_bytes: bytes) -> bytes:
+        """
+        Auto-rotate image based on EXIF orientation tag.
+
+        Phone cameras embed an orientation flag in EXIF metadata.
+        Without correction the image may appear sideways or upside-down
+        which ruins OCR accuracy.
+
+        Args:
+            image_bytes: Raw image bytes (JPEG/PNG/etc.)
+
+        Returns:
+            Image bytes with correct orientation applied and EXIF stripped.
+        """
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+
+            # Look up the EXIF "Orientation" tag id
+            orientation_key: Optional[int] = None
+            for tag_id, tag_name in ExifTags.TAGS.items():
+                if tag_name == "Orientation":
+                    orientation_key = tag_id
+                    break
+
+            if orientation_key is None:
+                return image_bytes
+
+            exif_data = image.getexif()
+            if not exif_data or orientation_key not in exif_data:
+                return image_bytes
+
+            orientation = exif_data[orientation_key]
+
+            # Apply the correct rotation/flip based on EXIF value
+            rotation_map = {
+                2: (Image.Transpose.FLIP_LEFT_RIGHT,),
+                3: (Image.Transpose.ROTATE_180,),
+                4: (Image.Transpose.FLIP_TOP_BOTTOM,),
+                5: (Image.Transpose.FLIP_LEFT_RIGHT, Image.Transpose.ROTATE_90),
+                6: (Image.Transpose.ROTATE_270,),
+                7: (Image.Transpose.FLIP_LEFT_RIGHT, Image.Transpose.ROTATE_270),
+                8: (Image.Transpose.ROTATE_90,),
+            }
+
+            transforms = rotation_map.get(orientation)
+            if transforms is None:
+                return image_bytes
+
+            for t in transforms:
+                image = image.transpose(t)
+
+            # Save back to bytes without the old EXIF orientation
+            output = io.BytesIO()
+            fmt = image.format or "PNG"
+            if fmt.upper() == "JPEG" and image.mode != "RGB":
+                image = image.convert("RGB")
+            image.save(output, format=fmt)
+            rotated_bytes = output.getvalue()
+
+            logger.info(
+                f"🔄 EXIF auto-rotated image (orientation={orientation})"
+            )
+            return rotated_bytes
+
+        except Exception as e:
+            logger.warning(f"EXIF auto-rotation failed: {e}. Using original image.")
+            return image_bytes
+
+    @staticmethod
+    def preprocess_for_ocr(image_bytes: bytes) -> bytes:
+        """
+        Full preprocessing pipeline optimised for OCR accuracy.
+
+        Steps (all in-memory):
+        1. Auto-rotate via EXIF
+        2. Convert to grayscale
+        3. Enhance contrast (CLAHE)
+        4. Denoise (fastNlMeansDenoising)
+
+        Args:
+            image_bytes: Raw image bytes
+
+        Returns:
+            Preprocessed image bytes (grayscale PNG)
+        """
+        start_time = time.time()
+
+        try:
+            # Step 1 – EXIF auto-rotation
+            image_bytes = ImageService.auto_rotate_image(image_bytes)
+
+            # Decode into OpenCV array
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None:
+                raise ImageError("Failed to decode image for preprocessing")
+
+            # Step 2 – Grayscale
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+            # Step 3 – Contrast enhancement (CLAHE)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            contrast_enhanced = clahe.apply(gray)
+
+            # Step 4 – Denoise
+            denoised = cv2.fastNlMeansDenoising(
+                contrast_enhanced,
+                h=10,
+                templateWindowSize=7,
+                searchWindowSize=21,
+            )
+
+            # Encode back to PNG bytes
+            success, encoded = cv2.imencode(".png", denoised)
+            if not success:
+                raise ImageError("Failed to encode preprocessed image")
+
+            result_bytes = encoded.tobytes()
+            processing_time = (time.time() - start_time) * 1000
+
+            logger.info(
+                f"🔧 OCR preprocessing completed in {processing_time:.1f}ms "
+                f"({len(image_bytes)/1024:.1f}KB → {len(result_bytes)/1024:.1f}KB)"
+            )
+            return result_bytes
+
+        except ImageError:
+            raise
+        except Exception as e:
+            raise ImageError(f"Image preprocessing failed: {str(e)}") from e
 
     @staticmethod
     async def cleanup_image_memory(image_bytes: Optional[bytes] = None) -> None:
