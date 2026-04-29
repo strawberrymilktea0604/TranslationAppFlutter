@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import logging
 
 from app.api.v1.api import api_router
@@ -9,10 +10,41 @@ from app.api.v1.endpoints import quota
 
 logger = logging.getLogger(__name__)
 
+
+# ==================== LIFESPAN MANAGEMENT ====================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI lifespan context manager for startup and shutdown events.
+    Replaces deprecated @app.on_event() syntax.
+    """
+    # ==================== STARTUP ====================
+    logger.info("🚀 Application starting up...")
+    try:
+        redis_client = await get_redis_client()
+        logger.info("✅ Redis client initialized successfully")
+    except Exception as e:
+        logger.warning(f"⚠️  Redis initialization failed: {e}")
+        logger.warning("Application will continue without Redis caching (using DB fallback)")
+    
+    yield
+    
+    # ==================== SHUTDOWN ====================
+    logger.info("🛑 Application shutting down...")
+    try:
+        await close_redis()
+        logger.info("✅ Redis connection closed successfully")
+    except Exception as e:
+        logger.warning(f"⚠️  Redis shutdown failed: {e}")
+
+
+# ==================== APP CONFIGURATION ====================
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -20,36 +52,15 @@ app.add_middleware(
     allow_methods=settings.BACKEND_CORS_ALLOW_METHODS,
     allow_headers=settings.BACKEND_CORS_ALLOW_HEADERS,
 )
+
+# ==================== API ROUTERS ====================
 app.include_router(api_router, prefix=settings.API_V1_STR)
-
-# Include routers
-# app.include_router(translate.router)
-# app.include_router(user.router)
-
-# Đăng ký API Quota
 app.include_router(quota.router, prefix="/api/quotas", tags=["AI Quotas"])
 
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize Redis connection on app startup"""
-    try:
-        await get_redis_client()
-        logger.info("✅ Redis client initialized on startup")
-    except Exception as e:
-        logger.warning(f"⚠️  Redis initialization failed: {e}")
-        logger.warning("Application will continue without Redis caching (using DB fallback)")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Close Redis connection on app shutdown"""
-    await close_redis()
-    logger.info("✅ Redis connection closed on shutdown")
-
-
-@app.get("/health")
+# ==================== HEALTH CHECK ====================
+@app.get("/health", tags=["health"])
 async def health_check_endpoint():
+    """Health check endpoint for monitoring"""
     redis_status = "ok" if await health_check() else "unavailable"
     return {
         "status": "ok",
