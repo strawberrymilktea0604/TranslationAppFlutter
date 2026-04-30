@@ -104,13 +104,13 @@ async def _get_rate_limit_key(
 
 @router.post("/translate", response_model=SuccessResponse)
 async def translate_image(
+    request: Request,
     source_language: str = Form(default="en", description="Source language code"),
     target_language: str = Form(..., description="Target language code"),
     optimize_image: bool = Form(default=True, description="Optimize image before OCR"),
     return_regions: bool = Form(default=False, description="Include text regions"),
     file: UploadFile = File(..., description="Image file (PNG, JPG, etc.)"),
     db: AsyncSession = Depends(get_db),
-    request: Request = Depends(),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
@@ -339,11 +339,11 @@ async def translate_image(
 
 @router.post("/translate/batch", response_model=SuccessResponse)
 async def translate_images_batch(
+    request: Request,
     source_language: str = Form(default="en"),
     target_language: str = Form(...),
     files: List[UploadFile] = File(..., description="Multiple image files"),
     db: AsyncSession = Depends(get_db),
-    request: Request = Depends(),
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """

@@ -13,6 +13,7 @@ import 'package:frontend/features/auth/presentation/pages/password_setup_page.da
 import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
 import 'package:frontend/features/translation/presentation/pages/translation_page.dart';
+import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
 
 /// Route path constants to avoid hardcoded strings.
 class AppRoutes {
@@ -27,6 +28,7 @@ class AppRoutes {
   static const String register = '/register';
   static const String home = '/';
   static const String translate = '/translate';
+  static const String profile = '/profile';
 
   // Legacy routes — kept for backward compatibility, all resolve to
   // TranslationPage (the new primary screen).
@@ -75,7 +77,8 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.home ||
           state.matchedLocation == AppRoutes.translate ||
           state.matchedLocation == AppRoutes.guestHome ||
-          state.matchedLocation == AppRoutes.authenticatedHome;
+          state.matchedLocation == AppRoutes.authenticatedHome ||
+          state.matchedLocation == AppRoutes.profile;
 
       // Guard: unauthenticated users cannot access protected routes.
       if (!isAuthenticated && !isPublicPage) {
@@ -183,6 +186,16 @@ GoRouter createRouter(BuildContext context) {
         path: AppRoutes.register,
         name: 'register',
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        name: 'profile',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const ProfilePage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: _slideUpFade,
+        ),
       ),
     ],
   );

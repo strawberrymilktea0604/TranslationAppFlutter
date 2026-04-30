@@ -216,10 +216,6 @@ class _TranslationViewState extends State<_TranslationView>
     }
   }
 
-  void _handleLogout() {
-    context.read<AuthCubit>().logout();
-  }
-
   // ---- build ----
 
   @override
@@ -237,21 +233,10 @@ class _TranslationViewState extends State<_TranslationView>
         }
       },
       child: Scaffold(
+        drawer: const Drawer(),
         appBar: AppBar(
           title: const Text('Dịch thuật'),
           centerTitle: true,
-          leading: isAuth
-              ? null
-              : IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go('/welcome');
-                    }
-                  },
-                ),
           actions: [
             // UC05 — Dịch giọng nói: requires Auth
             if (isAuth)
@@ -267,66 +252,23 @@ class _TranslationViewState extends State<_TranslationView>
                 tooltip: 'Dịch bằng hình ảnh',
                 onPressed: () => _showComingSoon('Dịch hình ảnh'),
               ),
-            // Settings / Profile menu
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded),
-              onSelected: (value) {
-                switch (value) {
-                  case 'history':
-                    _showComingSoon('Lịch sử dịch');
-                  case 'vocabulary':
-                    _showComingSoon('Từ vựng đã lưu');
-                  case 'login':
-                    context.push('/login');
-                  case 'logout':
-                    _handleLogout();
-                }
-              },
-              itemBuilder: (ctx) => [
-                if (isAuth) ...[
-                  const PopupMenuItem(
-                    value: 'history',
-                    child: Row(
-                      children: [
-                        Icon(Icons.history_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('Lịch sử dịch'),
-                      ],
-                    ),
+            Padding(
+              padding: const EdgeInsets.only(right: 12.0, left: 4.0),
+              child: InkWell(
+                onTap: () {
+                  context.push('/profile');
+                },
+                customBorder: const CircleBorder(),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: isAuth ? cs.primaryContainer : cs.surfaceContainerHighest,
+                  child: Icon(
+                    isAuth ? Icons.person_rounded : Icons.person_outline_rounded,
+                    size: 22,
+                    color: isAuth ? cs.onPrimaryContainer : cs.onSurfaceVariant,
                   ),
-                  const PopupMenuItem(
-                    value: 'vocabulary',
-                    child: Row(
-                      children: [
-                        Icon(Icons.bookmark_outline_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('Từ vựng đã lưu'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('Đăng xuất'),
-                      ],
-                    ),
-                  ),
-                ] else
-                  const PopupMenuItem(
-                    value: 'login',
-                    child: Row(
-                      children: [
-                        Icon(Icons.login_rounded, size: 20),
-                        SizedBox(width: 12),
-                        Text('Đăng nhập'),
-                      ],
-                    ),
-                  ),
-              ],
+                ),
+              ),
             ),
           ],
         ),
