@@ -57,13 +57,33 @@ class AuthRepositoryImpl implements AuthRepository {
         refreshToken: tokenModel.refreshToken,
       );
 
-      // 4. Cache user data alongside tokens.
-      await _localDataSource.saveUserData(userId: userId, email: email);
-
-      // 5. Return UserEntity to the domain layer.
-      return Right(
-        UserEntity(id: userId, email: email, createdAt: DateTime.now()),
-      );
+      // 4. Fetch profile to get name and avatar
+      try {
+        final profileData = await _remoteDataSource.getCurrentUserProfile(accessToken: tokenModel.accessToken);
+        final name = '${profileData['first_name'] ?? ''} ${profileData['last_name'] ?? ''}'.trim();
+        await _localDataSource.saveUserData(
+          userId: userId,
+          email: email,
+          name: name.isEmpty ? null : name,
+          role: profileData['role'],
+          avatarUrl: profileData['avatar_url'],
+        );
+        
+        return Right(
+          UserEntity(
+            id: userId,
+            email: email,
+            name: name.isEmpty ? null : name,
+            role: profileData['role'] ?? 'user',
+            avatarUrl: profileData['avatar_url'],
+            createdAt: DateTime.now(),
+          ),
+        );
+      } catch (e) {
+        // Fallback to minimal data if profile fetch fails
+        await _localDataSource.saveUserData(userId: userId, email: email);
+        return Right(UserEntity(id: userId, email: email, createdAt: DateTime.now()));
+      }
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
     } on ValidationException catch (e) {
@@ -216,7 +236,31 @@ class AuthRepositoryImpl implements AuthRepository {
         }
       }
 
-      // 4. Read cached user data.
+      // 4. Fetch latest profile from server to ensure session is valid and sync data
+      if (await _networkInfo.isConnected) {
+        try {
+          final currentAccessToken = await _localDataSource.getAccessToken() ?? accessToken;
+          final profileData = await _remoteDataSource.getCurrentUserProfile(accessToken: currentAccessToken);
+          
+          final name = '${profileData['first_name'] ?? ''} ${profileData['last_name'] ?? ''}'.trim();
+          await _localDataSource.saveUserData(
+            userId: profileData['id'].toString(),
+            email: profileData['email'] ?? '',
+            name: name.isEmpty ? null : name,
+            role: profileData['role'],
+            avatarUrl: profileData['avatar_url'],
+          );
+        } catch (e) {
+          if (e is ServerException && (e.statusCode == 401 || e.statusCode == 404)) {
+            // Token is truly invalid according to backend or user deleted
+            await _localDataSource.clearAll();
+            return const Left(AuthFailure('Session expired or invalid'));
+          }
+          // Other errors (e.g. 500) -> just fallback to cache
+        }
+      }
+
+      // 5. Read cached user data.
       final userData = await _localDataSource.getUserData();
       if (userData == null || userData['userId'] == null) {
         return const Left(AuthFailure('No user data found'));
@@ -228,6 +272,7 @@ class AuthRepositoryImpl implements AuthRepository {
           email: userData['email'] ?? '',
           name: userData['name'],
           role: userData['role'] ?? 'user',
+          avatarUrl: userData['avatarUrl'],
           createdAt: DateTime.now(),
         ),
       );
@@ -265,6 +310,101 @@ class AuthRepositoryImpl implements AuthRepository {
       // Refresh token is invalid/revoked — clear everything.
       await _localDataSource.clearAll();
       return Left(AuthFailure(e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, UserEntity>> updateProfile({
+    String? firstName,
+    String? lastName,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return const Left(NetworkFailure('No internet connection'));
+    }
+    try {
+      final accessToken = await _localDataSource.getAccessToken();
+      if (accessToken == null) return const Left(AuthFailure('No access token'));
+      
+      final result = await _remoteDataSource.updateProfile(
+        accessToken: accessToken,
+        firstName: firstName,
+        lastName: lastName,
+      );
+      
+      final userData = await _localDataSource.getUserData();
+      final String name = '${result['first_name'] ?? ''} ${result['last_name'] ?? ''}'.trim();
+      
+      await _localDataSource.saveUserData(
+        userId: userData?['userId'] ?? result['id'].toString(),
+        email: result['email'] ?? userData?['email'] ?? '',
+        name: name.isEmpty ? null : name,
+      );
+      
+      return getCurrentUser();
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updatePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return const Left(NetworkFailure('No internet connection'));
+    }
+    try {
+      final accessToken = await _localDataSource.getAccessToken();
+      if (accessToken == null) return const Left(AuthFailure('No access token'));
+      
+      await _remoteDataSource.updatePassword(
+        accessToken: accessToken,
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+      );
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, UserEntity>> uploadAvatar({
+    required String filePath,
+  }) async {
+    if (!await _networkInfo.isConnected) {
+      return const Left(NetworkFailure('No internet connection'));
+    }
+    try {
+      final accessToken = await _localDataSource.getAccessToken();
+      if (accessToken == null) return const Left(AuthFailure('No access token'));
+      
+      final avatarUrl = await _remoteDataSource.uploadAvatar(
+        accessToken: accessToken,
+        filePath: filePath,
+      );
+      
+      final userData = await _localDataSource.getUserData();
+      if (userData != null) {
+        await _localDataSource.saveUserData(
+          userId: userData['userId']!,
+          email: userData['email'] ?? '',
+          name: userData['name'],
+          role: userData['role'],
+          avatarUrl: avatarUrl,
+        );
+      }
+      
+      return getCurrentUser();
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } catch (e) {

@@ -30,4 +30,21 @@ abstract class AuthRepository {
 
   /// Refreshes the access token using the refresh token.
   Future<Either<Failure, void>> refreshToken();
+
+  /// Updates the user's profile.
+  Future<Either<Failure, UserEntity>> updateProfile({
+    String? firstName,
+    String? lastName,
+  });
+
+  /// Updates the user's password.
+  Future<Either<Failure, void>> updatePassword({
+    required String oldPassword,
+    required String newPassword,
+  });
+
+  /// Uploads and updates the user's avatar.
+  Future<Either<Failure, UserEntity>> uploadAvatar({
+    required String filePath,
+  });
 }

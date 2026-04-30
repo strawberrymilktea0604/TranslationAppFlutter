@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -13,7 +14,14 @@ class ProfilePage extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return BlocBuilder<AuthCubit, AuthState>(
+    return BlocConsumer<AuthCubit, AuthState>(
+      listener: (context, state) {
+        // Lắng nghe trạng thái, nếu biến thành Unauthenticated (ví dụ sau khi gọi logout) 
+        // thì tự động điều hướng về login. Cách này chuẩn BLoC (Reactive Navigation) hơn.
+        if (state is AuthUnauthenticated) {
+          context.go('/login');
+        }
+      },
       builder: (context, state) {
         final isAuth = state is AuthAuthenticated;
         final user = isAuth ? state.user : null;
@@ -98,7 +106,12 @@ class ProfilePage extends StatelessWidget {
               CircleAvatar(
                 radius: 50,
                 backgroundColor: cs.primaryContainer,
-                child: Icon(Icons.person_rounded, size: 50, color: cs.onPrimaryContainer),
+                backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                    ? CachedNetworkImageProvider(user.avatarUrl!)
+                    : null,
+                child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
+                    ? Icon(Icons.person_rounded, size: 50, color: cs.onPrimaryContainer)
+                    : null,
               ),
               const SizedBox(height: 16),
               Text(
@@ -185,8 +198,9 @@ class ProfilePage extends StatelessWidget {
         const SizedBox(height: 32),
         ElevatedButton.icon(
           onPressed: () {
+            // Chỉ cần gọi logout, BlocListener bên trên sẽ tự động bắt trạng thái
+            // AuthUnauthenticated và thực hiện chuyển trang, rất chuẩn luồng kiến trúc.
             context.read<AuthCubit>().logout();
-            context.go('/');
           },
           style: ElevatedButton.styleFrom(
             minimumSize: const Size(double.infinity, 50),

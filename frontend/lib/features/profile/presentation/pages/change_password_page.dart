@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -35,15 +37,26 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     
     setState(() => _isLoading = true);
     
-    // TODO: Tích hợp API gọi lên backend đổi mật khẩu: PATCH /users/me/password
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (mounted) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đổi mật khẩu thành công!')),
+    try {
+      await context.read<AuthCubit>().changePassword(
+        oldPassword: _oldPasswordController.text,
+        newPassword: _newPasswordController.text,
       );
-      context.pop();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đổi mật khẩu thành công!')),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

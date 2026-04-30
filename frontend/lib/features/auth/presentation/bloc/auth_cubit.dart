@@ -6,6 +6,9 @@ import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/register_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/check_email_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/update_profile_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/change_password_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/upload_avatar_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 
 /// AuthCubit manages authentication state.
@@ -20,6 +23,9 @@ class AuthCubit extends Cubit<AuthState> {
   final LogoutUseCase _logoutUseCase;
   final GetCurrentUserUseCase _getCurrentUserUseCase;
   final CheckEmailUseCase _checkEmailUseCase;
+  final UpdateProfileUseCase _updateProfileUseCase;
+  final ChangePasswordUseCase _changePasswordUseCase;
+  final UploadAvatarUseCase _uploadAvatarUseCase;
 
   AuthCubit({
     required LoginUseCase loginUseCase,
@@ -27,11 +33,17 @@ class AuthCubit extends Cubit<AuthState> {
     required LogoutUseCase logoutUseCase,
     required GetCurrentUserUseCase getCurrentUserUseCase,
     required CheckEmailUseCase checkEmailUseCase,
+    required UpdateProfileUseCase updateProfileUseCase,
+    required ChangePasswordUseCase changePasswordUseCase,
+    required UploadAvatarUseCase uploadAvatarUseCase,
   }) : _loginUseCase = loginUseCase,
        _registerUseCase = registerUseCase,
        _logoutUseCase = logoutUseCase,
        _getCurrentUserUseCase = getCurrentUserUseCase,
        _checkEmailUseCase = checkEmailUseCase,
+       _updateProfileUseCase = updateProfileUseCase,
+       _changePasswordUseCase = changePasswordUseCase,
+       _uploadAvatarUseCase = uploadAvatarUseCase,
        super(const AuthInitial());
 
   /// Checks if the user has a valid session on app startup.
@@ -119,5 +131,43 @@ class AuthCubit extends Cubit<AuthState> {
     // Always emit unauthenticated after logout attempt.
     // Local tokens are cleared even if remote logout fails.
     emit(const AuthUnauthenticated());
+  }
+
+  /// Updates the user's profile without emitting AuthInProgress
+  Future<void> updateProfile({String? firstName, String? lastName}) async {
+    final result = await _updateProfileUseCase(UpdateProfileParams(
+      firstName: firstName,
+      lastName: lastName,
+    ));
+
+    result.fold(
+      (failure) => throw Exception(failure.message),
+      (user) => emit(AuthAuthenticated(user)),
+    );
+  }
+
+  /// Changes the user's password without emitting AuthInProgress
+  Future<void> changePassword({required String oldPassword, required String newPassword}) async {
+    final result = await _changePasswordUseCase(ChangePasswordParams(
+      oldPassword: oldPassword,
+      newPassword: newPassword,
+    ));
+
+    if (result.isLeft()) {
+      final failure = result.fold((l) => l, (r) => throw Exception('Unexpected Right'));
+      throw Exception(failure.message);
+    }
+  }
+
+  /// Uploads user avatar without emitting AuthInProgress
+  Future<void> uploadAvatar({required String filePath}) async {
+    final result = await _uploadAvatarUseCase(UploadAvatarParams(
+      filePath: filePath,
+    ));
+
+    result.fold(
+      (failure) => throw Exception(failure.message),
+      (user) => emit(AuthAuthenticated(user)),
+    );
   }
 }

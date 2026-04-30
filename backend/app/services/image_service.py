@@ -32,7 +32,7 @@ class ImageService:
     """
     
     MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
-    SUPPORTED_FORMATS = {'JPEG', 'JPG', 'PNG', 'BMP', 'TIFF', 'GIF'}
+    SUPPORTED_FORMATS = {'JPEG', 'JPG', 'PNG', 'BMP', 'TIFF', 'GIF', 'WEBP'}
     
     @staticmethod
     async def optimize_image(
@@ -255,6 +255,8 @@ class ImageService:
         if header.startswith(b'GIF'):  # GIF
             return True
         if header.startswith(b'II\x2A') or header.startswith(b'MM\x00\x2A'):  # TIFF
+            return True
+        if header.startswith(b'RIFF') and len(header) >= 12 and header[8:12] == b'WEBP':  # WEBP
             return True
         
         return False

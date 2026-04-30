@@ -85,15 +85,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
     
-    // TODO: Tích hợp API gọi lên backend (gửi _firstNameController, _lastNameController và _avatarFile dưới dạng FormData multipart/form-data)
-    await Future.delayed(const Duration(seconds: 1));
-    
-    if (mounted) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
+    try {
+      final authCubit = context.read<AuthCubit>();
+      
+      if (_avatarFile != null) {
+        await authCubit.uploadAvatar(filePath: _avatarFile!.path);
+      }
+      
+      await authCubit.updateProfile(
+        firstName: _firstNameController.text.trim().isNotEmpty ? _firstNameController.text.trim() : null,
+        lastName: _lastNameController.text.trim().isNotEmpty ? _lastNameController.text.trim() : null,
       );
-      context.pop();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

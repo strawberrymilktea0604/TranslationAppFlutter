@@ -11,8 +11,10 @@ import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
+import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 // ---------------------------------------------------------------------------
 // Language model
@@ -103,13 +105,7 @@ class _TranslationViewState extends State<_TranslationView>
 
   TranslationCubit get _cubit => context.read<TranslationCubit>();
 
-  bool get _isAuthenticated {
-    try {
-      return context.read<AuthCubit>().state is AuthAuthenticated;
-    } catch (_) {
-      return false;
-    }
-  }
+  // Removed _isAuthenticated getter since we will use BlocBuilder directly in build
 
   void _onTextChanged(String value) {
     _debounce?.cancel();
@@ -190,6 +186,29 @@ class _TranslationViewState extends State<_TranslationView>
     );
   }
 
+  void _showLoginDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Yêu cầu đăng nhập'),
+        content: const Text('Vui lòng đăng nhập để sử dụng tính năng này.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Đóng'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              context.push('/login');
+            },
+            child: const Text('Đăng nhập'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _pickLanguage({required bool isSource}) async {
     final langs = isSource
         ? _kLangs
@@ -223,36 +242,17 @@ class _TranslationViewState extends State<_TranslationView>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isAuth = _isAuthenticated;
 
-    return BlocListener<AuthCubit, AuthState>(
-      listener: (context, state) {
-        // After logout, stay on the same page (TranslationPage is public).
-        // The UI will rebuild with isAuth = false.
-        if (state is AuthUnauthenticated) {
-          setState(() {});
-        }
-      },
-      child: Scaffold(
-        drawer: const Drawer(),
+    return BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, authState) {
+        final isAuth = authState is AuthAuthenticated;
+        
+        return Scaffold(
+          drawer: const Drawer(),
         appBar: AppBar(
           title: const Text('Dịch thuật'),
           centerTitle: true,
           actions: [
-            // UC05 — Dịch giọng nói: requires Auth
-            if (isAuth)
-              IconButton(
-                icon: const Icon(Icons.mic_outlined),
-                tooltip: 'Dịch bằng giọng nói',
-                onPressed: () => _showComingSoon('Dịch giọng nói'),
-              ),
-            // UC06 — Dịch hình ảnh (OCR): requires Auth
-            if (isAuth)
-              IconButton(
-                icon: const Icon(Icons.camera_alt_outlined),
-                tooltip: 'Dịch bằng hình ảnh',
-                onPressed: () => _showComingSoon('Dịch hình ảnh'),
-              ),
             Padding(
               padding: const EdgeInsets.only(right: 12.0, left: 4.0),
               child: InkWell(
@@ -263,11 +263,16 @@ class _TranslationViewState extends State<_TranslationView>
                 child: CircleAvatar(
                   radius: 18,
                   backgroundColor: isAuth ? cs.primaryContainer : cs.surfaceContainerHighest,
-                  child: Icon(
-                    isAuth ? Icons.person_rounded : Icons.person_outline_rounded,
-                    size: 22,
-                    color: isAuth ? cs.onPrimaryContainer : cs.onSurfaceVariant,
-                  ),
+                  backgroundImage: (isAuth && authState is AuthAuthenticated && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
+                      ? CachedNetworkImageProvider(authState.user.avatarUrl!)
+                      : null,
+                  child: (isAuth && authState is AuthAuthenticated && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
+                      ? null
+                      : Icon(
+                          isAuth ? Icons.person_rounded : Icons.person_outline_rounded,
+                          size: 22,
+                          color: isAuth ? cs.onPrimaryContainer : cs.onSurfaceVariant,
+                        ),
                 ),
               ),
             ),
@@ -316,7 +321,8 @@ class _TranslationViewState extends State<_TranslationView>
                 ],
               )
             : null,
-      ),
+        );
+      },
     );
   }
 
@@ -368,7 +374,7 @@ class _TranslationViewState extends State<_TranslationView>
                   if (!isAuth) _buildGuestBanner(cs, theme),
                   _buildLangBar(cs),
                   const SizedBox(height: 10),
-                  Expanded(child: _buildSourceCard(theme)),
+                  Expanded(child: _buildSourceCard(theme, isAuth)),
                   const SizedBox(height: 10),
                   Expanded(child: _buildResultCard(theme, isAuth)),
                 ],
@@ -528,7 +534,7 @@ class _TranslationViewState extends State<_TranslationView>
 
   // ---- Source card ----
 
-  Widget _buildSourceCard(ThemeData theme) {
+  Widget _buildSourceCard(ThemeData theme, bool isAuth) {
     final cs = theme.colorScheme;
     final hasText = _controller.text.isNotEmpty;
 
@@ -601,8 +607,14 @@ class _TranslationViewState extends State<_TranslationView>
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 0, 8, 2),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                IconButton(
+                  icon: Icon(isAuth ? Icons.mic_outlined : Icons.lock_outline_rounded, size: 22),
+                  tooltip: isAuth ? 'Dịch bằng giọng nói' : 'Đăng nhập để sử dụng giọng nói',
+                  color: isAuth ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.3),
+                  onPressed: isAuth ? () => _showComingSoon('Dịch giọng nói') : _showLoginDialog,
+                ),
+                const Spacer(),
                 TtsIconButton(
                   text: _controller.text,
                   languageCode: _srcCode == 'auto' ? 'en' : _srcCode,
@@ -701,7 +713,7 @@ class _TranslationViewState extends State<_TranslationView>
                         child: IconButton(
                           icon: const Icon(Icons.lock_outline_rounded, size: 18),
                           color: cs.onSurface.withValues(alpha: 0.3),
-                          onPressed: () => context.push('/login'),
+                          onPressed: _showLoginDialog,
                         ),
                       ),
                     const Spacer(),

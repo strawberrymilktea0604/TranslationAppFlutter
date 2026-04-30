@@ -49,6 +49,27 @@ abstract class AuthRemoteDataSource {
     required String accessToken,
     required String refreshToken,
   });
+
+  Future<Map<String, dynamic>> updateProfile({
+    required String accessToken,
+    String? firstName,
+    String? lastName,
+  });
+
+  Future<void> updatePassword({
+    required String accessToken,
+    required String oldPassword,
+    required String newPassword,
+  });
+
+  Future<String> uploadAvatar({
+    required String accessToken,
+    required String filePath,
+  });
+
+  Future<Map<String, dynamic>> getCurrentUserProfile({
+    required String accessToken,
+  });
 }
 
 /// Implementation of [AuthRemoteDataSource] using [http.Client].
@@ -149,6 +170,109 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       final body = _decodeBody(response);
       throw ServerException(
         message: body['detail'] as String? ?? 'Logout failed',
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateProfile({
+    required String accessToken,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final response = await client.patch(
+      Uri.parse('$baseUrl/users/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: jsonEncode({
+        if (firstName != null) 'first_name': firstName,
+        if (lastName != null) 'last_name': lastName,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return _decodeBody(response);
+    } else {
+      final body = _decodeBody(response);
+      throw ServerException(
+        message: body['detail'] as String? ?? 'Update profile failed',
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String accessToken,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final response = await client.patch(
+      Uri.parse('$baseUrl/users/me/password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+      body: jsonEncode({
+        'old_password': oldPassword,
+        'new_password': newPassword,
+      }),
+    );
+    if (response.statusCode != 200) {
+      final body = _decodeBody(response);
+      throw ServerException(
+        message: body['detail'] as String? ?? 'Update password failed',
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
+  @override
+  Future<String> uploadAvatar({
+    required String accessToken,
+    required String filePath,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/users/me/avatar'),
+    );
+    request.headers['Authorization'] = 'Bearer $accessToken';
+    request.files.add(await http.MultipartFile.fromPath('file', filePath));
+    
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    if (response.statusCode == 200) {
+      final body = _decodeBody(response);
+      return body['avatar_url'] as String;
+    } else {
+      final body = _decodeBody(response);
+      throw ServerException(
+        message: body['detail'] as String? ?? 'Upload avatar failed',
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getCurrentUserProfile({
+    required String accessToken,
+  }) async {
+    final response = await client.get(
+      Uri.parse('$baseUrl/users/me'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
+    if (response.statusCode == 200) {
+      return _decodeBody(response);
+    } else {
+      final body = _decodeBody(response);
+      throw ServerException(
+        message: body['detail'] as String? ?? 'Failed to get profile',
         statusCode: response.statusCode,
       );
     }

@@ -16,6 +16,9 @@ import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/register_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/check_email_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/update_profile_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/change_password_usecase.dart';
+import 'package:frontend/features/auth/domain/usecases/upload_avatar_usecase.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/translation/data/datasources/translation_remote_datasource.dart';
 import 'package:frontend/features/translation/data/repositories/translation_repository_impl.dart';
@@ -94,6 +97,10 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
   sl.registerLazySingleton(() => CheckEmailUseCase(sl()));
 
+  sl.registerLazySingleton(() => UpdateProfileUseCase(sl()));
+  sl.registerLazySingleton(() => ChangePasswordUseCase(sl()));
+  sl.registerLazySingleton(() => UploadAvatarUseCase(sl()));
+
   // Cubits — registered as factory (new instance per provider).
   sl.registerFactory(
     () => AuthCubit(
@@ -102,6 +109,9 @@ Future<void> initDependencies() async {
       logoutUseCase: sl(),
       getCurrentUserUseCase: sl(),
       checkEmailUseCase: sl(),
+      updateProfileUseCase: sl(),
+      changePasswordUseCase: sl(),
+      uploadAvatarUseCase: sl(),
     ),
   );
 

@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.compile.JavaCompile
+
 allprojects {
     repositories {
         google()
@@ -20,6 +22,15 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    tasks.withType<JavaCompile>().configureEach {
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
+        // Suppress warnings for any legacy source/target flags from transitive tasks.
+        options.compilerArgs.add("-Xlint:-options")
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
@@ -33,10 +44,9 @@ subprojects {
         }
     }
 
-    // Kiểm tra xem project đã evaluate xong chưa
     if (state.executed) {
-        configureNamespace() // Nếu xong rồi thì chạy luôn
+        configureNamespace()
     } else {
-        afterEvaluate { configureNamespace() } // Nếu chưa thì đặt lịch chờ
+        afterEvaluate { configureNamespace() }
     }
 }

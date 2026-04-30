@@ -26,6 +26,7 @@ abstract class AuthLocalDataSource {
     required String email,
     String? name,
     String? role,
+    String? avatarUrl,
   });
 
   /// Returns cached user data as a map, or `null` if absent.
@@ -83,6 +84,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     required String email,
     String? name,
     String? role,
+    String? avatarUrl,
   }) async {
     try {
       await Future.wait([
@@ -92,6 +94,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
           _secureStorage.write(key: SecureStorageKeys.userName, value: name),
         if (role != null)
           _secureStorage.write(key: SecureStorageKeys.userRole, value: role),
+        if (avatarUrl != null)
+          _secureStorage.write(key: 'user_avatar', value: avatarUrl),
       ]);
     } catch (e) {
       throw CacheException(
@@ -108,8 +112,9 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     final email = await _secureStorage.read(SecureStorageKeys.userEmail);
     final name = await _secureStorage.read(SecureStorageKeys.userName);
     final role = await _secureStorage.read(SecureStorageKeys.userRole);
+    final avatarUrl = await _secureStorage.read('user_avatar');
 
-    return {'userId': userId, 'email': email, 'name': name, 'role': role};
+    return {'userId': userId, 'email': email, 'name': name, 'role': role, 'avatarUrl': avatarUrl};
   }
 
   @override
