@@ -74,6 +74,7 @@ class _TranslationViewState extends State<_TranslationView>
   Timer? _debounce;
   String _srcCode = 'auto';
   String _tgtCode = 'vi';
+  int _currentIndex = 0;
   late AnimationController _swapAnim;
 
   @override
@@ -274,33 +275,108 @@ class _TranslationViewState extends State<_TranslationView>
         ),
         // Use LayoutBuilder to prevent bottom overflow on small screens.
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - 24,
-                  ),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      children: [
-                        // Guest CTA banner
-                        if (!isAuth) _buildGuestBanner(cs, theme),
-                        _buildLangBar(cs),
-                        const SizedBox(height: 10),
-                        Expanded(child: _buildSourceCard(theme)),
-                        const SizedBox(height: 10),
-                        Expanded(child: _buildResultCard(theme, isAuth)),
-                      ],
-                    ),
-                  ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
                 ),
               );
             },
+            child: _buildCurrentTab(context, cs, theme, isAuth),
           ),
         ),
+        bottomNavigationBar: isAuth
+            ? NavigationBar(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.translate_rounded),
+                    label: 'Dịch',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.lens_blur_rounded),
+                    label: 'Lens',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.bookmark_rounded),
+                    label: 'Từ vựng',
+                  ),
+                ],
+              )
+            : null,
       ),
+    );
+  }
+
+  Widget _buildCurrentTab(BuildContext context, ColorScheme cs, ThemeData theme, bool isAuth) {
+    if (_currentIndex == 1) {
+      return _buildPlaceholderTab('Lens', Icons.lens_blur_rounded, cs, key: const ValueKey('lens'));
+    } else if (_currentIndex == 2) {
+      return _buildPlaceholderTab('Từ vựng', Icons.bookmark_rounded, cs, key: const ValueKey('vocab'));
+    }
+    return _buildTranslationTab(context, cs, theme, isAuth, key: const ValueKey('translate'));
+  }
+
+  Widget _buildPlaceholderTab(String title, IconData icon, ColorScheme cs, {Key? key}) {
+    return Center(
+      key: key,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: cs.primary.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: cs.primary),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tính năng đang phát triển 🚀',
+            style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTranslationTab(BuildContext context, ColorScheme cs, ThemeData theme, bool isAuth, {Key? key}) {
+    return LayoutBuilder(
+      key: key,
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 24,
+            ),
+            child: IntrinsicHeight(
+              child: Column(
+                children: [
+                  // Guest CTA banner
+                  if (!isAuth) _buildGuestBanner(cs, theme),
+                  _buildLangBar(cs),
+                  const SizedBox(height: 10),
+                  Expanded(child: _buildSourceCard(theme)),
+                  const SizedBox(height: 10),
+                  Expanded(child: _buildResultCard(theme, isAuth)),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

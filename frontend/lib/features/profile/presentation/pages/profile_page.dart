@@ -26,17 +26,6 @@ class ProfilePage extends StatelessWidget {
               icon: const Icon(Icons.arrow_back_rounded),
               onPressed: () => context.pop(),
             ),
-            actions: [
-              if (isAuth)
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded),
-                  tooltip: 'Đăng xuất',
-                  onPressed: () {
-                    context.read<AuthCubit>().logout();
-                    context.go('/');
-                  },
-                ),
-            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -193,6 +182,22 @@ class ProfilePage extends StatelessWidget {
             );
           },
         ),
+        const SizedBox(height: 32),
+        ElevatedButton.icon(
+          onPressed: () {
+            context.read<AuthCubit>().logout();
+            context.go('/');
+          },
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 50),
+            backgroundColor: cs.errorContainer,
+            foregroundColor: cs.onErrorContainer,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          icon: const Icon(Icons.logout_rounded),
+          label: const Text('Đăng xuất', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }
