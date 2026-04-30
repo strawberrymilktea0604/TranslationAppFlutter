@@ -14,6 +14,8 @@ import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
 import 'package:frontend/features/translation/presentation/pages/translation_page.dart';
 import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
+import 'package:frontend/features/profile/presentation/pages/edit_profile_page.dart';
+import 'package:frontend/features/profile/presentation/pages/change_password_page.dart';
 
 /// Route path constants to avoid hardcoded strings.
 class AppRoutes {
@@ -29,6 +31,8 @@ class AppRoutes {
   static const String home = '/';
   static const String translate = '/translate';
   static const String profile = '/profile';
+  static const String editProfile = '/edit-profile';
+  static const String changePassword = '/change-password';
 
   // Legacy routes — kept for backward compatibility, all resolve to
   // TranslationPage (the new primary screen).
@@ -193,6 +197,26 @@ GoRouter createRouter(BuildContext context) {
         pageBuilder: (context, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const ProfilePage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: _slideUpFade,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.editProfile,
+        name: 'edit_profile',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const EditProfilePage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: _slideUpFade,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.changePassword,
+        name: 'change_password',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const ChangePasswordPage(),
           transitionDuration: const Duration(milliseconds: 400),
           transitionsBuilder: _slideUpFade,
         ),

@@ -97,9 +97,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   Widget _buildAuthView(BuildContext context, ColorScheme cs, ThemeData theme, dynamic user) {
-    final name = (user?.firstName != null && user?.lastName != null)
-        ? '${user!.firstName} ${user.lastName}'
-        : 'Người dùng';
+    final name = user?.name ?? 'Người dùng';
     final email = user?.email ?? '';
 
     return Column(
@@ -128,9 +126,7 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Chỉnh sửa tài khoản — tính năng sắp ra mắt 🚀')),
-                  );
+                  context.push('/edit-profile');
                 },
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 label: const Text('Chỉnh sửa tài khoản'),
@@ -149,21 +145,33 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.dark_mode_outlined,
           title: 'Giao diện',
           subtitle: 'Sáng / Tối (Tính năng sắp ra mắt)',
-          onTap: () {},
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tính năng sắp ra mắt 🚀')),
+            );
+          },
         ),
         _buildListTile(
           context,
           icon: Icons.sync_rounded,
           title: 'Lịch sử đồng bộ',
           subtitle: 'Trạng thái: Đang trực tuyến (Tính năng sắp ra mắt)',
-          onTap: () {},
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tính năng sắp ra mắt 🚀')),
+            );
+          },
         ),
         _buildListTile(
           context,
           icon: Icons.language_rounded,
           title: 'Ngôn ngữ ứng dụng',
           subtitle: 'Tiếng Việt',
-          onTap: () {},
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tính năng sắp ra mắt 🚀')),
+            );
+          },
         ),
         const SizedBox(height: 24),
         _buildSectionHeader('Bảo mật & Hỗ trợ', theme),
@@ -171,13 +179,19 @@ class ProfilePage extends StatelessWidget {
           context,
           icon: Icons.security_rounded,
           title: 'Mật khẩu & Bảo mật',
-          onTap: () {},
+          onTap: () {
+            context.push('/change-password');
+          },
         ),
         _buildListTile(
           context,
           icon: Icons.help_outline_rounded,
           title: 'Trợ giúp & Phản hồi',
-          onTap: () {},
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tính năng sắp ra mắt 🚀')),
+            );
+          },
         ),
       ],
     );
@@ -224,11 +238,7 @@ class ProfilePage extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)) : null,
         trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tính năng sắp ra mắt 🚀')),
-          );
-        },
+        onTap: onTap,
       ),
     );
   }

@@ -32,7 +32,11 @@ const VocabularyModelSchema = CollectionSchema(
       name: r'isDeleted',
       type: IsarType.bool,
     ),
-    r'isSynced': PropertySchema(id: 3, name: r'isSynced', type: IsarType.bool),
+    r'isSynced': PropertySchema(
+      id: 3,
+      name: r'isSynced',
+      type: IsarType.bool,
+    ),
     r'sourceLanguage': PropertySchema(
       id: 4,
       name: r'sourceLanguage',
@@ -53,7 +57,11 @@ const VocabularyModelSchema = CollectionSchema(
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
-    r'word': PropertySchema(id: 8, name: r'word', type: IsarType.string),
+    r'word': PropertySchema(
+      id: 8,
+      name: r'word',
+      type: IsarType.string,
+    )
   },
   estimateSize: _vocabularyModelEstimateSize,
   serialize: _vocabularyModelSerialize,
@@ -71,7 +79,7 @@ const VocabularyModelSchema = CollectionSchema(
           name: r'backendId',
           type: IndexType.hash,
           caseSensitive: true,
-        ),
+        )
       ],
     ),
     r'createdAt': IndexSchema(
@@ -84,9 +92,9 @@ const VocabularyModelSchema = CollectionSchema(
           name: r'createdAt',
           type: IndexType.value,
           caseSensitive: false,
-        ),
+        )
       ],
-    ),
+    )
   },
   links: {},
   embeddedSchemas: {},
@@ -187,10 +195,7 @@ List<IsarLinkBase<dynamic>> _vocabularyModelGetLinks(VocabularyModel object) {
 }
 
 void _vocabularyModelAttach(
-  IsarCollection<dynamic> col,
-  Id id,
-  VocabularyModel object,
-) {
+    IsarCollection<dynamic> col, Id id, VocabularyModel object) {
   object.id = id;
 }
 
@@ -212,8 +217,7 @@ extension VocabularyModelByIndex on IsarCollection<VocabularyModel> {
   }
 
   Future<List<VocabularyModel?>> getAllByBackendId(
-    List<String> backendIdValues,
-  ) {
+      List<String> backendIdValues) {
     final values = backendIdValues.map((e) => [e]).toList();
     return getAllByIndex(r'backendId', values);
   }
@@ -245,10 +249,8 @@ extension VocabularyModelByIndex on IsarCollection<VocabularyModel> {
     return putAllByIndex(r'backendId', objects);
   }
 
-  List<Id> putAllByBackendIdSync(
-    List<VocabularyModel> objects, {
-    bool saveLinks = true,
-  }) {
+  List<Id> putAllByBackendIdSync(List<VocabularyModel> objects,
+      {bool saveLinks = true}) {
     return putAllByIndexSync(r'backendId', objects, saveLinks: saveLinks);
   }
 }
@@ -273,15 +275,17 @@ extension VocabularyModelQueryWhereSort
 extension VocabularyModelQueryWhere
     on QueryBuilder<VocabularyModel, VocabularyModel, QWhereClause> {
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause> idEqualTo(
-    Id id,
-  ) {
+      Id id) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
+      return query.addWhereClause(IdWhereClause.between(
+        lower: id,
+        upper: id,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  idNotEqualTo(Id id) {
+      idNotEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -304,7 +308,7 @@ extension VocabularyModelQueryWhere
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  idGreaterThan(Id id, {bool include = false}) {
+      idGreaterThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -313,9 +317,8 @@ extension VocabularyModelQueryWhere
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause> idLessThan(
-    Id id, {
-    bool include = false,
-  }) {
+      Id id,
+      {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -330,166 +333,150 @@ extension VocabularyModelQueryWhere
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(
-        IdWhereClause.between(
-          lower: lowerId,
-          includeLower: includeLower,
-          upper: upperId,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addWhereClause(IdWhereClause.between(
+        lower: lowerId,
+        includeLower: includeLower,
+        upper: upperId,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  backendIdEqualTo(String backendId) {
+      backendIdEqualTo(String backendId) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(
-        IndexWhereClause.equalTo(indexName: r'backendId', value: [backendId]),
-      );
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'backendId',
+        value: [backendId],
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  backendIdNotEqualTo(String backendId) {
+      backendIdNotEqualTo(String backendId) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'backendId',
-                lower: [],
-                upper: [backendId],
-                includeUpper: false,
-              ),
-            )
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'backendId',
-                lower: [backendId],
-                includeLower: false,
-                upper: [],
-              ),
-            );
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'backendId',
+              lower: [],
+              upper: [backendId],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'backendId',
+              lower: [backendId],
+              includeLower: false,
+              upper: [],
+            ));
       } else {
         return query
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'backendId',
-                lower: [backendId],
-                includeLower: false,
-                upper: [],
-              ),
-            )
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'backendId',
-                lower: [],
-                upper: [backendId],
-                includeUpper: false,
-              ),
-            );
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'backendId',
+              lower: [backendId],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'backendId',
+              lower: [],
+              upper: [backendId],
+              includeUpper: false,
+            ));
       }
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  createdAtEqualTo(DateTime createdAt) {
+      createdAtEqualTo(DateTime createdAt) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(
-        IndexWhereClause.equalTo(indexName: r'createdAt', value: [createdAt]),
-      );
+      return query.addWhereClause(IndexWhereClause.equalTo(
+        indexName: r'createdAt',
+        value: [createdAt],
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  createdAtNotEqualTo(DateTime createdAt) {
+      createdAtNotEqualTo(DateTime createdAt) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'createdAt',
-                lower: [],
-                upper: [createdAt],
-                includeUpper: false,
-              ),
-            )
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'createdAt',
-                lower: [createdAt],
-                includeLower: false,
-                upper: [],
-              ),
-            );
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'createdAt',
+              lower: [],
+              upper: [createdAt],
+              includeUpper: false,
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'createdAt',
+              lower: [createdAt],
+              includeLower: false,
+              upper: [],
+            ));
       } else {
         return query
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'createdAt',
-                lower: [createdAt],
-                includeLower: false,
-                upper: [],
-              ),
-            )
-            .addWhereClause(
-              IndexWhereClause.between(
-                indexName: r'createdAt',
-                lower: [],
-                upper: [createdAt],
-                includeUpper: false,
-              ),
-            );
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'createdAt',
+              lower: [createdAt],
+              includeLower: false,
+              upper: [],
+            ))
+            .addWhereClause(IndexWhereClause.between(
+              indexName: r'createdAt',
+              lower: [],
+              upper: [createdAt],
+              includeUpper: false,
+            ));
       }
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  createdAtGreaterThan(DateTime createdAt, {bool include = false}) {
+      createdAtGreaterThan(
+    DateTime createdAt, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(
-        IndexWhereClause.between(
-          indexName: r'createdAt',
-          lower: [createdAt],
-          includeLower: include,
-          upper: [],
-        ),
-      );
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'createdAt',
+        lower: [createdAt],
+        includeLower: include,
+        upper: [],
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  createdAtLessThan(DateTime createdAt, {bool include = false}) {
+      createdAtLessThan(
+    DateTime createdAt, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(
-        IndexWhereClause.between(
-          indexName: r'createdAt',
-          lower: [],
-          upper: [createdAt],
-          includeUpper: include,
-        ),
-      );
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'createdAt',
+        lower: [],
+        upper: [createdAt],
+        includeUpper: include,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterWhereClause>
-  createdAtBetween(
+      createdAtBetween(
     DateTime lowerCreatedAt,
     DateTime upperCreatedAt, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(
-        IndexWhereClause.between(
-          indexName: r'createdAt',
-          lower: [lowerCreatedAt],
-          includeLower: includeLower,
-          upper: [upperCreatedAt],
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addWhereClause(IndexWhereClause.between(
+        indexName: r'createdAt',
+        lower: [lowerCreatedAt],
+        includeLower: includeLower,
+        upper: [upperCreatedAt],
+        includeUpper: includeUpper,
+      ));
     });
   }
 }
@@ -497,56 +484,53 @@ extension VocabularyModelQueryWhere
 extension VocabularyModelQueryFilter
     on QueryBuilder<VocabularyModel, VocabularyModel, QFilterCondition> {
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdEqualTo(String value, {bool caseSensitive = true}) {
+      backendIdEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'backendId',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'backendId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdGreaterThan(
+      backendIdGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'backendId',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'backendId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdLessThan(
+      backendIdLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'backendId',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'backendId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdBetween(
+      backendIdBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -554,268 +538,267 @@ extension VocabularyModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'backendId',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'backendId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdStartsWith(String value, {bool caseSensitive = true}) {
+      backendIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.startsWith(
-          property: r'backendId',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'backendId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdEndsWith(String value, {bool caseSensitive = true}) {
+      backendIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.endsWith(
-          property: r'backendId',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'backendId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdContains(String value, {bool caseSensitive = true}) {
+      backendIdContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.contains(
-          property: r'backendId',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'backendId',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdMatches(String pattern, {bool caseSensitive = true}) {
+      backendIdMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.matches(
-          property: r'backendId',
-          wildcard: pattern,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'backendId',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdIsEmpty() {
+      backendIdIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'backendId', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'backendId',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  backendIdIsNotEmpty() {
+      backendIdIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(property: r'backendId', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'backendId',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  createdAtEqualTo(DateTime value) {
+      createdAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'createdAt', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'createdAt',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  createdAtGreaterThan(DateTime value, {bool include = false}) {
+      createdAtGreaterThan(
+    DateTime value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'createdAt',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'createdAt',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  createdAtLessThan(DateTime value, {bool include = false}) {
+      createdAtLessThan(
+    DateTime value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'createdAt',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'createdAt',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  createdAtBetween(
+      createdAtBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'createdAt',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'createdAt',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  idEqualTo(Id value) {
+      idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'id', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'id',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  idGreaterThan(Id value, {bool include = false}) {
+      idGreaterThan(
+    Id value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'id',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'id',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  idLessThan(Id value, {bool include = false}) {
+      idLessThan(
+    Id value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'id',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'id',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  idBetween(
+      idBetween(
     Id lower,
     Id upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'id',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'id',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  isDeletedEqualTo(bool value) {
+      isDeletedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'isDeleted', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isDeleted',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  isSyncedEqualTo(bool value) {
+      isSyncedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'isSynced', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isSynced',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageEqualTo(String value, {bool caseSensitive = true}) {
+      sourceLanguageEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'sourceLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sourceLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageGreaterThan(
+      sourceLanguageGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'sourceLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'sourceLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageLessThan(
+      sourceLanguageLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'sourceLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'sourceLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageBetween(
+      sourceLanguageBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -823,140 +806,135 @@ extension VocabularyModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'sourceLanguage',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'sourceLanguage',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageStartsWith(String value, {bool caseSensitive = true}) {
+      sourceLanguageStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.startsWith(
-          property: r'sourceLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'sourceLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageEndsWith(String value, {bool caseSensitive = true}) {
+      sourceLanguageEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.endsWith(
-          property: r'sourceLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'sourceLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageContains(String value, {bool caseSensitive = true}) {
+      sourceLanguageContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.contains(
-          property: r'sourceLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'sourceLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageMatches(String pattern, {bool caseSensitive = true}) {
+      sourceLanguageMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.matches(
-          property: r'sourceLanguage',
-          wildcard: pattern,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'sourceLanguage',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageIsEmpty() {
+      sourceLanguageIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'sourceLanguage', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'sourceLanguage',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  sourceLanguageIsNotEmpty() {
+      sourceLanguageIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(property: r'sourceLanguage', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'sourceLanguage',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageEqualTo(String value, {bool caseSensitive = true}) {
+      targetLanguageEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'targetLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'targetLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageGreaterThan(
+      targetLanguageGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'targetLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'targetLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageLessThan(
+      targetLanguageLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'targetLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'targetLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageBetween(
+      targetLanguageBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -964,140 +942,135 @@ extension VocabularyModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'targetLanguage',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'targetLanguage',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageStartsWith(String value, {bool caseSensitive = true}) {
+      targetLanguageStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.startsWith(
-          property: r'targetLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'targetLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageEndsWith(String value, {bool caseSensitive = true}) {
+      targetLanguageEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.endsWith(
-          property: r'targetLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'targetLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageContains(String value, {bool caseSensitive = true}) {
+      targetLanguageContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.contains(
-          property: r'targetLanguage',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'targetLanguage',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageMatches(String pattern, {bool caseSensitive = true}) {
+      targetLanguageMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.matches(
-          property: r'targetLanguage',
-          wildcard: pattern,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'targetLanguage',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageIsEmpty() {
+      targetLanguageIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'targetLanguage', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'targetLanguage',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  targetLanguageIsNotEmpty() {
+      targetLanguageIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(property: r'targetLanguage', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'targetLanguage',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationEqualTo(String value, {bool caseSensitive = true}) {
+      translationEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'translation',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'translation',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationGreaterThan(
+      translationGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'translation',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'translation',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationLessThan(
+      translationLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'translation',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'translation',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationBetween(
+      translationBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1105,195 +1078,191 @@ extension VocabularyModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'translation',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'translation',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationStartsWith(String value, {bool caseSensitive = true}) {
+      translationStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.startsWith(
-          property: r'translation',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'translation',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationEndsWith(String value, {bool caseSensitive = true}) {
+      translationEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.endsWith(
-          property: r'translation',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'translation',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationContains(String value, {bool caseSensitive = true}) {
+      translationContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.contains(
-          property: r'translation',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'translation',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationMatches(String pattern, {bool caseSensitive = true}) {
+      translationMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.matches(
-          property: r'translation',
-          wildcard: pattern,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'translation',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationIsEmpty() {
+      translationIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'translation', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'translation',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  translationIsNotEmpty() {
+      translationIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(property: r'translation', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'translation',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  updatedAtEqualTo(DateTime value) {
+      updatedAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'updatedAt', value: value),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'updatedAt',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  updatedAtGreaterThan(DateTime value, {bool include = false}) {
+      updatedAtGreaterThan(
+    DateTime value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'updatedAt',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'updatedAt',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  updatedAtLessThan(DateTime value, {bool include = false}) {
+      updatedAtLessThan(
+    DateTime value, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'updatedAt',
-          value: value,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'updatedAt',
+        value: value,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  updatedAtBetween(
+      updatedAtBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'updatedAt',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'updatedAt',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordEqualTo(String value, {bool caseSensitive = true}) {
+      wordEqualTo(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(
-          property: r'word',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'word',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordGreaterThan(
+      wordGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(
-          include: include,
-          property: r'word',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'word',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordLessThan(
+      wordLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.lessThan(
-          include: include,
-          property: r'word',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'word',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordBetween(
+      wordBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1301,86 +1270,84 @@ extension VocabularyModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.between(
-          property: r'word',
-          lower: lower,
-          includeLower: includeLower,
-          upper: upper,
-          includeUpper: includeUpper,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'word',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordStartsWith(String value, {bool caseSensitive = true}) {
+      wordStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.startsWith(
-          property: r'word',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'word',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordEndsWith(String value, {bool caseSensitive = true}) {
+      wordEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.endsWith(
-          property: r'word',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'word',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordContains(String value, {bool caseSensitive = true}) {
+      wordContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.contains(
-          property: r'word',
-          value: value,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'word',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordMatches(String pattern, {bool caseSensitive = true}) {
+      wordMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.matches(
-          property: r'word',
-          wildcard: pattern,
-          caseSensitive: caseSensitive,
-        ),
-      );
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'word',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordIsEmpty() {
+      wordIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'word', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'word',
+        value: '',
+      ));
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
-  wordIsNotEmpty() {
+      wordIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.greaterThan(property: r'word', value: ''),
-      );
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'word',
+        value: '',
+      ));
     });
   }
 }
@@ -1394,112 +1361,112 @@ extension VocabularyModelQueryLinks
 extension VocabularyModelQuerySortBy
     on QueryBuilder<VocabularyModel, VocabularyModel, QSortBy> {
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByBackendId() {
+      sortByBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByBackendIdDesc() {
+      sortByBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByCreatedAt() {
+      sortByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByCreatedAtDesc() {
+      sortByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByIsDeleted() {
+      sortByIsDeleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByIsDeletedDesc() {
+      sortByIsDeletedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByIsSynced() {
+      sortByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByIsSyncedDesc() {
+      sortByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortBySourceLanguage() {
+      sortBySourceLanguage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'sourceLanguage', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortBySourceLanguageDesc() {
+      sortBySourceLanguageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'sourceLanguage', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByTargetLanguage() {
+      sortByTargetLanguage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'targetLanguage', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByTargetLanguageDesc() {
+      sortByTargetLanguageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'targetLanguage', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByTranslation() {
+      sortByTranslation() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'translation', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByTranslationDesc() {
+      sortByTranslationDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'translation', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByUpdatedAt() {
+      sortByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByUpdatedAtDesc() {
+      sortByUpdatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
@@ -1512,7 +1479,7 @@ extension VocabularyModelQuerySortBy
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  sortByWordDesc() {
+      sortByWordDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'word', Sort.desc);
     });
@@ -1522,28 +1489,28 @@ extension VocabularyModelQuerySortBy
 extension VocabularyModelQuerySortThenBy
     on QueryBuilder<VocabularyModel, VocabularyModel, QSortThenBy> {
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByBackendId() {
+      thenByBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByBackendIdDesc() {
+      thenByBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByCreatedAt() {
+      thenByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByCreatedAtDesc() {
+      thenByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
@@ -1562,84 +1529,84 @@ extension VocabularyModelQuerySortThenBy
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByIsDeleted() {
+      thenByIsDeleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByIsDeletedDesc() {
+      thenByIsDeletedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByIsSynced() {
+      thenByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByIsSyncedDesc() {
+      thenByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenBySourceLanguage() {
+      thenBySourceLanguage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'sourceLanguage', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenBySourceLanguageDesc() {
+      thenBySourceLanguageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'sourceLanguage', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByTargetLanguage() {
+      thenByTargetLanguage() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'targetLanguage', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByTargetLanguageDesc() {
+      thenByTargetLanguageDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'targetLanguage', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByTranslation() {
+      thenByTranslation() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'translation', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByTranslationDesc() {
+      thenByTranslationDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'translation', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByUpdatedAt() {
+      thenByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByUpdatedAtDesc() {
+      thenByUpdatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
@@ -1652,7 +1619,7 @@ extension VocabularyModelQuerySortThenBy
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
-  thenByWordDesc() {
+      thenByWordDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'word', Sort.desc);
     });
@@ -1661,71 +1628,66 @@ extension VocabularyModelQuerySortThenBy
 
 extension VocabularyModelQueryWhereDistinct
     on QueryBuilder<VocabularyModel, VocabularyModel, QDistinct> {
-  QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctByBackendId({bool caseSensitive = true}) {
+  QueryBuilder<VocabularyModel, VocabularyModel, QDistinct> distinctByBackendId(
+      {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'backendId', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctByCreatedAt() {
+      distinctByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'createdAt');
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctByIsDeleted() {
+      distinctByIsDeleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isDeleted');
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctByIsSynced() {
+      distinctByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isSynced');
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctBySourceLanguage({bool caseSensitive = true}) {
+      distinctBySourceLanguage({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(
-        r'sourceLanguage',
-        caseSensitive: caseSensitive,
-      );
+      return query.addDistinctBy(r'sourceLanguage',
+          caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctByTargetLanguage({bool caseSensitive = true}) {
+      distinctByTargetLanguage({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(
-        r'targetLanguage',
-        caseSensitive: caseSensitive,
-      );
+      return query.addDistinctBy(r'targetLanguage',
+          caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctByTranslation({bool caseSensitive = true}) {
+      distinctByTranslation({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'translation', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
-  distinctByUpdatedAt() {
+      distinctByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'updatedAt');
     });
   }
 
-  QueryBuilder<VocabularyModel, VocabularyModel, QDistinct> distinctByWord({
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<VocabularyModel, VocabularyModel, QDistinct> distinctByWord(
+      {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'word', caseSensitive: caseSensitive);
     });
@@ -1747,7 +1709,7 @@ extension VocabularyModelQueryProperty
   }
 
   QueryBuilder<VocabularyModel, DateTime, QQueryOperations>
-  createdAtProperty() {
+      createdAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'createdAt');
     });
@@ -1766,28 +1728,28 @@ extension VocabularyModelQueryProperty
   }
 
   QueryBuilder<VocabularyModel, String, QQueryOperations>
-  sourceLanguageProperty() {
+      sourceLanguageProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'sourceLanguage');
     });
   }
 
   QueryBuilder<VocabularyModel, String, QQueryOperations>
-  targetLanguageProperty() {
+      targetLanguageProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'targetLanguage');
     });
   }
 
   QueryBuilder<VocabularyModel, String, QQueryOperations>
-  translationProperty() {
+      translationProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'translation');
     });
   }
 
   QueryBuilder<VocabularyModel, DateTime, QQueryOperations>
-  updatedAtProperty() {
+      updatedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'updatedAt');
     });

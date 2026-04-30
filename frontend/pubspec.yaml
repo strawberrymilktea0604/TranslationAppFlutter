@@ -75,9 +75,12 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_test:
     sdk: flutter
-  flutter_gen: ^5.13.0+1
+  flutter_gen: 5.9.0
   shimmer: ^3.0.0
   flutter_tts: ^4.2.5
+  image_picker: ^1.2.2
+  cached_network_image: ^3.4.1
+  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   # flutter_test:
@@ -140,7 +143,4 @@ flutter:
 
 dependency_overrides:
   connectivity_plus: ^5.0.2
-  analyzer: 5.13.0
-  dart_style: 2.3.2
-  build_resolvers: 2.4.0
 

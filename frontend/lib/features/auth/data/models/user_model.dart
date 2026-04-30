@@ -12,6 +12,7 @@ class UserModel {
 
   late String email;
   String? name;
+  String? avatarUrl;
   late String role;
   late DateTime createdAt;
 
@@ -20,6 +21,7 @@ class UserModel {
     required this.backendId,
     required this.email,
     this.name,
+    this.avatarUrl,
     required this.role,
     required this.createdAt,
   });
@@ -33,6 +35,7 @@ class UserModel {
       id: backendId,
       email: email,
       name: name,
+      avatarUrl: avatarUrl,
       role: role,
       createdAt: createdAt,
     );
@@ -44,6 +47,7 @@ class UserModel {
       backendId: entity.id,
       email: entity.email,
       name: entity.name,
+      avatarUrl: entity.avatarUrl,
       role: entity.role,
       createdAt: entity.createdAt,
     );
@@ -55,6 +59,7 @@ class UserModel {
       backendId: json['id'] as String,
       email: json['email'] as String,
       name: json['name'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
       role: json['role'] as String? ?? 'user',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -65,8 +70,10 @@ class UserModel {
       'id': backendId,
       'email': email,
       'name': name,
+      'avatar_url': avatarUrl,
       'role': role,
       'created_at': createdAt.toIso8601String(),
     };
   }
 }
+
