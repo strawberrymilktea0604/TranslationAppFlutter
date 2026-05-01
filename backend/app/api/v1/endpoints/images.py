@@ -109,6 +109,7 @@ async def translate_image(
     target_language: str = Form(..., description="Target language code"),
     optimize_image: bool = Form(default=True, description="Optimize image before OCR"),
     return_regions: bool = Form(default=False, description="Include text regions"),
+    ocr_engine: str = Form(default="paddleocr", description="OCR engine: 'tesseract' or 'paddleocr'"),
     file: UploadFile = File(..., description="Image file (PNG, JPG, etc.)"),
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
@@ -189,7 +190,8 @@ async def translate_image(
         user_type = "authenticated" if current_user else "guest"
         logger.info(
             f"🖼️ Image translation started - User: {user_type} - "
-            f"Languages: {source_language}→{target_language}"
+            f"Languages: {source_language}→{target_language} - "
+            f"Engine: {ocr_engine}"
         )
         
         # ==================== STEP 1: READ FILE FROM UPLOAD ====================
@@ -223,7 +225,8 @@ async def translate_image(
             ocr_result = await OCRService.extract_text(
                 image_bytes,
                 language=source_language,
-                preprocess=True
+                preprocess=True,
+                engine=ocr_engine,
             )
         except OCRError as e:
             logger.error(f"❌ OCR failed: {e}")
@@ -342,6 +345,7 @@ async def translate_images_batch(
     request: Request,
     source_language: str = Form(default="en"),
     target_language: str = Form(...),
+    ocr_engine: str = Form(default="paddleocr", description="OCR engine: 'tesseract' or 'paddleocr'"),
     files: List[UploadFile] = File(..., description="Multiple image files"),
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_current_user_optional),
@@ -432,7 +436,8 @@ async def translate_images_batch(
                 # OCR
                 ocr_result = await OCRService.extract_text(
                     image_bytes,
-                    language=source_language
+                    language=source_language,
+                    engine=ocr_engine,
                 )
                 
                 extracted_text = ocr_result["raw_text"]

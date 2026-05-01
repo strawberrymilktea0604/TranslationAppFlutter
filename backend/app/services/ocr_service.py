@@ -1,7 +1,11 @@
 """
 OCR Service - Extract text from images
-Uses Tesseract OCR for text extraction
+Supports dual engines: Tesseract OCR and PaddleOCR
 Handles multiple languages and image formats
+
+Engine Selection:
+- "tesseract": Classic Tesseract OCR (requires system binary)
+- "paddleocr": PaddleOCR by Baidu (pure Python, better for vi/en)
 """
 import logging
 import io
@@ -13,6 +17,10 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+# Valid OCR engine names
+VALID_ENGINES = ("tesseract", "paddleocr")
+DEFAULT_ENGINE = "paddleocr"
+
 
 class OCRError(Exception):
     """Custom exception for OCR operations"""
@@ -22,6 +30,10 @@ class OCRError(Exception):
 class OCRService:
     """
     OCR Service for extracting text from images
+    
+    Supported Engines:
+    - Tesseract (pytesseract) — original engine
+    - PaddleOCR — recommended for Vietnamese & English
     
     Supported Features:
     - Multiple language support (eng, vie, fra, deu, etc.)
@@ -51,15 +63,17 @@ class OCRService:
     async def extract_text(
         image_bytes: bytes,
         language: Optional[str] = None,
-        preprocess: bool = True
+        preprocess: bool = True,
+        engine: str = DEFAULT_ENGINE,
     ) -> Dict[str, any]:
         """
-        Extract text from image bytes.
+        Extract text from image bytes using the selected OCR engine.
         
         Args:
             image_bytes: Image file content (PNG, JPG, etc.)
             language: Language code (en, vi, fr, etc.). Auto-detect if None
             preprocess: Whether to preprocess image for better OCR
+            engine: OCR engine to use — "tesseract" or "paddleocr"
         
         Returns:
             Dict containing:
@@ -67,17 +81,52 @@ class OCRService:
                 "raw_text": "Extracted text",
                 "confidence": 85.5,
                 "language": "eng",
-                "text_regions": [
-                    {"text": "...", "confidence": 90, "bbox": (x, y, w, h)}
-                ],
-                "processing_time_ms": 125.5
+                "text_regions": [...],
+                "processing_time_ms": 125.5,
+                "image_size": (w, h),
+                "ocr_engine": "paddleocr"
             }
         
         Raises:
             OCRError: If image processing or OCR fails
         """
+        # Validate engine parameter
+        if engine not in VALID_ENGINES:
+            raise OCRError(
+                f"Invalid OCR engine '{engine}'. "
+                f"Valid options: {VALID_ENGINES}"
+            )
+
+        # ---- Route to PaddleOCR ----
+        if engine == "paddleocr":
+            try:
+                from app.services.paddle_ocr_service import (
+                    PaddleOCRService,
+                    PaddleOCRError,
+                )
+
+                logger.info("🐉 Using PaddleOCR engine")
+                result = await PaddleOCRService.extract_text(
+                    image_bytes=image_bytes,
+                    language=language,
+                    preprocess=preprocess,
+                )
+                result["ocr_engine"] = "paddleocr"
+                return result
+
+            except PaddleOCRError as e:
+                raise OCRError(str(e)) from e
+            except ImportError:
+                logger.warning(
+                    "⚠️ PaddleOCR not installed, falling back to Tesseract"
+                )
+                # Fall through to Tesseract below
+
+        # ---- Tesseract engine (original logic) ----
         import time
         start_time = time.time()
+
+        logger.info("🔤 Using Tesseract OCR engine")
         
         try:
             # Convert bytes to PIL Image
@@ -124,7 +173,7 @@ class OCRService:
             processing_time = (time.time() - start_time) * 1000
             
             logger.info(
-                f"🎯 OCR completed: {len(raw_text)} chars, "
+                f"🎯 Tesseract OCR completed: {len(raw_text)} chars, "
                 f"confidence: {avg_confidence:.1f}%, "
                 f"time: {processing_time:.1f}ms"
             )
@@ -136,10 +185,11 @@ class OCRService:
                 "text_regions": text_regions,
                 "processing_time_ms": round(processing_time, 2),
                 "image_size": image.size,
+                "ocr_engine": "tesseract",
             }
             
         except Exception as e:
-            error_msg = f"OCR processing failed: {str(e)}"
+            error_msg = f"Tesseract OCR processing failed: {str(e)}"
             logger.error(f"❌ {error_msg}")
             raise OCRError(error_msg) from e
 
@@ -255,17 +305,19 @@ class OCRService:
     @staticmethod
     async def batch_extract(
         image_list: List[bytes],
-        language: Optional[str] = None
+        language: Optional[str] = None,
+        engine: str = DEFAULT_ENGINE,
     ) -> List[Dict]:
         """
-        Extract text from multiple images.
+        Extract text from multiple images using the selected engine.
         """
         results = []
         for idx, image_bytes in enumerate(image_list):
             try:
                 result = await OCRService.extract_text(
                     image_bytes,
-                    language=language
+                    language=language,
+                    engine=engine,
                 )
                 results.append(result)
             except OCRError as e:
