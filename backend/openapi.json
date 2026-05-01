@@ -1,0 +1,1770 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TranslationApp API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "type": "object"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "type": "object",
+                  "title": "Response Health Check Api V1 Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "User login endpoint.\n\nReturns access token and refresh token.\nRefresh token is stored in database for tracking and revocation.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_api_v1_auth_login_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/check-email": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Check Email",
+        "description": "Check if an email is already registered.\nReturns is_available = True if email is NOT registered.",
+        "operationId": "check_email_api_v1_auth_check_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Register",
+        "description": "User registration endpoint.\n\nCreates new user and returns access token and refresh token.",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Refresh",
+        "description": "Refresh access token using refresh token.\n\n- Validates refresh token\n- Invalidates old refresh token (single-use enforcement)\n- Issues new access token and refresh token\n\nThis implements the single-use refresh token pattern:\n- Old refresh token is marked as revoked in both Redis and DB\n- New refresh token must be used for next refresh\n- Prevents token replay attacks",
+        "operationId": "refresh_api_v1_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout",
+        "description": "User logout endpoint.\n\nRevokes both access token and refresh token by:\n1. Adding tokens to Redis blacklist (for fast O(1) checks)\n2. Marking refresh token as revoked in database (for persistence)\n\n- Only revokes current session (not all sessions)\n- User must provide access token to authenticate the logout\n- Both tokens are immediately blacklisted",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/logout-all": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Logout All",
+        "description": "Logout all sessions for current user (revoke all refresh tokens).\n\nUse this if user suspects account compromise.\nAll active refresh tokens will be invalidated.\nUser must login again from all devices.",
+        "operationId": "logout_all_api_v1_auth_logout_all_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get Profile",
+        "description": "Get current user profile.",
+        "operationId": "get_profile_api_v1_users_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update Profile",
+        "description": "Update current user profile.",
+        "operationId": "update_profile_api_v1_users_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/password": {
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update Password",
+        "description": "Update current user password.",
+        "operationId": "update_password_api_v1_users_me_password_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPasswordUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/me/avatar": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Upload Avatar",
+        "description": "Upload and update user avatar.",
+        "operationId": "upload_avatar_api_v1_users_me_avatar_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_avatar_api_v1_users_me_avatar_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAvatarResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/avatar/{filename}": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Get Avatar",
+        "description": "Get user avatar image.",
+        "operationId": "get_avatar_api_v1_users_avatar__filename__get",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Filename"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/languages": {
+      "get": {
+        "tags": [
+          "languages"
+        ],
+        "summary": "Get Supported Languages",
+        "description": "Get list of supported languages.\n\nThis endpoint returns all languages supported by the system.\nFrontend can use this to populate language selection dropdowns.\n\n**Returns:**\n- `status`: Response status (\"success\")\n- `data`: List of languages with code, English name, and native name\n\n**Example Response:**\n```json\n{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"code\": \"en\",\n      \"name\": \"English\",\n      \"nativeName\": \"English\"\n    },\n    {\n      \"code\": \"vi\",\n      \"name\": \"Vietnamese\",\n      \"nativeName\": \"Ti\u1ebfng Vi\u1ec7t\"\n    }\n  ]\n}\n```",
+        "operationId": "get_supported_languages_api_v1_languages_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LanguageListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translations": {
+      "post": {
+        "tags": [
+          "translations"
+        ],
+        "summary": "Translate Text",
+        "description": "Translate text with caching optimization.\n\n**Features:**\n- \u2705 Redis caching: Check cache before API call (< 500ms)\n- \u2705 DB fallback: Saves to DB for history and cold-cache warmup\n- \u2705 Cost optimization: Avoids redundant API calls\n\n**Process:**\n1. Check Redis cache (< 50ms if hit)\n2. If cache miss: Call translation API\n3. Store result in Redis (1 hour TTL) and database\n\n**Example Request:**\n```json\n{\n  \"source_text\": \"Hello, how are you?\",\n  \"source_language\": \"en\",\n  \"target_language\": \"vi\",\n  \"translation_type\": \"text\"\n}\n```\n\n**Example Response (Cache Hit):**\n```json\n{\n  \"status\": \"success\",\n  \"data\": {\n    \"translated_text\": \"Xin ch\u00e0o, b\u1ea1n kh\u1ecfe kh\u00f4ng?\",\n    \"is_cached\": true,\n    \"response_time_ms\": 15.5\n  }\n}\n```\n\n**Response Time Goals:**\n- Cache hit: < 50ms\n- Total with DB save: < 500ms (even if API call takes 3-5 seconds)\n\nArgs:\n    request: Translation request containing source text and language pair\n    db: Database session\n    current_user: Current authenticated user\n\nReturns:\n    SuccessResponse with translated text and cache status\n\nRaises:\n    HTTPException: 400 if invalid language pair\n    HTTPException: 500 if translation service fails",
+        "operationId": "translate_text_api_v1_translations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/translations/history": {
+      "get": {
+        "tags": [
+          "translations"
+        ],
+        "summary": "Get Translation History",
+        "description": "Get user's translation history.\n\n**Features:**\n- Paginated results (max 100 per page)\n- Sorted by most recent first\n- Shows cache status for each translation\n\n**Query Parameters:**\n- `skip`: Number of records to skip (for pagination)\n- `limit`: Maximum records to return (1-100, default 50)\n\n**Example Response:**\n```json\n{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": 1001,\n      \"source_text\": \"Hello\",\n      \"translated_text\": \"Xin ch\u00e0o\",\n      \"source_language\": \"en\",\n      \"target_language\": \"vi\",\n      \"translation_type\": \"text\",\n      \"is_cached\": false,\n      \"created_at\": \"2024-01-15T10:30:00Z\"\n    }\n  ],\n  \"total\": 42\n}\n```\n\nArgs:\n    skip: Pagination offset\n    limit: Max records to return\n    db: Database session\n    current_user: Current authenticated user\n\nReturns:\n    TranslationListResponse with user's translation history",
+        "operationId": "get_translation_history_api_v1_translations_history_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of records to skip",
+              "default": 0,
+              "title": "Skip"
+            },
+            "description": "Number of records to skip"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Maximum records per page",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum records per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translations/{translation_id}": {
+      "delete": {
+        "tags": [
+          "translations"
+        ],
+        "summary": "Delete Translation",
+        "description": "Delete a translation from user's history.\n\nPerforms soft delete (marks as deleted, keeps data for analytics).\n\nArgs:\n    translation_id: ID of translation to delete\n    db: Database session\n    current_user: Current authenticated user\n\nReturns:\n    SuccessResponse with deletion status\n\nRaises:\n    HTTPException: 404 if translation not found or user unauthorized",
+        "operationId": "delete_translation_api_v1_translations__translation_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "translation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Translation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/translations/cache/stats": {
+      "get": {
+        "tags": [
+          "translations"
+        ],
+        "summary": "Get Cache Stats",
+        "description": "Get translation cache statistics (admin only).\n\n**Features:**\n- Cache hit rate\n- Number of cached translations\n- Memory usage\n- Expiry information\n\nThis endpoint helps monitor cache effectiveness and optimization.\n\nReturns:\n    SuccessResponse with cache statistics",
+        "operationId": "get_cache_stats_api_v1_translations_cache_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/translations/cache/clear": {
+      "post": {
+        "tags": [
+          "translations"
+        ],
+        "summary": "Clear Translation Cache",
+        "description": "Clear all translation cache (admin only).\n\n**Warning:** This clears the entire Redis translation cache.\nUse sparingly - will cause a cache warmup period.\n\nReturns:\n    SuccessResponse with cache clear status",
+        "operationId": "clear_translation_cache_api_v1_translations_cache_clear_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/translate/text": {
+      "post": {
+        "tags": [
+          "translate"
+        ],
+        "summary": "Translate plain text",
+        "description": "Translate a text passage from source language to target language.\n\n**Access Control:**\n- \u2705 **Guest** (no token): Allowed with limits (10 req/hour, max 500 chars)\n- \u2705 **User** (Bearer token): Higher limits (100 req/hour, max 5000 chars)\n\n**Rate Limiting:**\n- Guest: tracked by IP address\n- User: tracked by user ID\n\n**Features:**\n- Redis caching for fast repeated queries\n- Google Translation API v2 backend\n- Auto language detection (`source_language: \"auto\"`)\n\n**Example Request:**\n```json\n{\n    \"text\": \"Hello, how are you?\",\n    \"source_language\": \"en\",\n    \"target_language\": \"vi\"\n}\n```\n\n**Example Response:**\n```json\n{\n    \"status\": \"success\",\n    \"data\": {\n        \"translated_text\": \"Xin ch\u00e0o, b\u1ea1n kh\u1ecfe kh\u00f4ng?\",\n        \"source_text\": \"Hello, how are you?\",\n        \"source_language\": \"en\",\n        \"target_language\": \"vi\",\n        \"is_cached\": false,\n        \"response_time_ms\": 245.3,\n        \"role\": \"guest\",\n        \"rate_limit_remaining\": 9\n    }\n}\n```",
+        "operationId": "translate_text_api_v1_translate_text_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslateTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/translate/image": {
+      "post": {
+        "tags": [
+          "translate"
+        ],
+        "summary": "Translate text from an uploaded image",
+        "description": "Upload an image, extract text via OCR, and translate it.\n\n**Image Preprocessing Pipeline (OpenCV):**\n1. \ud83d\udd04 Auto-rotate based on EXIF orientation (phone camera correction)\n2. \u2b1b Convert to grayscale\n3. \ud83d\udd32 Enhance contrast (CLAHE - Contrast Limited Adaptive Histogram Equalisation)\n4. \ud83e\uddf9 Denoise (fastNlMeansDenoising)\n\n**Access Control:**\n- \u2705 **Guest** (no token): 10 req/hour\n- \u2705 **User** (Bearer token): 100 req/hour\n\n**Supported Formats:** PNG, JPG/JPEG, BMP, TIFF, GIF (max 10 MB)\n\n**Request:**\n```\nPOST /api/v1/translate/image\nContent-Type: multipart/form-data\n\n- file: Image file (required)\n- source_language: \"en\", \"vi\", \"fr\", etc. (default: \"en\")\n- target_language: \"vi\", \"en\", etc. (required)\n```\n\n**Example Response:**\n```json\n{\n    \"status\": \"success\",\n    \"data\": {\n        \"source_text\": \"Hello, how are you?\",\n        \"translated_text\": \"Xin ch\u00e0o, b\u1ea1n kh\u1ecfe kh\u00f4ng?\",\n        \"source_language\": \"en\",\n        \"target_language\": \"vi\",\n        \"ocr_confidence\": 92.5,\n        \"is_cached\": false,\n        \"response_time_ms\": 1250.5,\n        \"preprocessing_time_ms\": 45.2,\n        \"ocr_time_ms\": 980.0,\n        \"translation_time_ms\": 225.3,\n        \"role\": \"guest\",\n        \"rate_limit_remaining\": 9\n    }\n}\n```",
+        "operationId": "translate_image_api_v1_translate_image_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_translate_image_api_v1_translate_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/images/translate": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Translate Image",
+        "description": "Translate image endpoint - Complete image translation pipeline.\n\n**Pipeline:**\n1. \ud83d\udce5 Upload image (PNG, JPG, etc.)\n2. \u2705 Validate and optimize image (in RAM)\n3. \ud83d\udc41\ufe0f Extract text via OCR/Tesseract\n4. \ud83d\udd04 Translate extracted text (with Redis cache)\n5. \u2714\ufe0f Return original text + translated text\n\n**Important:**\n- \u2705 ALL processing in RAM - no temporary files on disk\n- \u2705 Automatic memory cleanup after response\n- \u2705 Supports 20+ languages\n- \u2705 Confidence scores for both OCR and translation\n\n**Request:**\n```\nPOST /api/v1/images/translate\nContent-Type: multipart/form-data\n\nParameters:\n- file: Image file (required)\n- source_language: \"en\", \"vi\", \"fr\", etc. (default: \"en\")\n- target_language: \"en\", \"vi\", \"fr\", etc. (required)\n- optimize_image: true/false (default: true)\n- return_regions: true/false (default: false, includes bounding boxes)\n```\n\n**Example Response:**\n```json\n{\n  \"status\": \"success\",\n  \"data\": {\n    \"source_text\": \"Hello, how are you?\",\n    \"translated_text\": \"Xin ch\u00e0o, b\u1ea1n kh\u1ecfe kh\u00f4ng?\",\n    \"source_language\": \"en\",\n    \"target_language\": \"vi\",\n    \"ocr_confidence\": 92.5,\n    \"is_cached\": false,\n    \"response_time_ms\": 1250.5,\n    \"translation_type\": \"image\"\n  }\n}\n```\n\n**Response Times:**\n- Image validation: 5-10ms\n- Image optimization: 20-50ms\n- OCR: 800-2000ms (depends on image complexity)\n- Translation (cache hit): 20-50ms\n- Translation (API call): 2000-5000ms\n- **Total: 1-7 seconds**\n\n**File Storage:**\n- \u2705 Zero disk writes - only RAM\n- \u2705 Automatic garbage collection\n- \u2705 Safe for high-concurrency servers",
+        "operationId": "translate_image_api_v1_images_translate_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_translate_image_api_v1_images_translate_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/images/translate/batch": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Translate Images Batch",
+        "description": "Batch translate multiple images.\n\n**Process:**\n- Upload multiple images at once\n- Each image is processed independently\n- Parallel processing where possible\n- Returns array of results with success/failure status\n\n**Request:**\n```\nPOST /api/v1/images/translate/batch\nContent-Type: multipart/form-data\n\n- files: Multiple image files (required)\n- source_language: \"en\", \"vi\", etc.\n- target_language: \"vi\", \"en\", etc.\n```\n\n**Response:**\n```json\n{\n  \"status\": \"success\",\n  \"data\": {\n    \"total\": 3,\n    \"successful\": 2,\n    \"failed\": 1,\n    \"results\": [\n      {\n        \"source_text\": \"Hello\",\n        \"translated_text\": \"Xin ch\u00e0o\",\n        ...\n      }\n    ],\n    \"errors\": [\n      {\"file_index\": 2, \"error\": \"OCR failed: ...\"}\n    ]\n  }\n}\n```",
+        "operationId": "translate_images_batch_api_v1_images_translate_batch_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_translate_images_batch_api_v1_images_translate_batch_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/quotas/": {
+      "post": {
+        "tags": [
+          "AI Quotas"
+        ],
+        "summary": "Create User Quota",
+        "operationId": "create_user_quota_api_quotas__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotaCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check Endpoint",
+        "description": "Health check endpoint for monitoring",
+        "operationId": "health_check_endpoint_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_login_api_v1_auth_login_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "password"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_api_v1_auth_login_post"
+      },
+      "Body_translate_image_api_v1_images_translate_post": {
+        "properties": {
+          "source_language": {
+            "type": "string",
+            "title": "Source Language",
+            "description": "Source language code",
+            "default": "en"
+          },
+          "target_language": {
+            "type": "string",
+            "title": "Target Language",
+            "description": "Target language code"
+          },
+          "optimize_image": {
+            "type": "boolean",
+            "title": "Optimize Image",
+            "description": "Optimize image before OCR",
+            "default": true
+          },
+          "return_regions": {
+            "type": "boolean",
+            "title": "Return Regions",
+            "description": "Include text regions",
+            "default": false
+          },
+          "ocr_engine": {
+            "type": "string",
+            "title": "Ocr Engine",
+            "description": "OCR engine: 'tesseract' or 'paddleocr'",
+            "default": "paddleocr"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File",
+            "description": "Image file (PNG, JPG, etc.)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_language",
+          "file"
+        ],
+        "title": "Body_translate_image_api_v1_images_translate_post"
+      },
+      "Body_translate_image_api_v1_translate_image_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File",
+            "description": "Image file (PNG, JPG, BMP, TIFF, GIF)"
+          },
+          "source_language": {
+            "type": "string",
+            "title": "Source Language",
+            "description": "Source language code (e.g. 'en', 'vi')",
+            "default": "en"
+          },
+          "target_language": {
+            "type": "string",
+            "title": "Target Language",
+            "description": "Target language code (e.g. 'vi', 'en')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "target_language"
+        ],
+        "title": "Body_translate_image_api_v1_translate_image_post"
+      },
+      "Body_translate_images_batch_api_v1_images_translate_batch_post": {
+        "properties": {
+          "source_language": {
+            "type": "string",
+            "title": "Source Language",
+            "default": "en"
+          },
+          "target_language": {
+            "type": "string",
+            "title": "Target Language"
+          },
+          "ocr_engine": {
+            "type": "string",
+            "title": "Ocr Engine",
+            "description": "OCR engine: 'tesseract' or 'paddleocr'",
+            "default": "paddleocr"
+          },
+          "files": {
+            "items": {
+              "type": "string",
+              "format": "binary"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "Multiple image files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_language",
+          "files"
+        ],
+        "title": "Body_translate_images_batch_api_v1_images_translate_batch_post"
+      },
+      "Body_upload_avatar_api_v1_users_me_avatar_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_avatar_api_v1_users_me_avatar_post"
+      },
+      "EmailCheckRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "EmailCheckRequest"
+      },
+      "EmailCheckResponse": {
+        "properties": {
+          "is_available": {
+            "type": "boolean",
+            "title": "Is Available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_available"
+        ],
+        "title": "EmailCheckResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Language": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Language code (e.g., 'en', 'vi')"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Language name in English (e.g., 'English')"
+          },
+          "nativeName": {
+            "type": "string",
+            "title": "Nativename",
+            "description": "Language name in its native language (e.g., 'Ti\u1ebfng Vi\u1ec7t')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "nativeName"
+        ],
+        "title": "Language",
+        "description": "Schema for a single language"
+      },
+      "LanguageListResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Response status",
+            "default": "success"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "List of supported languages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "LanguageListResponse",
+        "description": "Response containing list of supported languages"
+      },
+      "LogoutRequest": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "Access token to validate logout request"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Refresh token to revoke"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token"
+        ],
+        "title": "LogoutRequest",
+        "description": "Request body for logout endpoint"
+      },
+      "LogoutResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "default": "Successfully logged out"
+          }
+        },
+        "type": "object",
+        "title": "LogoutResponse",
+        "description": "Response from logout endpoint"
+      },
+      "QuotaCreate": {
+        "properties": {
+          "service_type": {
+            "type": "string",
+            "title": "Service Type",
+            "description": "Lo\u1ea1i d\u1ecbch v\u1ee5, VD: 'text_translation', 'voice_stt'"
+          },
+          "max_requests": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Max Requests",
+            "description": "H\u1ea1n m\u1ee9c t\u1ed1i \u0111a, kh\u00f4ng \u0111\u01b0\u1ee3c \u00e2m",
+            "default": 100
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id",
+            "description": "ID c\u1ee7a ng\u01b0\u1eddi d\u00f9ng \u0111\u01b0\u1ee3c c\u1ea5p h\u1ea1n m\u1ee9c"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_type",
+          "user_id"
+        ],
+        "title": "QuotaCreate"
+      },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Refresh token from login response"
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshTokenRequest",
+        "description": "Request body for refresh token endpoint"
+      },
+      "SuccessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "success"
+          },
+          "data": {
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Access token expiration time in seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in"
+        ],
+        "title": "Token",
+        "description": "Token response schema (login, register, refresh)"
+      },
+      "TranslateTextRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Text",
+            "description": "Text to translate (max length depends on Guest/User role)"
+          },
+          "source_language": {
+            "type": "string",
+            "maxLength": 5,
+            "minLength": 2,
+            "title": "Source Language",
+            "description": "Source language code (ISO 639-1, e.g., 'en', 'vi', 'auto' for auto-detect)"
+          },
+          "target_language": {
+            "type": "string",
+            "maxLength": 5,
+            "minLength": 2,
+            "title": "Target Language",
+            "description": "Target language code (ISO 639-1, e.g., 'vi', 'en', 'ja')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "source_language",
+          "target_language"
+        ],
+        "title": "TranslateTextRequest",
+        "description": "Request body for /translate/text endpoint."
+      },
+      "TranslationListResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "success"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TranslationResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total translations count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "TranslationListResponse",
+        "description": "Response schema for list of translations"
+      },
+      "TranslationRequest": {
+        "properties": {
+          "source_text": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Source Text",
+            "description": "Text to translate (max 5000 chars)"
+          },
+          "source_language": {
+            "type": "string",
+            "maxLength": 5,
+            "minLength": 2,
+            "title": "Source Language",
+            "description": "Source language code (e.g., 'en', 'vi')"
+          },
+          "target_language": {
+            "type": "string",
+            "maxLength": 5,
+            "minLength": 2,
+            "title": "Target Language",
+            "description": "Target language code (e.g., 'en', 'vi')"
+          },
+          "translation_type": {
+            "type": "string",
+            "title": "Translation Type",
+            "description": "Type of translation: 'text', 'voice', 'image'",
+            "default": "text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_text",
+          "source_language",
+          "target_language"
+        ],
+        "title": "TranslationRequest",
+        "description": "Request schema for translating text"
+      },
+      "TranslationResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "source_text": {
+            "type": "string",
+            "title": "Source Text"
+          },
+          "translated_text": {
+            "type": "string",
+            "title": "Translated Text"
+          },
+          "source_language": {
+            "type": "string",
+            "title": "Source Language"
+          },
+          "target_language": {
+            "type": "string",
+            "title": "Target Language"
+          },
+          "translation_type": {
+            "type": "string",
+            "title": "Translation Type"
+          },
+          "is_cached": {
+            "type": "boolean",
+            "title": "Is Cached",
+            "description": "Whether this result came from cache",
+            "default": false
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_text",
+          "translated_text",
+          "source_language",
+          "target_language",
+          "translation_type"
+        ],
+        "title": "TranslationResponse",
+        "description": "Response schema for a single translation"
+      },
+      "UserAvatarResponse": {
+        "properties": {
+          "avatar_url": {
+            "type": "string",
+            "title": "Avatar Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avatar_url"
+        ],
+        "title": "UserAvatarResponse"
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "first_name",
+          "last_name",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserPasswordUpdate": {
+        "properties": {
+          "old_password": {
+            "type": "string",
+            "title": "Old Password"
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "old_password",
+          "new_password"
+        ],
+        "title": "UserPasswordUpdate"
+      },
+      "UserRead": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "id",
+          "role",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserRead"
+      },
+      "UserUpdate": {
+        "properties": {
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Name"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          }
+        },
+        "type": "object",
+        "title": "UserUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/api/v1/auth/login"
+          }
+        }
+      }
+    }
+  }
+}
