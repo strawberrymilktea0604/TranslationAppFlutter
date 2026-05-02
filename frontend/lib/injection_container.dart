@@ -25,6 +25,8 @@ import 'package:frontend/features/translation/data/repositories/translation_repo
 import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
 import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
+import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dart';
+import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
 
 import 'main.dart' show config;
 
@@ -154,7 +156,16 @@ Future<void> initDependencies() async {
   // ==============================
   //  Feature: OCR
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  sl.registerLazySingleton<OcrRemoteDataSource>(
+    () => OcrRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  sl.registerFactory(() => OcrCubit(
+    ocrDataSource: sl(),
+    translationDataSource: sl(),
+    authLocalDataSource: sl(),
+  ));
 
   // ==============================
   //  Feature: Sync

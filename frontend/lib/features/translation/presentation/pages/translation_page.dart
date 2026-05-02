@@ -10,7 +10,8 @@ import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
-import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
+import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
+import 'package:frontend/features/ocr/presentation/pages/ocr_page.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
@@ -52,8 +53,11 @@ class TranslationPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<TranslationCubit>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => sl<TranslationCubit>()),
+        BlocProvider(create: (_) => sl<OcrCubit>()),
+      ],
       child: const _TranslationView(),
     );
   }
@@ -328,24 +332,29 @@ class _TranslationViewState extends State<_TranslationView>
 
   Widget _buildCurrentTab(BuildContext context, ColorScheme cs, ThemeData theme, bool isAuth) {
     if (_currentIndex == 1) {
-      return _buildPlaceholderTab('Lens', Icons.lens_blur_rounded, cs, key: const ValueKey('lens'));
+      // Lens tab — full OCR page (state managed by OcrCubit provided above)
+      return const OcrPage(key: ValueKey('lens'));
     } else if (_currentIndex == 2) {
-      return _buildPlaceholderTab('Từ vựng', Icons.bookmark_rounded, cs, key: const ValueKey('vocab'));
+      return _buildVocabPlaceholder(cs, key: const ValueKey('vocab'));
     }
     return _buildTranslationTab(context, cs, theme, isAuth, key: const ValueKey('translate'));
   }
 
-  Widget _buildPlaceholderTab(String title, IconData icon, ColorScheme cs, {Key? key}) {
+  Widget _buildVocabPlaceholder(ColorScheme cs, {Key? key}) {
     return Center(
       key: key,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: cs.primary.withValues(alpha: 0.5)),
+          Icon(Icons.bookmark_rounded,
+              size: 64, color: cs.primary.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
-            title,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: cs.primary),
+            'Từ vựng',
+            style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: cs.primary),
           ),
           const SizedBox(height: 8),
           Text(
