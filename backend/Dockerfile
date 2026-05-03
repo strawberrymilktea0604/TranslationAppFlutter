@@ -1,11 +1,33 @@
-FROM python:3.12-slim
+# Multi-stage build for optimized AI library installation
+FROM python:3.12-slim as builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Install system dependencies for OCR, image processing, and OpenCV
+# Install build dependencies for AI libraries
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python packages in builder stage
+COPY requirements.txt ./
+RUN python -m pip install --upgrade pip \
+    && pip install --no-cache-dir --user -r requirements.txt
+
+# Production stage
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+# Install runtime system dependencies for OCR, image processing, and OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     libtesseract-dev \
@@ -16,15 +38,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
     libglib2.0-0 \
     libgl1 \
+    libgthread-2.0-0 \
+    libgtk-3-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set Tesseract language data path
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr-4.1/tessdata
 
-COPY requirements.txt ./
-RUN python -m pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Copy installed packages from builder
+COPY --from=builder /root/.local /root/.local
 
+# Copy application code
 COPY alembic.ini ./
 COPY ./app ./app
 COPY ./alembic ./alembic
