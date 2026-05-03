@@ -9,7 +9,7 @@ Engine Selection:
 """
 import logging
 import io
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Any
 from PIL import Image
 import pytesseract
 import cv2
@@ -65,7 +65,7 @@ class OCRService:
         language: Optional[str] = None,
         preprocess: bool = True,
         engine: str = DEFAULT_ENGINE,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Extract text from image bytes using the selected OCR engine.
         
@@ -144,8 +144,8 @@ class OCRService:
             
             # Determine language
             lang_code = OCRService.SUPPORTED_LANGUAGES.get(
-                language, 'eng'
-            ) if language else 'eng'
+                language or 'en', 'eng'
+            )
             
             # Extract text with confidence
             data = pytesseract.image_to_data(
@@ -242,7 +242,8 @@ class OCRService:
         Deskew image by detecting text rotation angle.
         """
         try:
-            coords = np.column_stack(np.where(image > 0))
+            # Flip (y, x) to (x, y) for cv2.minAreaRect
+            coords = np.column_stack(np.where(image > 0)[::-1])
             if len(coords) < 4:
                 return image
             
@@ -259,14 +260,16 @@ class OCRService:
                 return image
             
             # Rotate image
-            h, w = image.shape
-            center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            h, w = image.shape[:2]
+            center = (float(w // 2), float(h // 2))
+            M = cv2.getRotationMatrix2D(center, angle, 1.0).astype(np.float32)
             rotated = cv2.warpAffine(
                 image,
                 M,
                 (w, h),
-                borderMode=cv2.BORDER_WHITE
+                flags=cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(255, 255, 255) if len(image.shape) == 3 else (255,),
             )
             return rotated
             

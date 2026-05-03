@@ -7,7 +7,7 @@ import logging
 import io
 import time
 import threading
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Any
 
 import cv2
 import numpy as np
@@ -39,12 +39,12 @@ class PaddleOCRService:
     _lock = threading.Lock()
 
     # Cached PaddleOCR instances keyed by language code
-    _ocr_instances: Dict[str, object] = {}
+    _ocr_instances: Dict[str, Any] = {}
 
     # ==================== LANGUAGE MAPPING ====================
     # Map app language codes → PaddleOCR lang parameter
     # Priority: Vietnamese (vi) and English (en)
-    SUPPORTED_LANGUAGES = {
+    SUPPORTED_LANGUAGES: Dict[str, str] = {
         'vi': 'vi',           # Vietnamese  ★ Priority
         'en': 'en',           # English     ★ Priority
         'zh': 'ch',           # Chinese Simplified
@@ -62,7 +62,7 @@ class PaddleOCRService:
     # ==================== ENGINE INITIALIZATION ====================
 
     @classmethod
-    def _get_ocr_engine(cls, lang: str) -> object:
+    def _get_ocr_engine(cls, lang: str) -> Any:
         """
         Get or create a PaddleOCR instance for the given language.
 
@@ -116,7 +116,7 @@ class PaddleOCRService:
         image_bytes: bytes,
         language: Optional[str] = None,
         preprocess: bool = True,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Extract text from image bytes using PaddleOCR.
 
@@ -150,9 +150,8 @@ class PaddleOCRService:
 
         try:
             # ---- Resolve language ----
-            paddle_lang = PaddleOCRService.SUPPORTED_LANGUAGES.get(
-                language, 'en'
-            )
+            safe_lang = str(language) if language else 'en'
+            paddle_lang = str(PaddleOCRService.SUPPORTED_LANGUAGES.get(safe_lang, 'en'))
             logger.info(
                 f"📸 PaddleOCR: lang={language} → paddle_lang={paddle_lang}"
             )
@@ -175,7 +174,7 @@ class PaddleOCRService:
 
             # ---- Run PaddleOCR ----
             ocr_engine = PaddleOCRService._get_ocr_engine(paddle_lang)
-            result = ocr_engine.ocr(img, cls=True)
+            result = getattr(ocr_engine, 'ocr')(img, cls=True)
 
             # ---- Parse results ----
             raw_lines: List[str] = []
@@ -275,11 +274,7 @@ class PaddleOCRService:
 
             # Mild denoising (keep details)
             denoised = cv2.fastNlMeansDenoisingColored(
-                enhanced_bgr,
-                h=6,
-                hForColoredComponents=6,
-                templateWindowSize=7,
-                searchWindowSize=21,
+                enhanced_bgr, h=6.0, hColor=6.0, templateWindowSize=7, searchWindowSize=21
             )
 
             return denoised
