@@ -1,5 +1,4 @@
 import pytest
-import cv2
 import numpy as np
 import io
 from PIL import Image, ExifTags
@@ -22,11 +21,6 @@ def image_with_exif_rotation():
     # We will just patch auto_rotate_image for the complex EXIF part, 
     # or we can construct a basic EXIF dictionary.
     # ExifTags.TAGS maps id to name. We need the id for "Orientation".
-    orientation_key = next(k for k, v in ExifTags.TAGS.items() if v == 'Orientation')
-    
-    exif_dict = {orientation_key: 3} # 3 means 180 degrees
-    
-    img_byte_arr = io.BytesIO()
     
     # PIL's save allows passing exif as bytes.
     # A simple way to test auto_rotate_image is to just pass a mock if needed, 

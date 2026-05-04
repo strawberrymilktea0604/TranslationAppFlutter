@@ -1,8 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from app.services.paddle_ocr_service import PaddleOCRService, PaddleOCRError
+from app.services.paddle_ocr_service import PaddleOCRService
 from app.services.ocr_service import OCRService, OCRError
-import numpy as np
 from PIL import Image
 import io
 

@@ -9,7 +9,8 @@ def resolve_ref(ref, spec):
     return obj
 
 def format_schema(schema, spec, indent=0):
-    if not schema: return ""
+    if not schema:
+        return ""
     
     out = ""
     prefix = "  " * indent
@@ -71,7 +72,7 @@ def generate_docs(openapi_path):
     
     md.append(f"# {title}")
     md.append(f"**Version:** {version}")
-    md.append(f"**Base URL:** `/api/v1` (or relative to your environment)")
+    md.append("**Base URL:** `/api/v1` (or relative to your environment)")
     md.append(f"\n{description}\n")
     
     md.append("---\n")
@@ -170,7 +171,6 @@ def generate_docs(openapi_path):
                 content = request_body.get('content', {})
                 for c_type, c_details in content.items():
                     schema = c_details.get('schema', {})
-                    req_schema = schema
                     if c_type == "application/json":
                         md.append("```json")
                         md.append(format_schema(schema, spec))
