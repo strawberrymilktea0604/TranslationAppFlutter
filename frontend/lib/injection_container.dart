@@ -9,6 +9,7 @@ import 'package:frontend/core/tts/tts_service.dart';
 import 'package:frontend/core/tts/bloc/tts_cubit.dart';
 import 'package:frontend/core/image_picker/image_picker_service.dart';
 import 'package:frontend/core/image_picker/image_compress_service.dart';
+import 'package:frontend/core/image_picker/image_crop_service.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:frontend/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
@@ -86,6 +87,12 @@ Future<void> initDependencies() async {
   // Image compression — wraps flutter_image_compress behind an interface.
   sl.registerLazySingleton<ImageCompressService>(
     () => const ImageCompressServiceImpl(),
+  );
+
+  // Image cropping — wraps image_cropper behind an interface.
+  // Allows user to select text region in a photo before OCR (UC06).
+  sl.registerLazySingleton<ImageCropService>(
+    () => ImageCropServiceImpl(),
   );
 
   // ==============================
@@ -199,6 +206,7 @@ Future<void> initDependencies() async {
     retranslateUseCase: sl(),
     imagePickerService: sl(),
     imageCompressService: sl(),
+    imageCropService: sl(),
   ));
 
   // ==============================

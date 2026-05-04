@@ -82,6 +82,10 @@ dependencies:
   cached_network_image: ^3.4.1
   flutter_image_compress: ^2.4.0
 
+  # Image cropping — allows users to select text region before OCR (UC06).
+  # Uses UCrop on Android and TOCropViewController on iOS.
+  image_cropper: ^8.0.2
+
 dev_dependencies:
   # flutter_test:
   #   sdk: flutter

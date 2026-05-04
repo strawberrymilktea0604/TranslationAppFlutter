@@ -89,6 +89,7 @@ class _OcrPageState extends State<OcrPage> {
       source: source,
       srcLang: _srcLang,
       tgtLang: _tgtLang,
+      themeData: Theme.of(context),
     );
   }
 
@@ -148,6 +149,8 @@ class _OcrPageState extends State<OcrPage> {
                 duration: const Duration(milliseconds: 300),
                 child: switch (state) {
                   OcrInitial() => _buildInitial(cs, theme),
+                  OcrImagePicked() => _buildLoading(
+                      cs, theme, 0.0, 'Đang mở khung cắt ảnh...'),
                   OcrUploading(
                     progress: final p,
                     message: final msg,

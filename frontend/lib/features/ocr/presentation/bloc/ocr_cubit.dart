@@ -1,119 +1,162 @@
 import 'dart:typed_data';
 
 import 'package:bloc/bloc.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:frontend/core/image_picker/image_picker_service.dart';
 import 'package:frontend/core/image_picker/image_compress_service.dart';
+import 'package:frontend/core/image_picker/image_crop_service.dart';
 import 'package:frontend/features/ocr/domain/usecases/ocr_translate_usecase.dart';
 import 'package:frontend/features/ocr/domain/usecases/retranslate_ocr_text_usecase.dart';
 
 part 'ocr_state.dart';
 
-/// Cubit managing the OCR (image → text → translation) pipeline.
+/// Cubit managing the OCR (image → crop → compress → upload → translate) pipeline.
 ///
 /// Follows Clean Architecture:
 ///   UI → OcrCubit → OcrTranslateUseCase → OcrRepository → DataSource
 ///
-/// Image picking and compression are handled through abstracted services
-/// injected via constructor, keeping plugin details out of business logic.
+/// Image picking, cropping and compression are handled through abstracted
+/// services injected via constructor, keeping plugin details out of
+/// business logic.
 class OcrCubit extends Cubit<OcrState> {
   final OcrTranslateUseCase _ocrTranslateUseCase;
   final RetranslateOcrTextUseCase _retranslateUseCase;
   final ImagePickerService _imagePickerService;
   final ImageCompressService _imageCompressService;
+  final ImageCropService _imageCropService;
 
   OcrCubit({
     required OcrTranslateUseCase ocrTranslateUseCase,
     required RetranslateOcrTextUseCase retranslateUseCase,
     required ImagePickerService imagePickerService,
     required ImageCompressService imageCompressService,
+    required ImageCropService imageCropService,
   })  : _ocrTranslateUseCase = ocrTranslateUseCase,
         _retranslateUseCase = retranslateUseCase,
         _imagePickerService = imagePickerService,
         _imageCompressService = imageCompressService,
+        _imageCropService = imageCropService,
         super(OcrInitial());
 
   // -------------------------------------------------------------------------
-  // Pick image, compress if needed, upload → OCR + translate
+  // Step 1: Pick image from camera or gallery
   // -------------------------------------------------------------------------
 
-  /// Picks an image from [source], compresses if > 1.5 MB,
-  /// then uploads for OCR + translation.
+  /// Picks an image from [source], then opens the crop UI to let the user
+  /// select the text region, compresses the result, and uploads for
+  /// OCR + translation.
   Future<void> pickAndProcess({
     required ImageSource source,
     required String srcLang,
     required String tgtLang,
+    ThemeData? themeData,
   }) async {
     try {
       final picked = await _imagePickerService.pickImage(source: source);
       if (picked == null) return; // User cancelled
 
-      emit(OcrUploading(progress: 0.0, message: 'Đang chuẩn bị ảnh...'));
-
+      // --- Crop step: let user select the text region ---
       Uint8List imageBytes = picked.bytes;
 
-      // Compress images > 1.5 MB to keep under the 5 MB server limit (§7.2).
-      if (imageBytes.length > 1536 * 1024) {
-        emit(OcrUploading(progress: 0.03, message: 'Đang nén ảnh...'));
-        imageBytes = await _imageCompressService.compress(
-          imageBytes,
-          quality: 80,
-          minWidth: 1280,
-          minHeight: 1280,
+      if (picked.filePath != null) {
+        emit(OcrUploading(progress: 0.0, message: 'Đang mở khung cắt ảnh...'));
+
+        final croppedBytes = await _imageCropService.cropImage(
+          sourcePath: picked.filePath!,
+          themeData: themeData,
         );
+
+        if (croppedBytes != null) {
+          imageBytes = croppedBytes;
+        }
+        // If user cancels crop, proceed with original image.
       }
 
-      final filename = 'lens_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-      final result = await _ocrTranslateUseCase(OcrTranslateParams(
+      await _compressAndUpload(
         imageBytes: imageBytes,
-        filename: filename,
-        sourceLanguage: srcLang,
-        targetLanguage: tgtLang,
-        onProgress: (p) {
-          if (!isClosed) {
-            if (p < 1.0) {
-              emit(OcrUploading(
-                progress: p,
-                message: 'Đang tải ảnh lên... ${(p * 100).toInt()}%',
-              ));
-            } else {
-              emit(OcrUploading(
-                progress: 1.0,
-                message: 'Đang nhận diện chữ...',
-              ));
-            }
-          }
-        },
-      ));
-
-      if (isClosed) return;
-
-      result.fold(
-        (failure) => emit(OcrFailure(failure.message)),
-        (entity) {
-          if (entity.extractedText.trim().isEmpty) {
-            emit(OcrFailure(
-              'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.',
-            ));
-            return;
-          }
-          emit(OcrSuccess(
-            extractedText: entity.extractedText,
-            translatedText: entity.translatedText,
-            imageBytes: entity.imageBytes,
-            sourceLang: entity.sourceLanguage,
-            targetLang: entity.targetLanguage,
-            confidence: entity.confidence,
-          ));
-        },
+        srcLang: srcLang,
+        tgtLang: tgtLang,
       );
     } catch (e) {
       if (!isClosed) {
         emit(OcrFailure(e.toString().replaceFirst('Exception: ', '')));
       }
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Step 2: Compress (if needed) and upload
+  // -------------------------------------------------------------------------
+
+  /// Compresses [imageBytes] when > 1.5 MB, then uploads for OCR + translation.
+  ///
+  /// This is extracted as a separate method so it can be reused when
+  /// the user skips or completes the crop step.
+  Future<void> _compressAndUpload({
+    required Uint8List imageBytes,
+    required String srcLang,
+    required String tgtLang,
+  }) async {
+    emit(OcrUploading(progress: 0.0, message: 'Đang chuẩn bị ảnh...'));
+
+    // Compress images > 1.5 MB to keep under the 5 MB server limit (§7.2).
+    if (imageBytes.length > 1536 * 1024) {
+      emit(OcrUploading(progress: 0.03, message: 'Đang nén ảnh...'));
+      imageBytes = await _imageCompressService.compress(
+        imageBytes,
+        quality: 80,
+        minWidth: 1280,
+        minHeight: 1280,
+      );
+    }
+
+    final filename = 'lens_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    final result = await _ocrTranslateUseCase(OcrTranslateParams(
+      imageBytes: imageBytes,
+      filename: filename,
+      sourceLanguage: srcLang,
+      targetLanguage: tgtLang,
+      onProgress: (p) {
+        if (!isClosed) {
+          if (p < 1.0) {
+            emit(OcrUploading(
+              progress: p,
+              message: 'Đang tải ảnh lên... ${(p * 100).toInt()}%',
+            ));
+          } else {
+            emit(OcrUploading(
+              progress: 1.0,
+              message: 'Đang nhận diện chữ...',
+            ));
+          }
+        }
+      },
+    ));
+
+    if (isClosed) return;
+
+    result.fold(
+      (failure) => emit(OcrFailure(failure.message)),
+      (entity) {
+        if (entity.extractedText.trim().isEmpty) {
+          emit(OcrFailure(
+            'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.',
+          ));
+          return;
+        }
+        emit(OcrSuccess(
+          extractedText: entity.extractedText,
+          translatedText: entity.translatedText,
+          imageBytes: entity.imageBytes,
+          sourceLang: entity.sourceLanguage,
+          targetLang: entity.targetLanguage,
+          confidence: entity.confidence,
+        ));
+      },
+    );
   }
 
   // -------------------------------------------------------------------------

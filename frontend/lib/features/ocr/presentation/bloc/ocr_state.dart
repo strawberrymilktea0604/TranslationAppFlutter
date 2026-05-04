@@ -5,6 +5,17 @@ sealed class OcrState {}
 /// No image selected — initial/empty state.
 final class OcrInitial extends OcrState {}
 
+/// Image has been picked and is ready for optional cropping.
+///
+/// Emitted after the user picks an image from camera/gallery.
+/// The cubit will immediately proceed to cropping if a file path is
+/// available; otherwise it skips straight to compression + upload.
+final class OcrImagePicked extends OcrState {
+  final Uint8List imageBytes;
+  final String? filePath;
+  OcrImagePicked({required this.imageBytes, this.filePath});
+}
+
 /// Image is being uploaded or processed on server.
 final class OcrUploading extends OcrState {
   /// 0.0 → 0.9 while uploading bytes; 1.0 when server is running OCR.

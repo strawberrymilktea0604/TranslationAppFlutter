@@ -10,12 +10,19 @@ class PickedImageData {
   /// Original file name (e.g. 'IMG_20260504.jpg').
   final String fileName;
 
+  /// Absolute path to the picked file on disk.
+  ///
+  /// Used by [ImageCropService] which needs a file path to open
+  /// the crop UI. May be null on web platforms.
+  final String? filePath;
+
   /// MIME type if available (e.g. 'image/jpeg').
   final String? mimeType;
 
   const PickedImageData({
     required this.bytes,
     required this.fileName,
+    this.filePath,
     this.mimeType,
   });
 
@@ -113,6 +120,7 @@ class ImagePickerServiceImpl implements ImagePickerService {
     return PickedImageData(
       bytes: bytes,
       fileName: xFile.name,
+      filePath: xFile.path,
       mimeType: xFile.mimeType,
     );
   }
