@@ -7,6 +7,8 @@ import 'package:frontend/core/network/bloc/network_cubit.dart';
 import 'package:frontend/core/storage/secure_storage_service.dart';
 import 'package:frontend/core/tts/tts_service.dart';
 import 'package:frontend/core/tts/bloc/tts_cubit.dart';
+import 'package:frontend/core/image_picker/image_picker_service.dart';
+import 'package:frontend/core/image_picker/image_compress_service.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:frontend/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:frontend/features/auth/data/repositories/auth_repository_impl.dart';
@@ -26,6 +28,10 @@ import 'package:frontend/features/translation/domain/repositories/translation_re
 import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dart';
+import 'package:frontend/features/ocr/data/repositories/ocr_repository_impl.dart';
+import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
+import 'package:frontend/features/ocr/domain/usecases/ocr_translate_usecase.dart';
+import 'package:frontend/features/ocr/domain/usecases/retranslate_ocr_text_usecase.dart';
 import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
 
 import 'main.dart' show config;
@@ -69,6 +75,17 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<TtsService>(() => TtsServiceImpl());
   sl.registerLazySingleton<TtsCubit>(
     () => TtsCubit(ttsService: sl()),
+  );
+
+  // Image picker — wraps the image_picker plugin behind an interface
+  // so Cubits/UseCases don't depend on the Flutter plugin directly.
+  sl.registerLazySingleton<ImagePickerService>(
+    () => ImagePickerServiceImpl(),
+  );
+
+  // Image compression — wraps flutter_image_compress behind an interface.
+  sl.registerLazySingleton<ImageCompressService>(
+    () => const ImageCompressServiceImpl(),
   );
 
   // ==============================
@@ -157,14 +174,31 @@ Future<void> initDependencies() async {
   //  Feature: OCR
   // ==============================
 
+  // DataSource
   sl.registerLazySingleton<OcrRemoteDataSource>(
     () => OcrRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
   );
 
+  // Repository — binds implementation to abstract interface.
+  sl.registerLazySingleton<OcrRepository>(
+    () => OcrRepositoryImpl(
+      ocrRemoteDataSource: sl(),
+      translationRemoteDataSource: sl(),
+      authLocalDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => OcrTranslateUseCase(sl()));
+  sl.registerLazySingleton(() => RetranslateOcrTextUseCase(sl()));
+
+  // Cubit — factory: new instance per screen that provides it.
   sl.registerFactory(() => OcrCubit(
-    ocrDataSource: sl(),
-    translationDataSource: sl(),
-    authLocalDataSource: sl(),
+    ocrTranslateUseCase: sl(),
+    retranslateUseCase: sl(),
+    imagePickerService: sl(),
+    imageCompressService: sl(),
   ));
 
   // ==============================

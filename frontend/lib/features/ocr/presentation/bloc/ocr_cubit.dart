@@ -1,74 +1,76 @@
 import 'dart:typed_data';
 
 import 'package:bloc/bloc.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
-import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dart';
-import 'package:frontend/features/translation/data/datasources/translation_remote_datasource.dart';
+import 'package:frontend/core/image_picker/image_picker_service.dart';
+import 'package:frontend/core/image_picker/image_compress_service.dart';
+import 'package:frontend/features/ocr/domain/usecases/ocr_translate_usecase.dart';
+import 'package:frontend/features/ocr/domain/usecases/retranslate_ocr_text_usecase.dart';
 
 part 'ocr_state.dart';
 
+/// Cubit managing the OCR (image → text → translation) pipeline.
+///
+/// Follows Clean Architecture:
+///   UI → OcrCubit → OcrTranslateUseCase → OcrRepository → DataSource
+///
+/// Image picking and compression are handled through abstracted services
+/// injected via constructor, keeping plugin details out of business logic.
 class OcrCubit extends Cubit<OcrState> {
-  final OcrRemoteDataSource _ocrDataSource;
-  final TranslationRemoteDataSource _translationDataSource;
-  final AuthLocalDataSource _authLocalDataSource;
-  final ImagePicker _picker = ImagePicker();
+  final OcrTranslateUseCase _ocrTranslateUseCase;
+  final RetranslateOcrTextUseCase _retranslateUseCase;
+  final ImagePickerService _imagePickerService;
+  final ImageCompressService _imageCompressService;
 
   OcrCubit({
-    required OcrRemoteDataSource ocrDataSource,
-    required TranslationRemoteDataSource translationDataSource,
-    required AuthLocalDataSource authLocalDataSource,
-  })  : _ocrDataSource = ocrDataSource,
-        _translationDataSource = translationDataSource,
-        _authLocalDataSource = authLocalDataSource,
+    required OcrTranslateUseCase ocrTranslateUseCase,
+    required RetranslateOcrTextUseCase retranslateUseCase,
+    required ImagePickerService imagePickerService,
+    required ImageCompressService imageCompressService,
+  })  : _ocrTranslateUseCase = ocrTranslateUseCase,
+        _retranslateUseCase = retranslateUseCase,
+        _imagePickerService = imagePickerService,
+        _imageCompressService = imageCompressService,
         super(OcrInitial());
 
   // -------------------------------------------------------------------------
-  // Pick image, upload, OCR + translate in one call
+  // Pick image, compress if needed, upload → OCR + translate
   // -------------------------------------------------------------------------
 
+  /// Picks an image from [source], compresses if > 1.5 MB,
+  /// then uploads for OCR + translation.
   Future<void> pickAndProcess({
     required ImageSource source,
     required String srcLang,
     required String tgtLang,
   }) async {
     try {
-      final picked = await _picker.pickImage(
-        source: source,
-        imageQuality: 90,
-        maxWidth: 1920,
-        maxHeight: 1920,
-      );
+      final picked = await _imagePickerService.pickImage(source: source);
       if (picked == null) return; // User cancelled
 
       emit(OcrUploading(progress: 0.0, message: 'Đang chuẩn bị ảnh...'));
 
-      // Read bytes
-      Uint8List imageBytes = await picked.readAsBytes();
+      Uint8List imageBytes = picked.bytes;
 
-      // Compress if > 1.5 MB to save bandwidth
+      // Compress images > 1.5 MB to keep under the 5 MB server limit (§7.2).
       if (imageBytes.length > 1536 * 1024) {
         emit(OcrUploading(progress: 0.03, message: 'Đang nén ảnh...'));
-        final compressed = await FlutterImageCompress.compressWithList(
+        imageBytes = await _imageCompressService.compress(
           imageBytes,
           quality: 80,
           minWidth: 1280,
           minHeight: 1280,
         );
-        imageBytes = compressed;
       }
 
-      final authToken = await _authLocalDataSource.getAccessToken();
       final filename = 'lens_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-      final result = await _ocrDataSource.translateImage(
+      final result = await _ocrTranslateUseCase(OcrTranslateParams(
         imageBytes: imageBytes,
         filename: filename,
         sourceLanguage: srcLang,
         targetLanguage: tgtLang,
-        authToken: authToken,
         onProgress: (p) {
           if (!isClosed) {
             if (p < 1.0) {
@@ -84,23 +86,29 @@ class OcrCubit extends Cubit<OcrState> {
             }
           }
         },
-      );
+      ));
 
       if (isClosed) return;
 
-      if (result.extractedText.trim().isEmpty) {
-        emit(OcrFailure('Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.'));
-        return;
-      }
-
-      emit(OcrSuccess(
-        extractedText: result.extractedText,
-        translatedText: result.translatedText,
-        imageBytes: imageBytes,
-        sourceLang: srcLang,
-        targetLang: tgtLang,
-        confidence: result.confidence,
-      ));
+      result.fold(
+        (failure) => emit(OcrFailure(failure.message)),
+        (entity) {
+          if (entity.extractedText.trim().isEmpty) {
+            emit(OcrFailure(
+              'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.',
+            ));
+            return;
+          }
+          emit(OcrSuccess(
+            extractedText: entity.extractedText,
+            translatedText: entity.translatedText,
+            imageBytes: entity.imageBytes,
+            sourceLang: entity.sourceLanguage,
+            targetLang: entity.targetLanguage,
+            confidence: entity.confidence,
+          ));
+        },
+      );
     } catch (e) {
       if (!isClosed) {
         emit(OcrFailure(e.toString().replaceFirst('Exception: ', '')));
@@ -112,6 +120,7 @@ class OcrCubit extends Cubit<OcrState> {
   // Re-translate after user edits OCR text
   // -------------------------------------------------------------------------
 
+  /// Re-translates user-edited OCR text without re-uploading the image.
   Future<void> retranslate({
     required String editedText,
     required Uint8List imageBytes,
@@ -120,7 +129,6 @@ class OcrCubit extends Cubit<OcrState> {
   }) async {
     if (editedText.trim().isEmpty) return;
 
-    // Keep image visible while re-translating
     emit(OcrRetranslating(
       editedText: editedText,
       imageBytes: imageBytes,
@@ -128,30 +136,26 @@ class OcrCubit extends Cubit<OcrState> {
       targetLang: tgtLang,
     ));
 
-    try {
-      final authToken = await _authLocalDataSource.getAccessToken();
-      final translation = await _translationDataSource.translateText(
-        text: editedText.trim(),
-        sourceLanguage: srcLang == 'auto' ? 'en' : srcLang,
-        targetLanguage: tgtLang,
-        authToken: authToken,
-      );
+    final result = await _retranslateUseCase(RetranslateParams(
+      text: editedText.trim(),
+      sourceLanguage: srcLang,
+      targetLanguage: tgtLang,
+    ));
 
-      if (!isClosed) {
-        emit(OcrSuccess(
-          extractedText: editedText,
-          translatedText: translation.translatedText,
-          imageBytes: imageBytes,
-          sourceLang: srcLang,
-          targetLang: tgtLang,
-        ));
-      }
-    } catch (e) {
-      if (!isClosed) {
-        emit(OcrFailure('Không thể dịch lại: ${e.toString()}'));
-      }
-    }
+    if (isClosed) return;
+
+    result.fold(
+      (failure) => emit(OcrFailure(failure.message)),
+      (translatedText) => emit(OcrSuccess(
+        extractedText: editedText,
+        translatedText: translatedText,
+        imageBytes: imageBytes,
+        sourceLang: srcLang,
+        targetLang: tgtLang,
+      )),
+    );
   }
 
+  /// Resets back to initial state.
   void reset() => emit(OcrInitial());
 }

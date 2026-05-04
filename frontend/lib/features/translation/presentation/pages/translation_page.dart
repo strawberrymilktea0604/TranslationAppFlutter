@@ -267,10 +267,10 @@ class _TranslationViewState extends State<_TranslationView>
                 child: CircleAvatar(
                   radius: 18,
                   backgroundColor: isAuth ? cs.primaryContainer : cs.surfaceContainerHighest,
-                  backgroundImage: (isAuth && authState is AuthAuthenticated && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
+                  backgroundImage: (isAuth && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
                       ? CachedNetworkImageProvider(authState.user.avatarUrl!)
                       : null,
-                  child: (isAuth && authState is AuthAuthenticated && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
+                  child: (isAuth && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
                       ? null
                       : Icon(
                           isAuth ? Icons.person_rounded : Icons.person_outline_rounded,
