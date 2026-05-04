@@ -68,7 +68,7 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
     String? authToken,
     required void Function(double progress) onProgress,
   }) async {
-    final uri = Uri.parse('$baseUrl/api/v1/images/translate');
+    final uri = Uri.parse('$baseUrl/images/translate');
 
     try {
       // Build a MultipartRequest so we can finalize and track its byte stream.
@@ -81,7 +81,6 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
       multipart.fields['source_language'] = sourceLanguage == 'auto' ? 'en' : sourceLanguage;
       multipart.fields['target_language'] = targetLanguage;
       multipart.fields['optimize_image'] = 'true';
-      multipart.fields['ocr_engine'] = 'tesseract';
 
       multipart.files.add(
         http.MultipartFile.fromBytes(
@@ -143,6 +142,11 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
       try {
         final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
         detail = (errJson['detail'] as String?) ?? detail;
+        
+        // Translate common backend errors to Vietnamese
+        if (detail == 'No text could be extracted from image') {
+          detail = 'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.';
+        }
       } catch (_) {}
 
       throw ServerException(message: detail);

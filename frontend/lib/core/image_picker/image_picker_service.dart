@@ -42,11 +42,15 @@ class PickedImageData {
 abstract class ImagePickerService {
   /// Opens the device camera for the user to capture a photo.
   ///
+  /// [preferredCameraDevice] defaults to [CameraDevice.rear] which
+  /// typically provides higher resolution for OCR / document scanning.
+  ///
   /// Returns `null` if the user cancels.
   Future<PickedImageData?> pickFromCamera({
     int imageQuality = 90,
     double maxWidth = 1920,
     double maxHeight = 1920,
+    CameraDevice preferredCameraDevice = CameraDevice.rear,
   });
 
   /// Opens the device gallery for the user to select a photo.
@@ -64,6 +68,7 @@ abstract class ImagePickerService {
     int imageQuality = 90,
     double maxWidth = 1920,
     double maxHeight = 1920,
+    CameraDevice preferredCameraDevice = CameraDevice.rear,
   });
 }
 
@@ -79,12 +84,14 @@ class ImagePickerServiceImpl implements ImagePickerService {
     int imageQuality = 90,
     double maxWidth = 1920,
     double maxHeight = 1920,
+    CameraDevice preferredCameraDevice = CameraDevice.rear,
   }) =>
       pickImage(
         source: ImageSource.camera,
         imageQuality: imageQuality,
         maxWidth: maxWidth,
         maxHeight: maxHeight,
+        preferredCameraDevice: preferredCameraDevice,
       );
 
   @override
@@ -106,12 +113,17 @@ class ImagePickerServiceImpl implements ImagePickerService {
     int imageQuality = 90,
     double maxWidth = 1920,
     double maxHeight = 1920,
+    CameraDevice preferredCameraDevice = CameraDevice.rear,
   }) async {
     final xFile = await _picker.pickImage(
       source: source,
       imageQuality: imageQuality,
       maxWidth: maxWidth,
       maxHeight: maxHeight,
+      preferredCameraDevice: preferredCameraDevice,
+      // Skip EXIF/GPS metadata — avoids permission prompts and
+      // improves compatibility with emulators & webcams.
+      requestFullMetadata: false,
     );
 
     if (xFile == null) return null;

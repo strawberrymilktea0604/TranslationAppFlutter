@@ -2,6 +2,8 @@
 Translation Repository - Data access layer for translation operations
 """
 import logging
+import time
+import random
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -31,7 +33,12 @@ class TranslationRepository:
         Returns:
             Created Translation model instance
         """
+        # Create a snowflake-like 64-bit integer ID if client didn't provide one
+        # Timestamp in ms (42 bits) + random (22 bits)
+        unique_id = (int(time.time() * 1000) << 22) | random.randint(0, 4194303)
+        
         new_translation = Translation(
+            id=unique_id,
             user_id=translation_data.user_id,
             source_text=translation_data.source_text,
             translated_text=translation_data.translated_text,

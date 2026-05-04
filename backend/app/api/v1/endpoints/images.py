@@ -323,7 +323,7 @@ async def translate_image(
             f"✅ Image translation completed - "
             f"Total time: {total_time:.1f}ms - "
             f"Cache: {cache_status} - "
-            f"User: {current_user.username if current_user else 'guest'}"
+            f"User: {current_user.email if current_user else 'guest'}"
         )
         
         return SuccessResponse(data=response_data)
