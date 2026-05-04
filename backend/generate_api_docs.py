@@ -165,7 +165,6 @@ def generate_docs(openapi_path):
                 
             # Request Body
             request_body = details.get('requestBody', {})
-            req_schema = None
             if request_body:
                 md.append("**Request Body:**")
                 content = request_body.get('content', {})

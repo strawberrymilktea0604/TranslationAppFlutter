@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import io
-from PIL import Image, ExifTags
+from PIL import Image
 from app.services.image_service import ImageService
 from app.services.paddle_ocr_service import PaddleOCRService
 
