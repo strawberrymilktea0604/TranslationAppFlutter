@@ -1,5 +1,5 @@
 """
-Audio Translation Endpoints - /audio/translate
+Audio Translation Endpoints - /audio/translate and /audio/translate/voice
 """
 import logging
 import time
@@ -18,6 +18,7 @@ from app.schemas.translation import (
 )
 from app.services.stt_service import STTService, STTError
 from app.services.translation_service import TranslationService
+from app.services.audio_preprocessing_service import AudioPreprocessingService, AudioPreprocessingError
 
 logger = logging.getLogger(__name__)
 
@@ -223,3 +224,251 @@ async def translate_audio(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during audio translation"
         )
+
+
+@router.post("/translate/voice", response_model=SuccessResponse)
+async def translate_voice_with_preprocessing(
+    request: Request,
+    source_language: Optional[str] = Form(None, description="Source language code. If not provided, it will be auto-detected."),
+    target_language: str = Form(..., description="Target language code"),
+    file: UploadFile = File(..., description="Audio file (MP3, M4A, AAC, WAV, FLAC, OGG)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
+    """
+    Translate voice endpoint with audio preprocessing.
+    
+    This endpoint provides:
+    1. Audio format validation (supports MP3, M4A, AAC, WAV, FLAC, OGG)
+    2. Audio preprocessing & normalization to WAV 16kHz mono
+    3. Speech-to-Text transcription
+    4. Translation
+    
+    Supported formats: MP3, M4A, AAC, WAV, FLAC, OGG
+    Maximum file size: 25MB
+    Maximum duration: 30 minutes
+    Output format: WAV 16kHz Mono
+    
+    Example usage:
+    ```
+    POST /api/v1/audio/translate/voice
+    Content-Type: multipart/form-data
+    
+    source_language: vi (optional, auto-detected if not provided)
+    target_language: en
+    file: <audio_file>
+    ```
+    """
+    pipeline_start = time.time()
+    
+    try:
+        # ==================== RATE LIMITING ====================
+        rate_limit_key, max_requests = await _get_rate_limit_key(request, current_user)
+        rate_check = await _check_audio_rate_limit(rate_limit_key, max_requests)
+        
+        if not rate_check["allowed"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded. Reset in {rate_check['reset_in_seconds']}s"
+            )
+        
+        user_type = "authenticated" if current_user else "guest"
+        logger.info(
+            f"🎙️ Voice translation started - User: {user_type} - "
+            f"Languages: {source_language or 'auto'}→{target_language} - "
+            f"Original file: {file.filename}"
+        )
+        
+        # ==================== STEP 1: READ AND VALIDATE AUDIO ====================
+        audio_bytes = await file.read()
+        
+        if not audio_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Empty audio file provided"
+            )
+        
+        logger.info(
+            f"📥 Audio file received - "
+            f"Size: {len(audio_bytes)/1024:.1f}KB, "
+            f"Content-Type: {file.content_type}, "
+            f"Filename: {file.filename}"
+        )
+        
+        # ==================== STEP 2: AUDIO PREPROCESSING ====================
+        preprocess_start = time.time()
+        try:
+            # Validate and preprocess audio to WAV 16kHz mono
+            preprocessed_audio_bytes, audio_metadata = await AudioPreprocessingService.preprocess_audio(
+                audio_bytes=audio_bytes,
+                content_type=file.content_type,
+                filename=file.filename,
+            )
+            preprocess_time = (time.time() - preprocess_start) * 1000
+            
+            logger.info(
+                f"✅ Audio preprocessing successful - "
+                f"Time: {preprocess_time:.1f}ms - "
+                f"Original SR: {audio_metadata['original_sample_rate']}Hz - "
+                f"Channels: {audio_metadata['channels']} → "
+                f"Target: {audio_metadata['target_sample_rate']}Hz Mono"
+            )
+            
+        except AudioPreprocessingError as e:
+            logger.error(f"❌ Audio preprocessing failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Audio preprocessing failed: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"❌ Unexpected error during audio preprocessing: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Audio preprocessing error: {str(e)}"
+            )
+        
+        # ==================== STEP 3: STT PROCESSING ====================
+        stt_start = time.time()
+        try:
+            # Use preprocessed audio for STT
+            stt_result = await STTService.transcribe_audio(
+                preprocessed_audio_bytes,
+                language=source_language,
+            )
+        except STTError as e:
+            logger.error(f"❌ STT failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Audio transcription failed: {str(e)}"
+            )
+        
+        stt_time = (time.time() - stt_start) * 1000
+        extracted_text = stt_result["text"]
+        detected_language = stt_result["language"]
+        language_probability = stt_result["language_probability"]
+        
+        if not extracted_text or len(extracted_text.strip()) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="No text could be extracted from the audio. The audio may be silent or unclear."
+            )
+        
+        logger.info(
+            f"👁️ STT completed - "
+            f"Text: {len(extracted_text)} chars, "
+            f"Detected lang: {detected_language} ({language_probability:.2f}), "
+            f"Time: {stt_time:.1f}ms"
+        )
+        
+        # Determine actual source language
+        actual_source_language = source_language if source_language else detected_language
+        
+        # ==================== STEP 4: TRANSLATE TEXT ====================
+        try:
+            translation_request = TranslationRequest(
+                source_text=extracted_text,
+                source_language=actual_source_language,
+                target_language=target_language,
+                translation_type="voice"
+            )
+            
+            translated_text, is_cached, translate_response_time = await TranslationService.translate_with_cache(
+                request=translation_request,
+                db=db,
+                user_id=current_user.id if current_user else None,
+                save_to_db=True
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Translation failed: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Translation failed: {str(e)}"
+            )
+        
+        cache_status = "🚀 HIT" if is_cached else "❌ MISS"
+        logger.info(
+            f"🔄 Translation {cache_status} - "
+            f"Time: {translate_response_time:.1f}ms"
+        )
+        
+        # ==================== STEP 5: BUILD RESPONSE ====================
+        total_time = (time.time() - pipeline_start) * 1000
+        
+        # Combine metadata
+        response_metadata = {
+            "audio_preprocessing": {
+                "original_sample_rate": audio_metadata["original_sample_rate"],
+                "original_channels": audio_metadata["channels"],
+                "original_format": audio_metadata["estimated_format"],
+                "original_size_mb": audio_metadata["file_size_mb"],
+                "preprocessing_time_ms": preprocess_time,
+                "target_sample_rate": audio_metadata["target_sample_rate"],
+                "target_channels": audio_metadata["target_channels"],
+                "target_format": audio_metadata["target_format"],
+                "preprocessed_size_mb": audio_metadata["preprocessed_size_mb"],
+                "compression_ratio": audio_metadata["compression_ratio"],
+            },
+            "stt": {
+                "detected_language": detected_language,
+                "language_probability": language_probability,
+                "time_ms": stt_time,
+            },
+            "translation": {
+                "is_cached": is_cached,
+                "time_ms": translate_response_time,
+            },
+            "total_time_ms": total_time,
+        }
+        
+        response_data = AudioTranslationResponse(
+            source_text=extracted_text,
+            translated_text=translated_text,
+            source_language=actual_source_language,
+            target_language=target_language,
+            stt_language_probability=language_probability,
+            is_cached=is_cached,
+            response_time_ms=total_time,
+            translation_type="voice",
+        )
+        
+        logger.info(
+            f"✅ Voice translation completed successfully - "
+            f"Total time: {total_time:.1f}ms - "
+            f"Preprocessing: {preprocess_time:.1f}ms, "
+            f"STT: {stt_time:.1f}ms, "
+            f"Translation: {translate_response_time:.1f}ms - "
+            f"User: {current_user.email if current_user else 'guest'}"
+        )
+        
+        # Return with extended metadata
+        response = SuccessResponse(data=response_data)
+        response.metadata = response_metadata
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"❌ Unexpected error in voice translation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during voice translation"
+        )
+
+
+@router.get("/formats", response_model=SuccessResponse)
+async def get_supported_audio_formats():
+    """
+    Get list of supported audio formats and specifications
+    
+    Returns:
+    - supported_formats: List of supported audio formats (MP3, M4A, etc.)
+    - audio_specifications: Target audio specifications (16kHz, mono, WAV)
+    """
+    return SuccessResponse(
+        data={
+            "supported_formats": AudioPreprocessingService.get_supported_formats(),
+            "audio_specifications": AudioPreprocessingService.get_audio_specs(),
+            "note": "All audio will be preprocessed to WAV 16kHz Mono format before transcription",
+        }
+    )
