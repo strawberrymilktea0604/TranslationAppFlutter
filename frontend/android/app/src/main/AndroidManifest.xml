@@ -12,6 +12,10 @@
     <!-- Photo media permission — required for gallery access on Android 13+ (API 33) -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 
+    <!-- Microphone permission — required for speech_to_text STT (UC speech) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"

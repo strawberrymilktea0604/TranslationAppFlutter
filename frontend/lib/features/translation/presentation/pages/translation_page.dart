@@ -12,6 +12,8 @@ import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
 import 'package:frontend/features/ocr/presentation/pages/ocr_page.dart';
+import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
+import 'package:frontend/features/speech/presentation/pages/speech_page.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
@@ -57,6 +59,7 @@ class TranslationPage extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => sl<TranslationCubit>()),
         BlocProvider(create: (_) => sl<OcrCubit>()),
+        BlocProvider(create: (_) => sl<SpeechCubit>()),
       ],
       child: const _TranslationView(),
     );
@@ -621,7 +624,13 @@ class _TranslationViewState extends State<_TranslationView>
                   icon: Icon(isAuth ? Icons.mic_outlined : Icons.lock_outline_rounded, size: 22),
                   tooltip: isAuth ? 'Dịch bằng giọng nói' : 'Đăng nhập để sử dụng giọng nói',
                   color: isAuth ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.3),
-                  onPressed: isAuth ? () => _showComingSoon('Dịch giọng nói') : _showLoginDialog,
+                  onPressed: isAuth
+                      ? () => showVoiceTranslationSheet(
+                            context,
+                            srcLang: _srcCode,
+                            tgtLang: _tgtCode,
+                          )
+                      : _showLoginDialog,
                 ),
                 const Spacer(),
                 TtsIconButton(
