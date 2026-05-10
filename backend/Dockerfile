@@ -29,6 +29,7 @@ WORKDIR /app
 
 # Install runtime system dependencies for OCR, image processing, and OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
     tesseract-ocr \
     libtesseract-dev \
     libleptonica-dev \

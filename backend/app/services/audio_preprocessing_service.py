@@ -9,8 +9,8 @@ import tempfile
 from typing import Tuple, Optional
 import io
 
-import librosa
-import soundfile as sf
+from pydub import AudioSegment
+from pydub.effects import normalize
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class AudioPreprocessingService:
         if file_size_mb == 0:
             raise AudioPreprocessingError("Empty audio file")
 
-        # Try to load the audio and get metadata
+        # Try to load the audio and get metadata via FFmpeg / pydub
         temp_file = None
         try:
             # Create temporary file with appropriate extension
@@ -112,19 +112,10 @@ class AudioPreprocessingService:
                 tmp.write(audio_bytes)
                 temp_file = tmp.name
 
-            # Load audio to validate and get metadata
-            audio_data, sr = librosa.load(temp_file, sr=None, mono=False)
-
-            # Get duration
-            if len(audio_data.shape) == 1:
-                # Mono audio
-                duration_seconds = len(audio_data) / sr
-                channels = 1
-            else:
-                # Multi-channel audio
-                duration_seconds = audio_data.shape[1] / sr
-                channels = audio_data.shape[0]
-
+            audio_segment = AudioSegment.from_file(temp_file)
+            duration_seconds = len(audio_segment) / 1000.0
+            channels = audio_segment.channels
+            sr = audio_segment.frame_rate
             duration_minutes = duration_seconds / 60
 
             # Check duration
@@ -200,32 +191,30 @@ class AudioPreprocessingService:
                 tmp.write(audio_bytes)
                 temp_file = tmp.name
 
-            # Load audio
+            # Load audio via FFmpeg / pydub
             logger.info(f"📂 Loading audio from {file_ext} format...")
-            audio_data, sr = librosa.load(temp_file, sr=None, mono=False)
-            logger.info(f"✅ Audio loaded: SR={sr}Hz, Shape={audio_data.shape}")
+            audio_segment = AudioSegment.from_file(temp_file)
+            logger.info(
+                f"✅ Audio loaded: SR={audio_segment.frame_rate}Hz, "
+                f"Channels={audio_segment.channels}, "
+                f"Duration={len(audio_segment)/1000.0:.2f}s"
+            )
 
-            # Handle multi-channel audio - convert to mono by averaging
-            if len(audio_data.shape) > 1 and audio_data.shape[0] > 1:
-                logger.info(f"🔊 Converting {audio_data.shape[0]} channels to mono...")
-                audio_data = librosa.to_mono(audio_data)
-            elif len(audio_data.shape) > 1:
-                audio_data = audio_data[0]
+            if audio_segment.channels > 1:
+                logger.info(f"🔊 Converting {audio_segment.channels} channels to mono...")
+                audio_segment = audio_segment.set_channels(1)
 
-            # Resample to target sample rate if necessary
-            if sr != TARGET_SAMPLE_RATE:
-                logger.info(f"⏱️ Resampling from {sr}Hz to {TARGET_SAMPLE_RATE}Hz...")
-                audio_data = librosa.resample(audio_data, orig_sr=sr, target_sr=TARGET_SAMPLE_RATE)
-            
-            # Normalize audio to prevent clipping (limit to [-1, 1])
-            if audio_data.max() > 1.0 or audio_data.min() < -1.0:
-                logger.info("📊 Normalizing audio level...")
-                max_val = max(abs(audio_data.max()), abs(audio_data.min()))
-                audio_data = audio_data / max_val
+            if audio_segment.frame_rate != TARGET_SAMPLE_RATE:
+                logger.info(f"⏱️ Resampling from {audio_segment.frame_rate}Hz to {TARGET_SAMPLE_RATE}Hz...")
+                audio_segment = audio_segment.set_frame_rate(TARGET_SAMPLE_RATE)
 
-            # Save as WAV format
+            # Normalize audio to avoid clipping and to improve consistency
+            logger.info("📊 Normalizing audio level...")
+            audio_segment = normalize(audio_segment)
+
+            # Export processed audio to WAV bytes
             output_buffer = io.BytesIO()
-            sf.write(output_buffer, audio_data, TARGET_SAMPLE_RATE, format='WAV')
+            audio_segment.export(output_buffer, format="wav")
             preprocessed_bytes = output_buffer.getvalue()
 
             metadata = {
