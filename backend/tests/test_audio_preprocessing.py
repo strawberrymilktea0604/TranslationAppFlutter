@@ -12,14 +12,14 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path))
 
-from app.services.audio_preprocessing_service import (
+from app.services.audio_preprocessing_service import (  # noqa: E402
     AudioPreprocessingService,
     AudioPreprocessingError,
 )
 
 # Try importing optional dependencies
 try:
-    import librosa
+    import librosa  # noqa: F401
     import numpy as np
     import soundfile as sf
     AUDIO_DEPS_AVAILABLE = True
@@ -255,6 +255,7 @@ class TestAudioEndpointIntegration:
         assert "source_language" in form_data
         assert "target_language" in form_data
         assert "file" in form_data
+        assert endpoint.startswith("/api/v1/audio")
 
 
 def run_quick_test():
@@ -279,7 +280,7 @@ def run_quick_test():
         preprocessed, metadata = await AudioPreprocessingService.preprocess_audio(
             test_audio, "audio/wav", "test.wav"
         )
-        print(f"✅ Preprocessing complete:")
+        print("✅ Preprocessing complete:")
         print(f"   Original: {metadata['original_sample_rate']}Hz, {metadata['channels']} channels")
         print(f"   Target: {metadata['target_sample_rate']}Hz, {metadata['target_channels']} channels")
         print(f"   Size: {len(test_audio)} bytes → {len(preprocessed)} bytes ({metadata['compression_ratio']:.2f}x)")
