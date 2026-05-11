@@ -54,13 +54,16 @@ class _WelcomePageState extends State<WelcomePage> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Thay vì dùng IntrinsicHeight (gây lỗi với PageView),
-            // Ta tính toán chiều cao an toàn tối thiểu là 680px để không bao giờ bị overflow.
-            // Nếu màn hình cao hơn 680, nó chiếm toàn bộ màn hình.
-            // Nếu màn hình thấp hơn 680, nó cho phép cuộn!
-            final double contentHeight = constraints.maxHeight > 680.0
+            // Tăng chiều cao tối thiểu lên 720 để đảm bảo đủ không gian
+            // cho các máy có text scaling lớn (font chữ to).
+            final double contentHeight = constraints.maxHeight > 720.0
                 ? constraints.maxHeight
-                : 680.0;
+                : 720.0;
+
+            // Tính toán chiều cao linh hoạt cho phần Bottom Area.
+            // Chiếm 55% màn hình nhưng không bao giờ nhỏ hơn 400px
+            // để đảm bảo text và 3 buttons không bị overflow.
+            final double bottomAreaHeight = (contentHeight * 0.55).clamp(400.0, 550.0);
 
             return SingleChildScrollView(
               child: SizedBox(
@@ -144,6 +147,7 @@ class _WelcomePageState extends State<WelcomePage> {
                                 child: _buildSlideContent(
                                   _slides[index],
                                   index,
+                                  bottomAreaHeight,
                                 ),
                               );
                             },
@@ -157,7 +161,7 @@ class _WelcomePageState extends State<WelcomePage> {
                     // khi quẹt ngang PageView thì Dấu Chấm KHÔNG bị trôi ngang,
                     // nhưng khi cuộn dọc màn hình thì nó cuộn theo văn bản cực khớp!
                     Positioned(
-                      bottom: 375, // Cố định chuẩn xác bên trên khối text 360px
+                      bottom: bottomAreaHeight + 16, // Cố định ngay trên khối text
                       left: 0,
                       right: 0,
                       child: Row(
@@ -189,7 +193,7 @@ class _WelcomePageState extends State<WelcomePage> {
     );
   }
 
-  Widget _buildSlideContent(WelcomeSlide slide, int index) {
+  Widget _buildSlideContent(WelcomeSlide slide, int index, double bottomAreaHeight) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
@@ -206,10 +210,10 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
           ),
 
-          // Fixed Bottom Area: Cố định độ cao 360 pixel trên mọi slide.
+          // Fixed Bottom Area: Cố định độ cao linh hoạt theo màn hình.
           // Điều này đảm bảo cụm Dots tĩnh nằm chính xác ở vị trí trống ở trên!
           SizedBox(
-            height: 360,
+            height: bottomAreaHeight,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [

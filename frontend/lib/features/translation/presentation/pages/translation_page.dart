@@ -373,25 +373,40 @@ class _TranslationViewState extends State<_TranslationView>
     return LayoutBuilder(
       key: key,
       builder: (context, constraints) {
+        // Estimate fixed-height elements:
+        //   - padding top/bottom: 8 + 16 = 24
+        //   - guest banner: ~48 (only if !isAuth)
+        //   - lang bar: ~48
+        //   - two SizedBox(height: 10) spacers: 20
+        final fixedHeight = 24.0 +
+            (!isAuth ? 56.0 : 0.0) +
+            48.0 + // lang bar
+            20.0;  // spacers
+
+        // Split the remaining space equally between source and result cards.
+        // Cap each card at 300dp max so they don't stretch excessively
+        // on large screens (e.g. tablets or phones taller than the emulator).
+        final availableForCards = constraints.maxHeight - fixedHeight;
+        final cardHeight = (availableForCards / 2).clamp(160.0, 300.0);
+
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - 24,
-            ),
-            child: IntrinsicHeight(
-              child: Column(
-                children: [
-                  // Guest CTA banner
-                  if (!isAuth) _buildGuestBanner(cs, theme),
-                  _buildLangBar(cs),
-                  const SizedBox(height: 10),
-                  Expanded(child: _buildSourceCard(theme, isAuth)),
-                  const SizedBox(height: 10),
-                  Expanded(child: _buildResultCard(theme, isAuth)),
-                ],
+          child: Column(
+            children: [
+              // Guest CTA banner
+              if (!isAuth) _buildGuestBanner(cs, theme),
+              _buildLangBar(cs),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: cardHeight,
+                child: _buildSourceCard(theme, isAuth),
               ),
-            ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: cardHeight,
+                child: _buildResultCard(theme, isAuth),
+              ),
+            ],
           ),
         );
       },

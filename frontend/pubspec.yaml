@@ -89,7 +89,7 @@ dependencies:
 
   # Audio recording — records from microphone to file (UC05 Speech-to-Text).
   # Uses native AudioRecord/MediaCodec (Android), AVFoundation (iOS).
-  record: ^5.2.0
+  record: ^6.2.0
 
 dev_dependencies:
   # flutter_test:

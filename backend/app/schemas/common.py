@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
@@ -6,6 +6,7 @@ from pydantic import BaseModel
 class SuccessResponse(BaseModel):
     status: str = "success"
     data: Any
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class ErrorResponse(BaseModel):
