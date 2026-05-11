@@ -27,16 +27,30 @@ services:
       timeout: 5s
       retries: 5
 
+  log_aggregator:
+    image: fluent/fluentd:v1.16-1
+    ports:
+      - "24224:24224"
+    volumes:
+      - ./backend/fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
+      - ./backend/fluentd/log:/fluentd/log
+      - ./backend/fluentd/buffer:/fluentd/buffer
+    restart: unless-stopped
+
   nginx:
     image: nginx:alpine
     ports:
       - "8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - nginx_logs:/var/log/nginx
     depends_on:
       - backend
     restart: unless-stopped
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: nginx
 
   backend:
     build:
@@ -45,6 +59,7 @@ services:
     depends_on:
       - db
       - redis
+      - log_aggregator
     ports:
       - "8000:8000"
     volumes:
@@ -54,6 +69,11 @@ services:
     environment:
       - ENVIRONMENT=development
     restart: unless-stopped
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: backend
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health'); print('ok')"]
       interval: 30s
@@ -70,4 +90,3 @@ services:
 
 volumes:
   db_data:
-  nginx_logs:

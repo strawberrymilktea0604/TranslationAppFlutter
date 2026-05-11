@@ -36,6 +36,7 @@ import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
 import 'package:frontend/features/ocr/domain/usecases/ocr_translate_usecase.dart';
 import 'package:frontend/features/ocr/domain/usecases/retranslate_ocr_text_usecase.dart';
 import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
+import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
 
 import 'main.dart' show config;
 
@@ -187,7 +188,11 @@ Future<void> initDependencies() async {
   // ==============================
   //  Feature: Speech (STT)
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  sl.registerFactory(() => SpeechCubit(
+    translationDataSource: sl(),
+    authLocalDataSource: sl(),
+  ));
 
   // ==============================
   //  Feature: OCR

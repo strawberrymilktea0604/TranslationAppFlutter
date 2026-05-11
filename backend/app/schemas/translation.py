@@ -215,3 +215,41 @@ class ImageTranslationBatchResponse(BaseModel):
     failed: int
     results: list[ImageTranslationResponse]
     errors: Optional[list[dict]] = None
+
+
+# ==================== AUDIO TRANSLATION SCHEMAS ====================
+
+class AudioTranslationResponse(BaseModel):
+    """Response schema for audio translation"""
+    model_config = ConfigDict(from_attributes=True)
+    
+    # Original content
+    source_text: str = Field(
+        ..., description="Text extracted from audio"
+    )
+    translated_text: str = Field(
+        ..., description="Translated text"
+    )
+    source_language: str
+    target_language: str
+    
+    # STT details
+    stt_language_probability: float = Field(
+        ..., description="STT language detection confidence"
+    )
+    
+    # Cache and performance
+    is_cached: bool = Field(
+        default=False,
+        description="Whether translation came from cache"
+    )
+    response_time_ms: float = Field(
+        ..., description="Total processing time"
+    )
+    
+    translation_type: str = Field(
+        default="voice",
+        description="Always 'voice' for this endpoint"
+    )
+    
+    created_at: Optional[datetime] = None
