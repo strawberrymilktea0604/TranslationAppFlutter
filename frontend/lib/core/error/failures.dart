@@ -45,3 +45,14 @@ class ValidationFailure extends Failure {
   @override
   List<Object?> get props => [message, fieldErrors];
 }
+
+/// Failure returned when audio recording operations fail.
+class RecordingFailure extends Failure {
+  const RecordingFailure(super.message);
+}
+
+/// Failure returned when a required permission is denied.
+class PermissionFailure extends Failure {
+  const PermissionFailure(
+      [super.message = 'Required permission was denied']);
+}

@@ -54,3 +54,24 @@ class ValidationException implements Exception {
   @override
   String toString() => 'ValidationException(message: $message)';
 }
+
+/// Exception thrown when audio recording operations fail.
+class RecordingException implements Exception {
+  final String message;
+
+  const RecordingException({required this.message});
+
+  @override
+  String toString() => 'RecordingException(message: $message)';
+}
+
+/// Exception thrown when microphone permission is denied.
+class PermissionDeniedException implements Exception {
+  final String message;
+
+  const PermissionDeniedException(
+      {this.message = 'Required permission was denied'});
+
+  @override
+  String toString() => 'PermissionDeniedException(message: $message)';
+}

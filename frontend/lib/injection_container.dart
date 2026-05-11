@@ -9,6 +9,8 @@ import 'package:frontend/core/tts/tts_service.dart';
 import 'package:frontend/core/tts/bloc/tts_cubit.dart';
 import 'package:frontend/core/image_picker/image_picker_service.dart';
 import 'package:frontend/core/image_picker/image_compress_service.dart';
+import 'package:frontend/core/audio_recorder/audio_recorder_service.dart';
+import 'package:frontend/core/audio_recorder/bloc/recording_cubit.dart';
 import 'package:frontend/core/image_picker/image_crop_service.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:frontend/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -93,6 +95,16 @@ Future<void> initDependencies() async {
   // Allows user to select text region in a photo before OCR (UC06).
   sl.registerLazySingleton<ImageCropService>(
     () => ImageCropServiceImpl(),
+  );
+
+  // Audio recorder — wraps the `record` plugin behind an interface
+  // so Cubits/UseCases don't depend on the Flutter plugin directly.
+  // Required for speech-to-text feature (UC05).
+  sl.registerLazySingleton<AudioRecorderService>(
+    () => AudioRecorderServiceImpl(),
+  );
+  sl.registerFactory<RecordingCubit>(
+    () => RecordingCubit(recorderService: sl()),
   );
 
   // ==============================
