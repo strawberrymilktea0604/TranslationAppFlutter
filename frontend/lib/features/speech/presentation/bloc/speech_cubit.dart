@@ -1,186 +1,124 @@
-import 'dart:math' as math;
-
 import 'package:bloc/bloc.dart';
-import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:speech_to_text/speech_to_text.dart';
 
-import 'package:frontend/features/translation/data/datasources/translation_remote_datasource.dart';
-import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
+import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.dart';
+import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
 
 part 'speech_state.dart';
 
+/// Cubit managing the voice translation pipeline (UC05).
+///
+/// Supports two modes:
+/// 1. **Backend API mode** — records audio locally, uploads to
+///    `/api/v1/audio/translate/voice` for STT + translation.
+/// 2. **Re-translate mode** — when the user edits the recognised text,
+///    calls text translation API without re-uploading audio.
+///
+/// Clean Architecture flow:
+///   UI → SpeechCubit → UseCase → Repository → DataSource
 class SpeechCubit extends Cubit<SpeechState> {
-  final TranslationRemoteDataSource _translationDataSource;
-  final AuthLocalDataSource _authLocalDataSource;
-  final SpeechToText _stt = SpeechToText();
+  final SpeechTranslateUseCase _speechTranslateUseCase;
+  final RetranslateVoiceTextUseCase _retranslateUseCase;
 
   SpeechCubit({
-    required TranslationRemoteDataSource translationDataSource,
-    required AuthLocalDataSource authLocalDataSource,
-  })  : _translationDataSource = translationDataSource,
-        _authLocalDataSource = authLocalDataSource,
-        super(SpeechInitial());
+    required SpeechTranslateUseCase speechTranslateUseCase,
+    required RetranslateVoiceTextUseCase retranslateUseCase,
+  })  : _speechTranslateUseCase = speechTranslateUseCase,
+        _retranslateUseCase = retranslateUseCase,
+        super(const SpeechInitial());
 
   // -------------------------------------------------------------------------
-  // Start listening
+  // Upload recorded audio for STT + translation
   // -------------------------------------------------------------------------
 
-  Future<void> startListening({
+  /// Uploads the audio file at [audioFilePath] to the backend
+  /// for Speech-to-Text extraction and translation.
+  ///
+  /// Emits [SpeechTranslating] → [SpeechSuccess] or [SpeechFailure].
+  Future<void> translateAudio({
+    required String audioFilePath,
     required String srcLang,
     required String tgtLang,
   }) async {
-    if (state is SpeechListening) return;
-
-    // 1. Init STT engine
-    final available = await _stt.initialize(
-      onError: (error) {
-        if (!isClosed) {
-          emit(SpeechFailure(error.errorMsg));
-        }
-      },
-    );
-
-    if (!available) {
-      emit(const SpeechFailure('Thiết bị không hỗ trợ nhận dạng giọng nói.'));
-      return;
-    }
-
-    emit(SpeechListening(
-      partialText: '',
-      amplitude: 0.0,
-      srcLang: srcLang,
-      tgtLang: tgtLang,
-    ));
-
-    // Convert lang code → BCP-47 locale (e.g. 'en' → 'en_US', 'vi' → 'vi_VN')
-    final localeId = _toLocale(srcLang);
-
-    await _stt.listen(
-      localeId: localeId,
-      listenMode: ListenMode.dictation,
-      pauseFor: const Duration(seconds: 3),
-      // Called continuously while listening
-      onResult: (SpeechRecognitionResult result) {
-        if (!isClosed) {
-          if (result.finalResult) {
-            // User stopped speaking — begin translation
-            final text = result.recognizedWords.trim();
-            if (text.isNotEmpty) {
-              _translate(text, srcLang, tgtLang);
-            } else {
-              emit(SpeechInitial());
-            }
-          } else {
-            final current = state as SpeechListening;
-            emit(current.copyWith(partialText: result.recognizedWords));
-          }
-        }
-      },
-      // Called every ~60ms with current amplitude (0.0 - 10.0)
-      onSoundLevelChange: (double level) {
-        if (!isClosed && state is SpeechListening) {
-          final current = state as SpeechListening;
-          // Normalise to 0.0–1.0
-          final amplitude = (level / 10.0).clamp(0.0, 1.0);
-          emit(current.copyWith(amplitude: amplitude));
-        }
-      },
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // Stop listening manually
-  // -------------------------------------------------------------------------
-
-  Future<void> stopListening() async {
-    await _stt.stop();
-    if (!isClosed && state is SpeechListening) {
-      final current = state as SpeechListening;
-      final text = current.partialText.trim();
-      if (text.isNotEmpty) {
-        _translate(text, current.srcLang, current.tgtLang);
-      } else {
-        emit(SpeechInitial());
-      }
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Cancel
-  // -------------------------------------------------------------------------
-
-  Future<void> cancel() async {
-    await _stt.cancel();
-    if (!isClosed) emit(SpeechInitial());
-  }
-
-  // -------------------------------------------------------------------------
-  // Reset to initial
-  // -------------------------------------------------------------------------
-
-  void reset() {
-    _stt.cancel();
-    if (!isClosed) emit(SpeechInitial());
-  }
-
-  // -------------------------------------------------------------------------
-  // Internal: translate recognised text
-  // -------------------------------------------------------------------------
-
-  Future<void> _translate(
-      String recognisedText, String srcLang, String tgtLang) async {
     emit(SpeechTranslating(
-      recognisedText: recognisedText,
+      recognisedText: '',
       srcLang: srcLang,
       tgtLang: tgtLang,
     ));
 
-    try {
-      final token = await _authLocalDataSource.getAccessToken();
-      final result = await _translationDataSource.translateText(
-        text: recognisedText,
-        sourceLanguage: srcLang == 'auto' ? 'en' : srcLang,
-        targetLanguage: tgtLang,
-        authToken: token,
-      );
+    final result = await _speechTranslateUseCase(SpeechTranslateParams(
+      audioFilePath: audioFilePath,
+      sourceLanguage: srcLang == 'auto' ? null : srcLang,
+      targetLanguage: tgtLang,
+    ));
 
-      if (!isClosed) {
+    if (isClosed) return;
+
+    result.fold(
+      (failure) => emit(SpeechFailure(failure.message)),
+      (entity) {
+        if (entity.sourceText.trim().isEmpty) {
+          emit(const SpeechFailure(
+            'Không nhận diện được giọng nói. '
+            'Hãy nói rõ hơn và thử lại.',
+          ));
+          return;
+        }
         emit(SpeechSuccess(
-          recognisedText: recognisedText,
-          translatedText: result.translatedText,
-          srcLang: srcLang,
-          tgtLang: tgtLang,
+          recognisedText: entity.sourceText,
+          translatedText: entity.translatedText,
+          srcLang: entity.sourceLanguage,
+          tgtLang: entity.targetLanguage,
         ));
-      }
-    } catch (e) {
-      if (!isClosed) {
-        emit(SpeechFailure('Không thể dịch: ${e.toString()}'));
-      }
-    }
+      },
+    );
   }
 
   // -------------------------------------------------------------------------
-  // Helpers
+  // Re-translate after user edits the recognised text
   // -------------------------------------------------------------------------
 
-  static String _toLocale(String code) {
-    const map = {
-      'en': 'en_US',
-      'vi': 'vi_VN',
-      'fr': 'fr_FR',
-      'ja': 'ja_JP',
-      'ko': 'ko_KR',
-      'zh': 'zh_CN',
-      'de': 'de_DE',
-      'es': 'es_ES',
-      'auto': 'en_US',
-    };
-    return map[code] ?? 'en_US';
+  /// Re-translates user-edited text without re-uploading audio.
+  ///
+  /// Used when STT misrecognised some words and the user corrects
+  /// them before saving to flashcards.
+  Future<void> retranslate({
+    required String editedText,
+    required String srcLang,
+    required String tgtLang,
+  }) async {
+    if (editedText.trim().isEmpty) return;
+
+    emit(SpeechRetranslating(
+      editedText: editedText,
+      srcLang: srcLang,
+      tgtLang: tgtLang,
+    ));
+
+    final result = await _retranslateUseCase(RetranslateVoiceParams(
+      text: editedText.trim(),
+      sourceLanguage: srcLang,
+      targetLanguage: tgtLang,
+    ));
+
+    if (isClosed) return;
+
+    result.fold(
+      (failure) => emit(SpeechFailure(failure.message)),
+      (translatedText) => emit(SpeechSuccess(
+        recognisedText: editedText,
+        translatedText: translatedText,
+        srcLang: srcLang,
+        tgtLang: tgtLang,
+      )),
+    );
   }
 
-  @override
-  Future<void> close() {
-    _stt.cancel();
-    return super.close();
+  // -------------------------------------------------------------------------
+  // Reset
+  // -------------------------------------------------------------------------
+
+  /// Resets to initial state.
+  void reset() {
+    if (!isClosed) emit(const SpeechInitial());
   }
 }

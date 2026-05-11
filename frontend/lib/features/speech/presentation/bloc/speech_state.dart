@@ -41,7 +41,7 @@ final class SpeechListening extends SpeechState {
       );
 }
 
-/// Translating the recognised text.
+/// Audio uploaded, STT + translation in progress on server.
 final class SpeechTranslating extends SpeechState {
   final String recognisedText;
   final String srcLang;
@@ -49,6 +49,20 @@ final class SpeechTranslating extends SpeechState {
 
   const SpeechTranslating({
     required this.recognisedText,
+    required this.srcLang,
+    required this.tgtLang,
+  });
+}
+
+/// User edited the recognised text and re-translation is in progress.
+final class SpeechRetranslating extends SpeechState {
+  /// The user-edited source text.
+  final String editedText;
+  final String srcLang;
+  final String tgtLang;
+
+  const SpeechRetranslating({
+    required this.editedText,
     required this.srcLang,
     required this.tgtLang,
   });

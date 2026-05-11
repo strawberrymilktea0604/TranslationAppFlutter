@@ -36,6 +36,11 @@ import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
 import 'package:frontend/features/ocr/domain/usecases/ocr_translate_usecase.dart';
 import 'package:frontend/features/ocr/domain/usecases/retranslate_ocr_text_usecase.dart';
 import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
+import 'package:frontend/features/speech/data/datasources/speech_remote_datasource.dart';
+import 'package:frontend/features/speech/data/repositories/speech_repository_impl.dart';
+import 'package:frontend/features/speech/domain/repositories/speech_repository.dart';
+import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.dart';
+import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
 import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
 
 import 'main.dart' show config;
@@ -189,9 +194,29 @@ Future<void> initDependencies() async {
   //  Feature: Speech (STT)
   // ==============================
 
+  // DataSource
+  sl.registerLazySingleton<SpeechRemoteDataSource>(
+    () => SpeechRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  // Repository — binds implementation to abstract interface.
+  sl.registerLazySingleton<SpeechRepository>(
+    () => SpeechRepositoryImpl(
+      speechRemoteDataSource: sl(),
+      translationRemoteDataSource: sl(),
+      authLocalDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => SpeechTranslateUseCase(sl()));
+  sl.registerLazySingleton(() => RetranslateVoiceTextUseCase(sl()));
+
+  // Cubit — factory: new instance per screen that provides it.
   sl.registerFactory(() => SpeechCubit(
-    translationDataSource: sl(),
-    authLocalDataSource: sl(),
+    speechTranslateUseCase: sl(),
+    retranslateUseCase: sl(),
   ));
 
   // ==============================
