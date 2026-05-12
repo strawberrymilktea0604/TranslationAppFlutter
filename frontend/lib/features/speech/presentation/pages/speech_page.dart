@@ -120,18 +120,20 @@ class _VoiceSheetState extends State<_VoiceSheet>
               final isTranslating = speechState is SpeechTranslating ||
                   speechState is SpeechRetranslating;
 
-              return Container(
-                decoration: BoxDecoration(
-                  color: theme.scaffoldBackgroundColor,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(28)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 24, offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
+              return PopScope(
+                canPop: !isTranslating,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(28)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 24, offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
                 padding: EdgeInsets.only(
                   bottom: MediaQuery.of(context).viewInsets.bottom + 24,
                 ),
@@ -154,12 +156,13 @@ class _VoiceSheetState extends State<_VoiceSheet>
                     const SizedBox(height: 24),
                     _buildStatusArea(cs, theme, speechState, recState),
                     const SizedBox(height: 28),
-                    _buildControls(cs, speechState, recState),
+                    _buildControls(cs, speechState, recState, isTranslating),
                     const SizedBox(height: 8),
                   ],
                 ),
-              );
-            },
+              ),
+            );
+          },
           );
         },
       ),
@@ -280,6 +283,15 @@ class _VoiceSheetState extends State<_VoiceSheet>
           textAlign: TextAlign.center),
       ]);
     }
+    if (recState is RecordingFailure) {
+      return Column(key: const ValueKey('rec_fail'), children: [
+        Icon(Icons.error_outline_rounded, color: cs.error, size: 32),
+        const SizedBox(height: 8),
+        Text('Lỗi mic: ${recState.message}',
+          style: theme.textTheme.bodyMedium?.copyWith(color: cs.error),
+          textAlign: TextAlign.center),
+      ]);
+    }
 
     // Speech states
     switch (speechState) {
@@ -386,7 +398,7 @@ class _VoiceSheetState extends State<_VoiceSheet>
   // =========================================================================
 
   Widget _buildControls(
-      ColorScheme cs, SpeechState speechState, RecordingState recState) {
+      ColorScheme cs, SpeechState speechState, RecordingState recState, bool isTranslating) {
     final isRecording = recState is RecordingInProgress;
     final isSuccess = speechState is SpeechSuccess;
     final isFailed = speechState is SpeechFailure;
@@ -398,7 +410,7 @@ class _VoiceSheetState extends State<_VoiceSheet>
           icon: Icons.close_rounded, label: 'Đóng',
           color: cs.onSurfaceVariant,
           bgColor: cs.surfaceContainerHighest,
-          onTap: () {
+          onTap: isTranslating ? null : () {
             context.read<RecordingCubit>().cancelRecording();
             context.read<SpeechCubit>().reset();
             Navigator.of(context).pop();
@@ -563,7 +575,7 @@ class _ControlBtn extends StatelessWidget {
   final String label;
   final Color color;
   final Color bgColor;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _ControlBtn({
     required this.icon, required this.label, required this.color,
     required this.bgColor, required this.onTap,
@@ -573,14 +585,17 @@ class _ControlBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 52, height: 52,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: bgColor),
-          child: Icon(icon, color: color, size: 24)),
-        const SizedBox(height: 6),
-        Text(label, style: TextStyle(fontSize: 12,
-          color: color == Colors.white ? bgColor : color)),
-      ]),
+      child: Opacity(
+        opacity: onTap == null ? 0.4 : 1.0,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 52, height: 52,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: bgColor),
+            child: Icon(icon, color: color, size: 24)),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(fontSize: 12,
+            color: color == Colors.white ? bgColor : color)),
+        ]),
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import tempfile
@@ -23,6 +24,13 @@ class STTService:
     _compute_type = "int8"
 
     @classmethod
+    def preload_model(cls):
+        """
+        Preload the model into memory. Intended to be called during app startup.
+        """
+        cls._get_model()
+
+    @classmethod
     def _get_model(cls) -> WhisperModel:
         """
         Get or initialize the WhisperModel singleton instance.
@@ -41,6 +49,37 @@ class STTService:
                 logger.error(f"❌ Failed to initialize STT model: {e}")
                 raise STTError(f"Engine initialization failed: {e}")
         return cls._model
+
+    @classmethod
+    def _run_transcription(cls, temp_file_path: str, language: Optional[str] = None) -> dict:
+        """
+        Synchronous method to run the transcription, meant to be run in a thread.
+        """
+        model = cls._get_model()
+        
+        logger.info(f"🎙️ Starting transcription (Language: {language or 'auto'})")
+        
+        # Run transcription
+        # We use word_timestamps=False and beam_size=5 for a good balance of speed and accuracy
+        segments, info = model.transcribe(
+            temp_file_path, 
+            beam_size=5, 
+            language=language,
+            vad_filter=True, # Helps to remove silences and improve accuracy
+        )
+
+        # segments is a generator, so we need to iterate to get the result
+        text_parts = []
+        for segment in segments:
+            text_parts.append(segment.text)
+            
+        full_text = " ".join([t.strip() for t in text_parts if t.strip()])
+        
+        return {
+            "text": full_text.strip(),
+            "language": info.language,
+            "language_probability": info.language_probability
+        }
 
     @classmethod
     async def transcribe_audio(cls, audio_bytes: bytes, language: Optional[str] = None) -> dict:
@@ -68,33 +107,10 @@ class STTService:
                 temp_file.write(audio_bytes)
                 temp_file_path = temp_file.name
 
-            model = cls._get_model()
+            # Run transcription in a background thread to prevent blocking the event loop
+            result = await asyncio.to_thread(cls._run_transcription, temp_file_path, language)
             
-            logger.info(f"🎙️ Starting transcription (Language: {language or 'auto'})")
-            
-            # Run transcription
-            # We use word_timestamps=False and beam_size=5 for a good balance of speed and accuracy
-            segments, info = model.transcribe(
-                temp_file_path, 
-                beam_size=5, 
-                language=language,
-                vad_filter=True, # Helps to remove silences and improve accuracy
-            )
-
-            # segments is a generator, so we need to iterate to get the result
-            text_parts = []
-            for segment in segments:
-                text_parts.append(segment.text)
-                
-            full_text = " ".join([t.strip() for t in text_parts if t.strip()])
-            
-            result = {
-                "text": full_text.strip(),
-                "language": info.language,
-                "language_probability": info.language_probability
-            }
-            
-            logger.info(f"✅ Transcription complete. Detected language: {info.language} ({info.language_probability:.2f})")
+            logger.info(f"✅ Transcription complete. Detected language: {result['language']} ({result['language_probability']:.2f})")
             return result
 
         except Exception as e:

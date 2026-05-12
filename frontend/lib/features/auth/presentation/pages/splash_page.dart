@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:frontend/main.dart' show config;
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/core/router/app_router.dart';
@@ -23,6 +25,8 @@ class _SplashPageState extends State<SplashPage>
   late Animation<Offset> _slideAnimation;
 
   bool _animationFinished = false;
+  bool _serverReady = false;
+  bool _showConnectingText = false;
 
   @override
   void initState() {
@@ -57,6 +61,7 @@ class _SplashPageState extends State<SplashPage>
     // Kích hoạt check auth ngầm dưới nền ngay khi bắt đầu
     context.read<AuthCubit>().checkAuthStatus();
 
+    // Bắt đầu animation
     _animationController.forward().then((_) {
       // Đợi hoàn thành nốt thời gian linger (1000ms) rồi mới cho phép chuyển trang
       Future.delayed(const Duration(milliseconds: 1000), () {
@@ -64,21 +69,56 @@ class _SplashPageState extends State<SplashPage>
           setState(() {
             _animationFinished = true;
           });
-          _navigateBasedOnAuth(context.read<AuthCubit>().state);
+          _tryNavigate();
         }
       });
     });
+
+    // Check server health đồng thời với lúc animation đang chạy
+    _checkServerHealth();
   }
 
-  void _navigateBasedOnAuth(AuthState state) {
-    if (!_animationFinished) {
-      return; // Tuyệt đối không điều hướng khi animation chưa xong
+  Future<void> _checkServerHealth() async {
+    final healthUrl = Uri.parse(config.apiUrl).replace(path: '/health');
+    while (mounted && !_serverReady) {
+      try {
+        final response = await http.get(healthUrl).timeout(const Duration(seconds: 3));
+        if (response.statusCode == 200) {
+          if (mounted) {
+            setState(() {
+              _serverReady = true;
+            });
+            _tryNavigate();
+          }
+          break; // Thoát vòng lặp khi kết nối thành công
+        }
+      } catch (_) {
+        // Ignored: Server chưa mở cổng
+      }
+      
+      // Delay 3 giây trước khi thử lại
+      await Future.delayed(const Duration(seconds: 3));
+    }
+  }
+
+  void _tryNavigate([AuthState? state]) {
+    if (!_animationFinished) return;
+
+    if (!_serverReady) {
+      // Nếu animation đã xong nhưng server chưa dậy, hiện text "Đang kết nối..."
+      if (!_showConnectingText && mounted) {
+        setState(() {
+          _showConnectingText = true;
+        });
+      }
+      return;
     }
 
-    if (state is AuthAuthenticated) {
+    final currentState = state ?? context.read<AuthCubit>().state;
+    if (currentState is AuthAuthenticated) {
       context.go(AppRoutes.home);
-    } else if (state is AuthUnauthenticated || state is AuthFailureState) {
-      context.go('/welcome');
+    } else if (currentState is AuthUnauthenticated || currentState is AuthFailureState) {
+      context.go(AppRoutes.welcome);
     }
     // Nếu vẫn đang AuthInProgress, thì không làm gì, sẽ do BlocListener lo phần việc sau.
   }
@@ -96,9 +136,9 @@ class _SplashPageState extends State<SplashPage>
         0xFF1868F8,
       ), // Match the bright blue background
       body: BlocListener<AuthCubit, AuthState>(
-        listenWhen: (previous, current) => _animationFinished,
+        listenWhen: (previous, current) => _animationFinished && _serverReady,
         listener: (context, state) {
-          _navigateBasedOnAuth(state);
+          _tryNavigate(state);
         },
         child: Stack(
           children: [
@@ -153,6 +193,23 @@ class _SplashPageState extends State<SplashPage>
                 ),
               ),
             ),
+            
+            // Connecting Text (hiện lên nếu animation xong mà server chưa dậy)
+            if (_showConnectingText)
+              const Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 30.0),
+                  child: Text(
+                    'Đang kết nối tới máy chủ...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),

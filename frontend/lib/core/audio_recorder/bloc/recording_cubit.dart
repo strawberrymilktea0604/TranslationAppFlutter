@@ -242,7 +242,13 @@ class RecordingCubit extends Cubit<RecordingState> {
   @override
   Future<void> close() async {
     _stopElapsedTimer();
-    await _recorderService.dispose();
+    // Do not dispose _recorderService here because it is a singleton
+    // and will be reused by future instances of RecordingCubit.
+    if (state is RecordingInProgress) {
+      try {
+        await _recorderService.cancelRecording();
+      } catch (_) {}
+    }
     return super.close();
   }
 }

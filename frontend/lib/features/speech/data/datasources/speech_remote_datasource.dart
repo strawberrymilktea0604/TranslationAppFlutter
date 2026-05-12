@@ -77,95 +77,109 @@ class SpeechRemoteDataSourceImpl implements SpeechRemoteDataSource {
     String? authToken,
   }) async {
     final uri = Uri.parse('$baseUrl/audio/translate/voice');
+    
+    int retryCount = 0;
+    const maxRetries = 3;
 
-    try {
-      final request = http.MultipartRequest('POST', uri);
-
-      // Attach auth token for User-level rate limits.
-      if (authToken != null && authToken.isNotEmpty) {
-        request.headers['Authorization'] = 'Bearer $authToken';
-      }
-
-      // Form fields matching backend endpoint signature.
-      if (sourceLanguage != null && sourceLanguage != 'auto') {
-        request.fields['source_language'] = sourceLanguage;
-      }
-      request.fields['target_language'] = targetLanguage;
-
-      // Attach audio file.
-      final file = File(audioFilePath);
-      if (!await file.exists()) {
-        throw const ServerException(
-          message: 'File ghi âm không tồn tại.',
-        );
-      }
-
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'file',
-          audioFilePath,
-          filename: audioFilePath.split(Platform.pathSeparator).last,
-        ),
-      );
-
-      // Send request with timeout.
-      final streamedResponse = await client
-          .send(request)
-          .timeout(_timeout);
-
-      final responseBody = await streamedResponse.stream.bytesToString();
-
-      if (streamedResponse.statusCode == 200) {
-        final json = jsonDecode(responseBody) as Map<String, dynamic>;
-        final data = (json['data'] as Map<String, dynamic>?) ?? json;
-
-        return SpeechTranslationData(
-          sourceText: (data['source_text'] as String?) ?? '',
-          translatedText: (data['translated_text'] as String?) ?? '',
-          sourceLanguage: (data['source_language'] as String?) ?? '',
-          targetLanguage: (data['target_language'] as String?) ?? '',
-          sttLanguageProbability:
-              (data['stt_language_probability'] as num?)?.toDouble() ?? 0.0,
-          isCached: (data['is_cached'] as bool?) ?? false,
-          responseTimeMs:
-              (data['response_time_ms'] as num?)?.toDouble() ?? 0.0,
-        );
-      }
-
-      // Parse error detail from backend response.
-      String detail = 'Lỗi máy chủ (${streamedResponse.statusCode})';
+    while (true) {
       try {
-        final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
-        final rawDetail = errJson['detail'];
-        if (rawDetail is String) {
-          detail = rawDetail;
-        } else if (rawDetail is Map<String, dynamic>) {
-          detail = (rawDetail['message'] as String?) ?? detail;
+        final request = http.MultipartRequest('POST', uri);
+
+        // Attach auth token for User-level rate limits.
+        if (authToken != null && authToken.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $authToken';
         }
 
-        // Translate common backend errors to Vietnamese.
-        if (detail.contains('No text could be extracted')) {
-          detail = 'Không nhận diện được giọng nói. Hãy thử lại.';
+        // Form fields matching backend endpoint signature.
+        if (sourceLanguage != null && sourceLanguage != 'auto') {
+          request.fields['source_language'] = sourceLanguage;
         }
-        if (detail.contains('Rate limit exceeded')) {
-          detail = 'Vượt quá giới hạn yêu cầu. Vui lòng chờ.';
-        }
-      } catch (_) {}
+        request.fields['target_language'] = targetLanguage;
 
-      throw ServerException(
-        message: detail,
-        statusCode: streamedResponse.statusCode,
-      );
-    } on ServerException {
-      rethrow;
-    } on TimeoutException {
-      throw const ServerException(
-        message: 'Quá thời gian chờ phản hồi. Hãy thử lại.',
-      );
-    } catch (e) {
-      throw ServerException(
-        message: 'Không thể kết nối tới máy chủ: ${e.toString()}',
-      );
+        // Attach audio file.
+        final file = File(audioFilePath);
+        if (!await file.exists()) {
+          throw const ServerException(
+            message: 'File ghi âm không tồn tại.',
+          );
+        }
+
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            audioFilePath,
+            filename: audioFilePath.split(Platform.pathSeparator).last,
+          ),
+        );
+
+        // Send request with timeout.
+        final streamedResponse = await client
+            .send(request)
+            .timeout(_timeout);
+
+        final responseBody = await streamedResponse.stream.bytesToString();
+
+        if (streamedResponse.statusCode == 200) {
+          final json = jsonDecode(responseBody) as Map<String, dynamic>;
+          final data = (json['data'] as Map<String, dynamic>?) ?? json;
+
+          return SpeechTranslationData(
+            sourceText: (data['source_text'] as String?) ?? '',
+            translatedText: (data['translated_text'] as String?) ?? '',
+            sourceLanguage: (data['source_language'] as String?) ?? '',
+            targetLanguage: (data['target_language'] as String?) ?? '',
+            sttLanguageProbability:
+                (data['stt_language_probability'] as num?)?.toDouble() ?? 0.0,
+            isCached: (data['is_cached'] as bool?) ?? false,
+            responseTimeMs:
+                (data['response_time_ms'] as num?)?.toDouble() ?? 0.0,
+          );
+        }
+
+        // Parse error detail from backend response.
+        String detail = 'Lỗi máy chủ (${streamedResponse.statusCode})';
+        try {
+          final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
+          final rawDetail = errJson['detail'];
+          if (rawDetail is String) {
+            detail = rawDetail;
+          } else if (rawDetail is Map<String, dynamic>) {
+            detail = (rawDetail['message'] as String?) ?? detail;
+          }
+
+          // Translate common backend errors to Vietnamese.
+          if (detail.contains('No text could be extracted')) {
+            detail = 'Không nhận diện được giọng nói. Hãy thử lại.';
+          }
+          if (detail.contains('Rate limit exceeded')) {
+            detail = 'Vượt quá giới hạn yêu cầu. Vui lòng chờ.';
+          }
+        } catch (_) {}
+
+        throw ServerException(
+          message: detail,
+          statusCode: streamedResponse.statusCode,
+        );
+      } on ServerException {
+        rethrow;
+      } on TimeoutException {
+        throw const ServerException(
+          message: 'Quá thời gian chờ phản hồi. Hãy thử lại.',
+        );
+      } on SocketException catch (_) {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          await Future.delayed(const Duration(seconds: 4));
+          continue; // Thử lại request
+        }
+        throw const ServerException(
+          message: 'Máy chủ đang khởi động hoặc bảo trì. Vui lòng thử lại sau ít phút.',
+        );
+      } catch (e) {
+        throw ServerException(
+          message: 'Không thể kết nối tới máy chủ: ${e.toString()}',
+        );
+      }
     }
   }
 }

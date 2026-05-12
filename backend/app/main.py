@@ -2,12 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+import asyncio
 
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging_config import configure_logging
 from app.core.redis_client import get_redis_client, close_redis, health_check
 from app.api.v1.endpoints import quota
+from app.services.stt_service import STTService
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -29,6 +31,14 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️  Redis initialization failed: {e}")
         logger.warning("Application will continue without Redis caching (using DB fallback)")
     
+    try:
+        logger.info("⏳ Preloading STT Model in background thread...")
+        await asyncio.to_thread(STTService.preload_model)
+        logger.info("✅ STT Model preloaded successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to preload STT Model: {e}")
+        logger.warning("Application will try to load the model on first request")
+
     yield
     
     # ==================== SHUTDOWN ====================
