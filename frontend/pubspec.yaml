@@ -42,6 +42,17 @@ dependencies:
   flutter_bloc: ^9.1.0
   bloc: ^9.0.0
 
+  # State Management — Riverpod (for Vocabulary feature)
+  flutter_riverpod: ^2.4.0
+  riverpod: ^2.4.0
+
+  # HTTP client
+  http: ^1.1.0
+
+  # Database — SQLite (for local vocabulary storage)
+  sqflite: ^2.3.0
+  path: ^1.8.3
+
   # Value equality for State/Entity classes
   equatable: ^2.0.7
 
@@ -59,9 +70,6 @@ dependencies:
 
   # Network connectivity checker (verifies real internet access)
   internet_connection_checker_plus: 2.2.0
-
-  # HTTP client for API calls
-  http: ^1.3.0
 
   # JSON serialization annotations
   json_annotation: ^4.9.0
