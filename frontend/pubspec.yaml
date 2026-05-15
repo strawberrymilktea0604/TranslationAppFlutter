@@ -85,7 +85,7 @@ dependencies:
 
   # Image cropping — allows users to select text region before OCR (UC06).
   # Uses UCrop on Android and TOCropViewController on iOS.
-  image_cropper: ^8.0.2
+  image_cropper: ^12.2.1
 
   # Audio recording — records from microphone to file (UC05 Speech-to-Text).
   # Uses native AudioRecord/MediaCodec (Android), AVFoundation (iOS).
