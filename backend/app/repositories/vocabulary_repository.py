@@ -7,7 +7,7 @@ import random
 from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc, and_
+from sqlalchemy import desc, and_, func, or_
 
 from app.models.translation import Vocabulary, Translation
 
@@ -43,7 +43,7 @@ class VocabularyRepository:
                 and_(
                     Translation.id == translation_id,
                     Translation.user_id == user_id,
-                    Translation.is_deleted == False
+                    Translation.is_deleted.is_(False)
                 )
             )
         )
@@ -58,7 +58,7 @@ class VocabularyRepository:
                 and_(
                     Vocabulary.user_id == user_id,
                     Vocabulary.translation_id == translation_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
         )
@@ -130,7 +130,7 @@ class VocabularyRepository:
         """
         filters = [
             Vocabulary.id == vocabulary_id,
-            Vocabulary.is_deleted == False
+            Vocabulary.is_deleted.is_(False)
         ]
         
         if user_id:
@@ -168,7 +168,7 @@ class VocabularyRepository:
             select(func.count(Vocabulary.id)).filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
         )
@@ -180,7 +180,7 @@ class VocabularyRepository:
             .filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
             .order_by(desc(Vocabulary.created_at))
@@ -219,7 +219,7 @@ class VocabularyRepository:
             select(func.count(Vocabulary.id)).filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
         )
@@ -232,7 +232,7 @@ class VocabularyRepository:
             .filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
             .order_by(desc(Vocabulary.created_at))
@@ -265,7 +265,7 @@ class VocabularyRepository:
                 and_(
                     Vocabulary.id == vocabulary_id,
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
         )
@@ -302,7 +302,7 @@ class VocabularyRepository:
                 and_(
                     Vocabulary.id.in_(vocabulary_ids),
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
         )
@@ -338,7 +338,7 @@ class VocabularyRepository:
                 and_(
                     Vocabulary.id == vocabulary_id,
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == True
+                    Vocabulary.is_deleted.is_(True)
                 )
             )
         )
@@ -374,7 +374,6 @@ class VocabularyRepository:
         Returns:
             Tuple of (list of matching Vocabulary entries, total count)
         """
-        from sqlalchemy import or_
         
         limit = min(limit, 100)
         search_pattern = f"%{query}%"
@@ -384,7 +383,7 @@ class VocabularyRepository:
             select(func.count(Vocabulary.id)).distinct().filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False,
+                    Vocabulary.is_deleted.is_(False),
                     or_(
                         Translation.source_text.ilike(search_pattern),
                         Translation.translated_text.ilike(search_pattern)
@@ -401,7 +400,7 @@ class VocabularyRepository:
             .filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False,
+                    Vocabulary.is_deleted.is_(False),
                     or_(
                         Translation.source_text.ilike(search_pattern),
                         Translation.translated_text.ilike(search_pattern)
@@ -418,5 +417,3 @@ class VocabularyRepository:
         return vocabularies, total
 
 
-# Import at the end to avoid circular imports
-from sqlalchemy import func

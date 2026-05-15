@@ -18,8 +18,6 @@ from app.schemas.translation import (
     TranslationResponse,
     TranslationQuickResponse,
     TranslationListResponse,
-    TranslationSearchRequest,
-    TranslationFilterRequest,
     BulkDeleteRequest,
     BulkDeleteResponse
 )

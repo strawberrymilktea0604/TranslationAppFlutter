@@ -2,7 +2,7 @@
 Vocabulary Service - Business logic for vocabulary management
 """
 import logging
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.translation import Vocabulary, Translation
@@ -327,7 +327,7 @@ class VocabularyService:
             select(func.count(Vocabulary.id)).filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             )
         )
@@ -341,7 +341,7 @@ class VocabularyService:
             ).join(Vocabulary).filter(
                 and_(
                     Vocabulary.user_id == user_id,
-                    Vocabulary.is_deleted == False
+                    Vocabulary.is_deleted.is_(False)
                 )
             ).group_by(Translation.translation_type)
         )
