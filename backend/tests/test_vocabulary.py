@@ -4,19 +4,26 @@ Run with: pytest backend/tests/test_vocabulary.py
 """
 
 import pytest
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.core.database import Base
+from app.core.database import get_db
+from app.models.base import Base
 from app.models.user import User
-from app.models.translation import Translation
+from app.models.translation import Translation, Vocabulary
 from app.core.security import hash_password, create_access_token
 
 
+def auth_headers(user: User) -> dict[str, str]:
+    token, _ = create_access_token(data={"sub": str(user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
 # Test database setup
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_db():
     """Create test database session"""
     engine = create_async_engine(
@@ -25,7 +32,10 @@ async def test_db():
     )
     
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[User.__table__, Translation.__table__, Vocabulary.__table__],
+        )
     
     async_session = sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
@@ -38,15 +48,28 @@ async def test_db():
 
 
 @pytest.fixture
-def client():
+def client(test_db, monkeypatch):
     """Create test client"""
-    return TestClient(app)
+    async def override_get_db():
+        yield test_db
+
+    async def is_token_revoked(_jti):
+        return False
+
+    app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr("app.core.dependencies.is_token_revoked", is_token_revoked)
+
+    try:
+        yield TestClient(app)
+    finally:
+        app.dependency_overrides.clear()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_user(test_db):
     """Create test user"""
     user = User(
+        id=1,
         email="test@example.com",
         password_hash=hash_password("password123"),
         first_name="Test",
@@ -59,7 +82,7 @@ async def test_user(test_db):
     return user
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_translations(test_db, test_user):
     """Create test translations"""
     import time
@@ -92,17 +115,15 @@ async def test_translations(test_db, test_user):
 @pytest.mark.asyncio
 async def test_add_to_vocabulary(client, test_db, test_user, test_translations):
     """Test adding a translation to vocabulary"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     response = client.post(
         "/api/v1/vocabularies",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_id": test_translations[0].id}
     )
     
     assert response.status_code == 201
     data = response.json()
-    assert data["success"] is True
+    assert data["status"] == "success"
     assert "vocabulary_id" in data["data"]
 
 
@@ -112,13 +133,12 @@ async def test_add_duplicate_to_vocabulary(
 ):
     """Test that adding same translation twice fails"""
     
-    token = create_access_token(data={"sub": test_user.email})
     translation_id = test_translations[0].id
     
     # Add first time
     response1 = client.post(
         "/api/v1/vocabularies",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_id": translation_id}
     )
     assert response1.status_code == 201
@@ -126,7 +146,7 @@ async def test_add_duplicate_to_vocabulary(
     # Try to add again
     response2 = client.post(
         "/api/v1/vocabularies",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_id": translation_id}
     )
     assert response2.status_code == 400
@@ -136,13 +156,11 @@ async def test_add_duplicate_to_vocabulary(
 @pytest.mark.asyncio
 async def test_add_multiple_to_vocabulary(client, test_db, test_user, test_translations):
     """Test adding multiple translations at once"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     translation_ids = [t.id for t in test_translations[:3]]
     
     response = client.post(
         "/api/v1/vocabularies/batch",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_ids": translation_ids}
     )
     
@@ -154,21 +172,19 @@ async def test_add_multiple_to_vocabulary(client, test_db, test_user, test_trans
 @pytest.mark.asyncio
 async def test_list_vocabularies(client, test_db, test_user, test_translations):
     """Test listing vocabulary entries"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     # Add some to vocabulary first
     trans_ids = [t.id for t in test_translations[:2]]
     
     client.post(
         "/api/v1/vocabularies/batch",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_ids": trans_ids}
     )
     
     # List them
     response = client.get(
         "/api/v1/vocabularies",
-        headers={"Authorization": f"Bearer {token}"}
+        headers=auth_headers(test_user)
     )
     
     assert response.status_code == 200
@@ -182,20 +198,18 @@ async def test_list_vocabularies(client, test_db, test_user, test_translations):
 @pytest.mark.asyncio
 async def test_search_vocabularies(client, test_db, test_user, test_translations):
     """Test searching in vocabulary"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     # Add to vocabulary
     trans_ids = [t.id for t in test_translations[:2]]
     client.post(
         "/api/v1/vocabularies/batch",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_ids": trans_ids}
     )
     
     # Search
     response = client.get(
         "/api/v1/vocabularies?search=Hello",
-        headers={"Authorization": f"Bearer {token}"}
+        headers=auth_headers(test_user)
     )
     
     assert response.status_code == 200
@@ -206,12 +220,10 @@ async def test_search_vocabularies(client, test_db, test_user, test_translations
 @pytest.mark.asyncio
 async def test_remove_from_vocabulary(client, test_db, test_user, test_translations):
     """Test removing from vocabulary"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     # Add first
     add_response = client.post(
         "/api/v1/vocabularies",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_id": test_translations[0].id}
     )
     vocab_id = add_response.json()["data"]["vocabulary_id"]
@@ -219,11 +231,11 @@ async def test_remove_from_vocabulary(client, test_db, test_user, test_translati
     # Remove
     remove_response = client.delete(
         f"/api/v1/vocabularies/{vocab_id}",
-        headers={"Authorization": f"Bearer {token}"}
+        headers=auth_headers(test_user)
     )
     
     assert remove_response.status_code == 200
-    assert remove_response.json()["success"] is True
+    assert remove_response.json()["status"] == "success"
 
 
 @pytest.mark.asyncio
@@ -231,21 +243,20 @@ async def test_remove_multiple_from_vocabulary(
     client, test_db, test_user, test_translations
 ):
     """Test removing multiple from vocabulary"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     # Add multiple
     trans_ids = [t.id for t in test_translations[:3]]
     add_response = client.post(
         "/api/v1/vocabularies/batch",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_ids": trans_ids}
     )
     vocab_ids = add_response.json()["data"]["vocabulary_ids"]
     
     # Remove multiple
-    remove_response = client.delete(
+    remove_response = client.request(
+        "DELETE",
         "/api/v1/vocabularies/batch/remove",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_ids": vocab_ids}
     )
     
@@ -256,12 +267,10 @@ async def test_remove_multiple_from_vocabulary(
 @pytest.mark.asyncio
 async def test_restore_vocabulary(client, test_db, test_user, test_translations):
     """Test restoring deleted vocabulary entry"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     # Add
     add_response = client.post(
         "/api/v1/vocabularies",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_id": test_translations[0].id}
     )
     vocab_id = add_response.json()["data"]["vocabulary_id"]
@@ -269,17 +278,17 @@ async def test_restore_vocabulary(client, test_db, test_user, test_translations)
     # Delete
     client.delete(
         f"/api/v1/vocabularies/{vocab_id}",
-        headers={"Authorization": f"Bearer {token}"}
+        headers=auth_headers(test_user)
     )
     
     # Restore
     restore_response = client.post(
         f"/api/v1/vocabularies/{vocab_id}/restore",
-        headers={"Authorization": f"Bearer {token}"}
+        headers=auth_headers(test_user)
     )
     
     assert restore_response.status_code == 200
-    assert restore_response.json()["success"] is True
+    assert restore_response.json()["status"] == "success"
 
 
 @pytest.mark.asyncio
@@ -292,20 +301,18 @@ async def test_unauthorized_access(client):
 @pytest.mark.asyncio
 async def test_pagination(client, test_db, test_user, test_translations):
     """Test pagination"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     # Add all translations
     trans_ids = [t.id for t in test_translations]
     client.post(
         "/api/v1/vocabularies/batch",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_ids": trans_ids}
     )
     
     # Get page 1 with page_size=2
     response = client.get(
         "/api/v1/vocabularies?page=1&page_size=2",
-        headers={"Authorization": f"Bearer {token}"}
+        headers=auth_headers(test_user)
     )
     
     data = response.json()
@@ -322,20 +329,18 @@ async def test_pagination(client, test_db, test_user, test_translations):
 @pytest.mark.asyncio
 async def test_vocabulary_stats(client, test_db, test_user, test_translations):
     """Test getting vocabulary statistics"""
-    token = create_access_token(data={"sub": test_user.email})
-    
     # Add some to vocabulary
     trans_ids = [t.id for t in test_translations[:2]]
     client.post(
         "/api/v1/vocabularies/batch",
-        headers={"Authorization": f"Bearer {token}"},
+        headers=auth_headers(test_user),
         json={"translation_ids": trans_ids}
     )
     
     # Get stats
     response = client.get(
         "/api/v1/vocabularies/stats/summary",
-        headers={"Authorization": f"Bearer {token}"}
+        headers=auth_headers(test_user)
     )
     
     assert response.status_code == 200
