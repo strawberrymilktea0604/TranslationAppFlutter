@@ -7,7 +7,7 @@ import random
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from app.models.translation import Translation
 from app.schemas.translation import TranslationCreateDB
@@ -84,6 +84,8 @@ class TranslationRepository:
         """
         Get all translations for a specific user (paginated).
         
+        Optimized: Uses SQL COUNT for total, efficient pagination.
+        
         Args:
             db: Database session
             user_id: User ID
@@ -93,14 +95,14 @@ class TranslationRepository:
         Returns:
             Tuple of (translations list, total count)
         """
-        # Get total count
+        # Efficient: Use SQL COUNT for total
         count_result = await db.execute(
-            select(Translation).filter(
+            select(func.count(Translation.id)).filter(
                 Translation.user_id == user_id,
                 Translation.is_deleted.is_(False)
             )
         )
-        total = len(count_result.scalars().all())
+        total = count_result.scalar() or 0
         
         # Get paginated results
         result = await db.execute(
@@ -217,3 +219,146 @@ class TranslationRepository:
             .limit(limit)
         )
         return result.scalars().all()
+    
+    @staticmethod
+    async def search_translations(
+        db: AsyncSession,
+        user_id: int,
+        search_text: str,
+        skip: int = 0,
+        limit: int = 50
+    ) -> tuple[List[Translation], int]:
+        """
+        Search user translations by source or translated text.
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            search_text: Text to search for
+            skip: Pagination offset
+            limit: Pagination limit
+        
+        Returns:
+            Tuple of (matching translations, total count)
+        """
+        search_pattern = f"%{search_text}%"
+        
+        # Count matching results
+        count_result = await db.execute(
+            select(func.count(Translation.id)).filter(
+                Translation.user_id == user_id,
+                Translation.is_deleted.is_(False),
+                ((Translation.source_text.ilike(search_pattern)) |
+                 (Translation.translated_text.ilike(search_pattern)))
+            )
+        )
+        total = count_result.scalar() or 0
+        
+        # Get paginated search results
+        result = await db.execute(
+            select(Translation)
+            .filter(
+                Translation.user_id == user_id,
+                Translation.is_deleted.is_(False),
+                ((Translation.source_text.ilike(search_pattern)) |
+                 (Translation.translated_text.ilike(search_pattern)))
+            )
+            .order_by(desc(Translation.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
+        translations = result.scalars().all()
+        
+        return translations, total
+    
+    @staticmethod
+    async def filter_by_language(
+        db: AsyncSession,
+        user_id: int,
+        source_language: Optional[str] = None,
+        target_language: Optional[str] = None,
+        translation_type: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 50
+    ) -> tuple[List[Translation], int]:
+        """
+        Filter translations by language pair or type.
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            source_language: Optional source language filter
+            target_language: Optional target language filter
+            translation_type: Optional type filter (text/voice/image)
+            skip: Pagination offset
+            limit: Pagination limit
+        
+        Returns:
+            Tuple of (filtered translations, total count)
+        """
+        filters = [
+            Translation.user_id == user_id,
+            Translation.is_deleted.is_(False)
+        ]
+        
+        if source_language:
+            filters.append(Translation.source_language == source_language)
+        if target_language:
+            filters.append(Translation.target_language == target_language)
+        if translation_type:
+            filters.append(Translation.translation_type == translation_type)
+        
+        # Count matching results
+        count_result = await db.execute(
+            select(func.count(Translation.id)).filter(*filters)
+        )
+        total = count_result.scalar() or 0
+        
+        # Get paginated filtered results
+        result = await db.execute(
+            select(Translation)
+            .filter(*filters)
+            .order_by(desc(Translation.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
+        translations = result.scalars().all()
+        
+        return translations, total
+    
+    @staticmethod
+    async def delete_multiple_translations(
+        db: AsyncSession,
+        user_id: int,
+        translation_ids: List[int]
+    ) -> int:
+        """
+        Soft delete multiple translations for a user.
+        
+        Args:
+            db: Database session
+            user_id: User ID (for authorization)
+            translation_ids: List of translation IDs to delete
+        
+        Returns:
+            Number of translations deleted
+        """
+        result = await db.execute(
+            select(Translation).filter(
+                Translation.id.in_(translation_ids),
+                Translation.user_id == user_id,
+                Translation.is_deleted.is_(False)
+            )
+        )
+        translations = result.scalars().all()
+        
+        deleted_count = 0
+        for translation in translations:
+            translation.is_deleted = True
+            deleted_count += 1
+        
+        if deleted_count > 0:
+            await db.commit()
+            logger.info(f"✅ Deleted {deleted_count} translations")
+        
+        return deleted_count

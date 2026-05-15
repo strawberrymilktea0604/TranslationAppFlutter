@@ -347,3 +347,79 @@ class TranslationService:
         except Exception as e:
             logger.error(f"Failed to get cache stats: {e}")
             return {}
+    
+    @staticmethod
+    async def search_translations(
+        db: AsyncSession,
+        user_id: int,
+        search_text: str,
+        skip: int = 0,
+        limit: int = 50
+    ) -> Tuple[list[Translation], int]:
+        """
+        Search user's translation history.
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            search_text: Search query
+            skip: Pagination offset
+            limit: Pagination limit
+        
+        Returns:
+            Tuple of (matching translations, total_count)
+        """
+        return await TranslationRepository.search_translations(
+            db, user_id, search_text, skip, limit
+        )
+    
+    @staticmethod
+    async def filter_translations(
+        db: AsyncSession,
+        user_id: int,
+        source_language: str = None,
+        target_language: str = None,
+        translation_type: str = None,
+        skip: int = 0,
+        limit: int = 50
+    ) -> Tuple[list[Translation], int]:
+        """
+        Filter user translations by language or type.
+        
+        Args:
+            db: Database session
+            user_id: User ID
+            source_language: Optional source language
+            target_language: Optional target language
+            translation_type: Optional translation type (text/voice/image)
+            skip: Pagination offset
+            limit: Pagination limit
+        
+        Returns:
+            Tuple of (filtered translations, total_count)
+        """
+        return await TranslationRepository.filter_by_language(
+            db, user_id, source_language, target_language, 
+            translation_type, skip, limit
+        )
+    
+    @staticmethod
+    async def delete_multiple_translations(
+        db: AsyncSession,
+        user_id: int,
+        translation_ids: list[int]
+    ) -> int:
+        """
+        Delete multiple translations.
+        
+        Args:
+            db: Database session
+            user_id: User ID (for authorization)
+            translation_ids: List of translation IDs to delete
+        
+        Returns:
+            Number of translations deleted
+        """
+        return await TranslationRepository.delete_multiple_translations(
+            db, user_id, translation_ids
+        )
