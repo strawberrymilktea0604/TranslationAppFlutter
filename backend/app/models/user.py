@@ -22,6 +22,7 @@ class User(Base):
     quotas = relationship("UserAiQuota", back_populates="user", cascade="all, delete-orphan")
     translations = relationship("Translation", back_populates="user", cascade="all, delete-orphan")
     vocabularies = relationship("Vocabulary", back_populates="user", cascade="all, delete-orphan")
+    user_quizzes = relationship("UserQuiz", back_populates="user", cascade="all, delete-orphan")
 
 class UserToken(Base):
     __tablename__ = "user_tokens"

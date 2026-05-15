@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey, Boolean, text
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey, Boolean, text, Integer
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
@@ -29,6 +29,8 @@ class Vocabulary(Base):
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     translation_id = Column(BigInteger, ForeignKey("translations.id", ondelete="CASCADE"), nullable=False)
     is_deleted = Column(Boolean, default=False)
+    mastery_level = Column(Integer, default=0)
+    last_tested_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
     updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=text('now()'))
 
