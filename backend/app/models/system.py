@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, String, DateTime, Boolean, ForeignKey, text
+from sqlalchemy import func, Column, BigInteger, Integer, String, DateTime, Boolean, ForeignKey
 from app.models.base import Base
 
 class ApiMetric(Base):
@@ -13,4 +13,4 @@ class ApiMetric(Base):
     is_ai_request = Column(Boolean, default=False)
     ai_model = Column(String(100), nullable=True) # VD: 'gemini-1.5'
     ai_tokens_used = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

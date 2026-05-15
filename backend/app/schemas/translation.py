@@ -253,3 +253,48 @@ class AudioTranslationResponse(BaseModel):
     )
     
     created_at: Optional[datetime] = None
+
+
+# ==================== TRANSLATION HISTORY & SEARCH SCHEMAS ====================
+
+class TranslationSearchRequest(BaseModel):
+    """Request schema for searching translations"""
+    search_text: str = Field(
+        ..., 
+        min_length=1,
+        max_length=500,
+        description="Text to search for in translations"
+    )
+
+
+class TranslationFilterRequest(BaseModel):
+    """Request schema for filtering translations"""
+    source_language: Optional[str] = Field(
+        None, description="Filter by source language"
+    )
+    target_language: Optional[str] = Field(
+        None, description="Filter by target language"
+    )
+    translation_type: Optional[str] = Field(
+        None, description="Filter by type: 'text', 'voice', 'image'"
+    )
+
+
+class BulkDeleteRequest(BaseModel):
+    """Request schema for bulk deleting translations"""
+    translation_ids: list[int] = Field(
+        ..., 
+        min_items=1,
+        max_items=100,
+        description="List of translation IDs to delete (max 100)"
+    )
+
+
+class BulkDeleteResponse(BaseModel):
+    """Response schema for bulk delete operation"""
+    deleted_count: int = Field(
+        ..., description="Number of translations deleted"
+    )
+    failed_count: int = Field(
+        default=0, description="Number of translations that failed to delete"
+    )

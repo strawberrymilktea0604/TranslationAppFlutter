@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, text, Index
+from sqlalchemy import func, Column, BigInteger, Integer, String, Boolean, DateTime, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
@@ -14,14 +14,15 @@ class User(Base):
     role = Column(String(50), default="user") # 'user' hoặc 'admin'
     status = Column(String(50), default="active") # 'active' hoặc 'locked'
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
-    updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=text('now()'))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Mối quan hệ liên kết
     tokens = relationship("UserToken", back_populates="user", cascade="all, delete-orphan")
     quotas = relationship("UserAiQuota", back_populates="user", cascade="all, delete-orphan")
     translations = relationship("Translation", back_populates="user", cascade="all, delete-orphan")
     vocabularies = relationship("Vocabulary", back_populates="user", cascade="all, delete-orphan")
+    user_quizzes = relationship("UserQuiz", back_populates="user", cascade="all, delete-orphan")
 
 class UserToken(Base):
     __tablename__ = "user_tokens"
@@ -36,7 +37,7 @@ class UserToken(Base):
     refresh_token = Column(String, nullable=False, unique=True)
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_revoked = Column(Boolean, default=False, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="tokens")
 
@@ -50,6 +51,6 @@ class UserAiQuota(Base):
     max_requests = Column(Integer, default=100)
     total_tokens_used = Column(Integer, default=0)
     reset_at = Column(DateTime(timezone=True))
-    updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=text('now()'))
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="quotas")

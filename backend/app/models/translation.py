@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, ForeignKey, Boolean, text
+from sqlalchemy import func, Column, BigInteger, String, Text, DateTime, ForeignKey, Boolean, Integer
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
@@ -15,8 +15,8 @@ class Translation(Base):
     translated_text = Column(Text, nullable=False)
     translation_type = Column(String(50)) # 'text', 'voice', 'image'
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
-    updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=text('now()'))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="translations")
     vocabularies = relationship("Vocabulary", back_populates="translation", cascade="all, delete-orphan")
@@ -29,8 +29,10 @@ class Vocabulary(Base):
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     translation_id = Column(BigInteger, ForeignKey("translations.id", ondelete="CASCADE"), nullable=False)
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
-    updated_at = Column(DateTime(timezone=True), server_default=text('now()'), onupdate=text('now()'))
+    mastery_level = Column(Integer, default=0)
+    last_tested_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="vocabularies")
     translation = relationship("Translation", back_populates="vocabularies")
