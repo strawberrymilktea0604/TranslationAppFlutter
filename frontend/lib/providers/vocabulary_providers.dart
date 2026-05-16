@@ -1,5 +1,5 @@
-/// Vocabulary Service Provider Setup
-/// Use this to provide vocabulary services throughout your app
+// Vocabulary Service Provider Setup.
+// Use this to provide vocabulary services throughout your app.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/services/vocabulary_service.dart';

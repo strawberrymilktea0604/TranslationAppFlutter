@@ -1,5 +1,5 @@
-/// Vocabulary model for Flutter app
-/// Contains VocabularyDetail and VocabularyListResponse classes
+// Vocabulary model for Flutter app.
+// Contains VocabularyDetail and VocabularyListResponse classes.
 
 class VocabularyDetail {
   final int id;

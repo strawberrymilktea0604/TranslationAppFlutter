@@ -49,6 +49,11 @@ import 'package:frontend/features/speech/domain/repositories/speech_repository.d
 import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.dart';
 import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
 import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
+import 'package:frontend/features/sync/data/datasources/sync_remote_datasource.dart';
+import 'package:frontend/features/sync/data/repositories/sync_repository_impl.dart';
+import 'package:frontend/features/sync/domain/repositories/sync_repository.dart';
+import 'package:frontend/features/sync/domain/usecases/sync_data_usecase.dart';
+import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
 
 import 'main.dart' show config, isarDatabase;
 
@@ -280,7 +285,30 @@ Future<void> initDependencies() async {
   ));
 
   // ==============================
-  //  Feature: Sync
+  //  Feature: Sync (UC09 — Background Sync Worker)
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  // DataSource — calls POST /api/v1/sync/vocabulary.
+  sl.registerLazySingleton<SyncRemoteDataSource>(
+    () => SyncRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  // Repository — implements exponential backoff retry (5s, 10s, 30s).
+  sl.registerLazySingleton<SyncRepository>(
+    () => SyncRepositoryImpl(
+      remoteDataSource: sl(),
+      localDataSource: sl(),
+      authLocalDataSource: sl(),
+    ),
+  );
+
+  // UseCase
+  sl.registerLazySingleton(() => SyncDataUseCase(sl()));
+
+  // Cubit — registered as lazy singleton (global, lives for app lifetime).
+  // Listens to NetworkCubit to auto-trigger sync when online.
+  sl.registerLazySingleton(() => SyncCubit(
+    syncDataUseCase: sl(),
+    networkCubit: sl(),
+  ));
 }

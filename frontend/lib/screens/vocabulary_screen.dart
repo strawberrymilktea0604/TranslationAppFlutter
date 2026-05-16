@@ -1,13 +1,12 @@
-/// Vocabulary Screen - UI for displaying and managing vocabulary
-/// Shows list of saved translations for learning
+// Vocabulary Screen - UI for displaying and managing vocabulary.
+// Shows list of saved translations for learning.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:frontend/services/vocabulary_service.dart';
 import 'package:frontend/providers/vocabulary_providers.dart';
 
 class VocabularyScreen extends ConsumerStatefulWidget {
-  const VocabularyScreen({Key? key}) : super(key: key);
+  const VocabularyScreen({super.key});
 
   @override
   ConsumerState<VocabularyScreen> createState() => _VocabularyScreenState();
@@ -203,12 +202,12 @@ class _VocabularyScreenState extends ConsumerState<VocabularyScreen> {
                                 ),
                               );
 
-                              if (confirmed == true) {
+                              if (confirmed == true && context.mounted) {
                                 try {
                                   await vocabularyService.removeFromVocabulary(
                                     vocab.id,
                                   );
-                                  if (mounted) {
+                                  if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
@@ -219,7 +218,7 @@ class _VocabularyScreenState extends ConsumerState<VocabularyScreen> {
                                     );
                                   }
                                 } catch (e) {
-                                  if (mounted) {
+                                  if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text('Error: $e'),
