@@ -38,6 +38,7 @@ class VocabularyModel {
 
   VocabularyEntity toEntity() {
     return VocabularyEntity(
+      isarId: id,
       id: backendId,
       word: word,
       translation: translation,

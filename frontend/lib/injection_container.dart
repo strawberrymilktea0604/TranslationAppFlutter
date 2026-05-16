@@ -30,6 +30,13 @@ import 'package:frontend/features/translation/data/repositories/translation_repo
 import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
 import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
+import 'package:frontend/features/vocabulary/data/repositories/vocabulary_repository_impl.dart';
+import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_repository.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/save_vocabulary_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/delete_vocabulary_usecase.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
 import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dart';
 import 'package:frontend/features/ocr/data/repositories/ocr_repository_impl.dart';
 import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
@@ -43,7 +50,7 @@ import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.
 import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
 import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
 
-import 'main.dart' show config;
+import 'main.dart' show config, isarDatabase;
 
 /// Global service locator instance for Dependency Injection.
 /// Use get_it to register and resolve dependencies.
@@ -181,9 +188,30 @@ Future<void> initDependencies() async {
   sl.registerFactory(() => TranslationCubit(sl()));
 
   // ==============================
-  //  Feature: Vocabulary
+  //  Feature: Vocabulary (UC07 — Offline-first with Isar)
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  // DataSource — local Isar DB only (offline-first).
+  sl.registerLazySingleton<VocabularyLocalDataSource>(
+    () => VocabularyLocalDataSourceImpl(isar: isarDatabase.isar),
+  );
+
+  // Repository — all operations go through local Isar DB.
+  sl.registerLazySingleton<VocabularyRepository>(
+    () => VocabularyRepositoryImpl(localDataSource: sl()),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => SaveVocabularyUseCase(sl()));
+  sl.registerLazySingleton(() => GetVocabularyListUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteVocabularyUseCase(sl()));
+
+  // Cubit — factory: new instance per screen that provides it.
+  sl.registerFactory(() => VocabularyCubit(
+    saveVocabularyUseCase: sl(),
+    getVocabularyListUseCase: sl(),
+    deleteVocabularyUseCase: sl(),
+  ));
 
   // ==============================
   //  Feature: History

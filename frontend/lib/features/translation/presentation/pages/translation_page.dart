@@ -17,6 +17,9 @@ import 'package:frontend/features/speech/presentation/pages/speech_page.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.dart';
+import 'package:frontend/features/vocabulary/presentation/pages/vocabulary_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 // ---------------------------------------------------------------------------
@@ -60,6 +63,10 @@ class TranslationPage extends StatelessWidget {
         BlocProvider(create: (_) => sl<TranslationCubit>()),
         BlocProvider(create: (_) => sl<OcrCubit>()),
         BlocProvider(create: (_) => sl<SpeechCubit>()),
+        // UC07 — Vocabulary: WriteCubit scoped per feature.
+        BlocProvider(
+          create: (_) => sl<VocabularyCubit>()..loadVocabularyList(),
+        ),
       ],
       child: const _TranslationView(),
     );
@@ -183,13 +190,21 @@ class _TranslationViewState extends State<_TranslationView>
     );
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature — tính năng sắp ra mắt 🚀'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+  /// UC07 — Save vocabulary to local Isar DB (offline-first).
+  /// Data is saved immediately with isSynced=false.
+  void _saveVocabulary() {
+    final translationState = context.read<TranslationCubit>().state;
+    if (translationState is! TranslationSuccess) return;
+
+    final sourceText = _controller.text.trim();
+    final translatedText = translationState.translation.translatedText;
+    if (sourceText.isEmpty || translatedText.isEmpty) return;
+
+    context.read<VocabularyCubit>().saveVocabulary(
+      word: sourceText,
+      translation: translatedText,
+      sourceLanguage: _srcCode == 'auto' ? 'en' : _srcCode,
+      targetLanguage: _tgtCode,
     );
   }
 
@@ -254,7 +269,44 @@ class _TranslationViewState extends State<_TranslationView>
       builder: (context, authState) {
         final isAuth = authState is AuthAuthenticated;
         
-        return Scaffold(
+        return BlocListener<VocabularyCubit, VocabularyState>(
+          listener: (context, vocabState) {
+            if (vocabState is VocabularySaveSuccess) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded,
+                          color: Colors.white, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Đã lưu "${vocabState.savedEntry.word}" vào từ vựng',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: AppTheme.successColor,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              // Reload the vocabulary list so the vocab tab is up-to-date.
+              context.read<VocabularyCubit>().loadVocabularyList();
+            } else if (vocabState is VocabularyFailure) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Lỗi: ${vocabState.message}'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          },
+          child: Scaffold(
           drawer: const Drawer(),
         appBar: AppBar(
           title: const Text('Dịch thuật'),
@@ -328,9 +380,10 @@ class _TranslationViewState extends State<_TranslationView>
                 ],
               )
             : null,
-        );
-      },
-    );
+        ),  // closes Scaffold
+      );    // closes BlocListener + return semicolon
+      },    // closes BlocBuilder.builder callback
+    );      // closes BlocBuilder
   }
 
   Widget _buildCurrentTab(BuildContext context, ColorScheme cs, ThemeData theme, bool isAuth) {
@@ -338,35 +391,10 @@ class _TranslationViewState extends State<_TranslationView>
       // Lens tab — full OCR page (state managed by OcrCubit provided above)
       return const OcrPage(key: ValueKey('lens'));
     } else if (_currentIndex == 2) {
-      return _buildVocabPlaceholder(cs, key: const ValueKey('vocab'));
+      // UC07 — Vocabulary tab (offline-first with Isar)
+      return const VocabularyPage(key: ValueKey('vocab'));
     }
     return _buildTranslationTab(context, cs, theme, isAuth, key: const ValueKey('translate'));
-  }
-
-  Widget _buildVocabPlaceholder(ColorScheme cs, {Key? key}) {
-    return Center(
-      key: key,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.bookmark_rounded,
-              size: 64, color: cs.primary.withValues(alpha: 0.5)),
-          const SizedBox(height: 16),
-          Text(
-            'Từ vựng',
-            style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: cs.primary),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Tính năng đang phát triển 🚀',
-            style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildTranslationTab(BuildContext context, ColorScheme cs, ThemeData theme, bool isAuth, {Key? key}) {
@@ -738,7 +766,9 @@ class _TranslationViewState extends State<_TranslationView>
                         ),
                         tooltip: 'Lưu từ vựng',
                         color: cs.onSurfaceVariant,
-                        onPressed: () => _showComingSoon('Lưu từ vựng'),
+                        onPressed: resultText != null
+                            ? _saveVocabulary
+                            : null,
                       )
                     else
                       Tooltip(
