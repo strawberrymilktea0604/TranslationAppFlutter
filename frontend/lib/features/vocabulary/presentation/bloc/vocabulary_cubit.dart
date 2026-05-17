@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/usecases/usecase.dart';
 import '../../domain/usecases/save_vocabulary_usecase.dart';
 import '../../domain/usecases/get_vocabulary_list_usecase.dart';
 import '../../domain/usecases/delete_vocabulary_usecase.dart';
@@ -60,10 +59,18 @@ class VocabularyCubit extends Cubit<VocabularyState> {
   /// Loads the vocabulary list from local Isar DB.
   ///
   /// Emits: [VocabularyLoading] → [VocabularyLoaded] or [VocabularyFailure].
-  Future<void> loadVocabularyList() async {
+  Future<void> loadVocabularyList({
+    String? searchQuery,
+    String? category,
+  }) async {
     emit(const VocabularyLoading());
 
-    final result = await _getVocabularyListUseCase(const NoParams());
+    final result = await _getVocabularyListUseCase(
+      GetVocabularyListParams(
+        searchQuery: searchQuery,
+        category: category,
+      ),
+    );
 
     result.fold(
       (failure) => emit(VocabularyFailure(failure.message)),

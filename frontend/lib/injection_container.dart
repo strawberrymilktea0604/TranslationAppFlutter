@@ -37,6 +37,11 @@ import 'package:frontend/features/vocabulary/domain/usecases/save_vocabulary_use
 import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart';
 import 'package:frontend/features/vocabulary/domain/usecases/delete_vocabulary_usecase.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart' show GetCategorySummariesUseCase;
+import 'package:frontend/features/history/data/datasources/history_local_datasource.dart';
+import 'package:frontend/features/history/data/repositories/history_repository_impl.dart';
+import 'package:frontend/features/history/domain/repositories/history_repository.dart';
+import 'package:frontend/features/history/domain/usecases/get_history_usecase.dart';
 import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dart';
 import 'package:frontend/features/ocr/data/repositories/ocr_repository_impl.dart';
 import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
@@ -210,6 +215,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => SaveVocabularyUseCase(sl()));
   sl.registerLazySingleton(() => GetVocabularyListUseCase(sl()));
   sl.registerLazySingleton(() => DeleteVocabularyUseCase(sl()));
+  sl.registerLazySingleton(() => GetCategorySummariesUseCase(sl()));
 
   // Cubit — factory: new instance per screen that provides it.
   sl.registerFactory(() => VocabularyCubit(
@@ -219,9 +225,23 @@ Future<void> initDependencies() async {
   ));
 
   // ==============================
-  //  Feature: History
+  //  Feature: History (UC08 — Offline-first with Isar)
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  // DataSource — local Isar DB only (offline-first).
+  sl.registerLazySingleton<HistoryLocalDataSource>(
+    () => HistoryLocalDataSourceImpl(isar: isarDatabase.isar),
+  );
+
+  // Repository — all operations go through local Isar DB.
+  sl.registerLazySingleton<HistoryRepository>(
+    () => HistoryRepositoryImpl(localDataSource: sl()),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => GetHistoryUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteHistoryUseCase(sl()));
+  sl.registerLazySingleton(() => ClearHistoryUseCase(sl()));
 
   // ==============================
   //  Feature: Speech (STT)

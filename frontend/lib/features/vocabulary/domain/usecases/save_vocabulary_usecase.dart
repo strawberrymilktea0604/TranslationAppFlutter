@@ -23,6 +23,8 @@ class SaveVocabularyUseCase
       translation: params.translation,
       sourceLanguage: params.sourceLanguage,
       targetLanguage: params.targetLanguage,
+      category: params.category,
+      translationId: params.translationId,
     );
   }
 }
@@ -33,12 +35,16 @@ class SaveVocabularyParams extends Equatable {
   final String translation;
   final String sourceLanguage;
   final String targetLanguage;
+  final String category;
+  final int? translationId;
 
   const SaveVocabularyParams({
     required this.word,
     required this.translation,
     required this.sourceLanguage,
     required this.targetLanguage,
+    this.category = 'Chưa phân loại',
+    this.translationId,
   });
 
   @override
@@ -47,5 +53,7 @@ class SaveVocabularyParams extends Equatable {
         translation,
         sourceLanguage,
         targetLanguage,
+        category,
+        translationId,
       ];
 }

@@ -1,123 +1,359 @@
 import 'package:isar/isar.dart';
 
-import '../../../../core/error/exceptions.dart';
-import '../models/vocabulary_model.dart';
+import 'package:frontend/features/vocabulary/data/models/vocabulary_model.dart';
+import 'package:frontend/features/vocabulary/data/models/question_bank_model.dart';
+import 'package:frontend/features/vocabulary/data/models/quiz_result_model.dart';
 
-/// Abstract interface for local vocabulary data operations.
-/// All methods operate on Isar DB directly.
-abstract class VocabularyLocalDataSource {
-  /// Saves a vocabulary entry to Isar DB with [isSynced] = false.
-  /// Returns the saved [VocabularyModel] with its assigned Isar [Id].
-  Future<VocabularyModel> saveVocabulary(VocabularyModel model);
+// ---------------------------------------------------------------------------
+// Category summary DTO
+// ---------------------------------------------------------------------------
 
-  /// Returns all vocabulary entries that are not soft-deleted,
-  /// ordered by [createdAt] descending (newest first).
-  Future<List<VocabularyModel>> getVocabularyList();
+class CategorySummary {
+  final String name;
+  final int wordCount;
 
-  /// Soft-deletes a vocabulary entry by setting
-  /// [isDeleted] = true and [isSynced] = false.
-  Future<void> deleteVocabulary(int isarId);
+  /// How many words have masteryLevel >= 3 (considered "learned").
+  final int learnedCount;
 
-  /// Returns all entries where [isSynced] = false,
-  /// used by the sync feature to push pending changes.
-  Future<List<VocabularyModel>> getUnsyncedEntries();
+  /// Progress percentage (0.0 – 100.0).
+  double get progress =>
+      wordCount == 0 ? 0.0 : (learnedCount / wordCount * 100);
 
-  /// Marks one or more entries as synced after successful
-  /// server confirmation. Updates [isSynced] = true.
-  Future<void> markAsSynced(List<int> isarIds);
+  const CategorySummary({
+    required this.name,
+    required this.wordCount,
+    required this.learnedCount,
+  });
 }
 
-/// Isar-backed implementation of [VocabularyLocalDataSource].
+// ---------------------------------------------------------------------------
+// Abstract interface
+// ---------------------------------------------------------------------------
+
+abstract class VocabularyLocalDataSource {
+  // ---- Vocabulary CRUD ----
+
+  /// All non-deleted words, optionally filtered.
+  Future<List<VocabularyModel>> getAll({
+    String? searchQuery,
+    String? category,
+    int offset = 0,
+    int limit = 100,
+  });
+
+  /// Distinct category names for non-deleted words.
+  Future<List<String>> getCategories();
+
+  /// Summary per category (name, count, progress %).
+  Future<List<CategorySummary>> getCategorySummaries();
+
+  /// Words in a specific category.
+  Future<List<VocabularyModel>> getByCategory(String category);
+
+  /// Reactive stream for a specific category.
+  Stream<List<VocabularyModel>> watchByCategory(String category);
+
+  /// Save or update (upsert by backendId).
+  Future<void> save(VocabularyModel item);
+
+  /// Save a batch.
+  Future<void> saveAll(List<VocabularyModel> items);
+
+  /// Toggle the starred/favorite flag.
+  Future<void> toggleStar(int isarId);
+
+  /// Update mastery level after a review session.
+  Future<void> updateMastery(int isarId, int newLevel);
+
+  /// Soft-delete.
+  Future<void> softDelete(int isarId);
+
+  /// Get unsynced items for background upload.
+  Future<List<VocabularyModel>> getUnsynced();
+
+  /// Mark items as synced.
+  Future<void> markSynced(List<int> isarIds);
+
+  // ---- Question Bank ----
+
+  /// All non-deleted question banks.
+  Future<List<QuestionBankModel>> getAllBanks();
+
+  /// Save/update a question bank.
+  Future<void> saveBank(QuestionBankModel bank);
+
+  /// Save multiple banks.
+  Future<void> saveAllBanks(List<QuestionBankModel> banks);
+
+  // ---- Quiz Results ----
+
+  /// All quiz results sorted by most recent.
+  Future<List<QuizResultModel>> getQuizResults({int offset = 0, int limit = 50});
+
+  /// Quiz results for a specific bank.
+  Future<List<QuizResultModel>> getQuizResultsByBank(String bankBackendId);
+
+  /// Save a quiz result.
+  Future<void> saveQuizResult(QuizResultModel result);
+
+  /// Get unsynced quiz results for background upload.
+  Future<List<QuizResultModel>> getUnsyncedQuizResults();
+
+  /// Mark quiz results as synced.
+  Future<void> markQuizResultsSynced(List<int> isarIds);
+}
+
+// ---------------------------------------------------------------------------
+// Implementation
+// ---------------------------------------------------------------------------
+
 class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
   final Isar _isar;
 
-  VocabularyLocalDataSourceImpl({required Isar isar}) : _isar = isar;
+  const VocabularyLocalDataSourceImpl({required Isar isar}) : _isar = isar;
+
+  // =========================================================================
+  // Vocabulary CRUD
+  // =========================================================================
 
   @override
-  Future<VocabularyModel> saveVocabulary(VocabularyModel model) async {
-    try {
-      await _isar.writeTxn(() async {
-        await _isar.vocabularyModels.put(model);
-      });
-      return model;
-    } catch (e) {
-      throw CacheException(
-        message: 'Failed to save vocabulary to local DB: $e',
-      );
+  Future<List<VocabularyModel>> getAll({
+    String? searchQuery,
+    String? category,
+    int offset = 0,
+    int limit = 100,
+  }) async {
+    var query = _isar.vocabularyModels
+        .filter()
+        .isDeletedEqualTo(false);
+
+    if (category != null && category.isNotEmpty) {
+      query = query.categoryEqualTo(category);
     }
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = searchQuery.trim().toLowerCase();
+      query = query.group((g) => g
+          .wordContains(q, caseSensitive: false)
+          .or()
+          .translationContains(q, caseSensitive: false));
+    }
+
+    return query
+        .sortByCreatedAtDesc()
+        .offset(offset)
+        .limit(limit)
+        .findAll();
   }
 
   @override
-  Future<List<VocabularyModel>> getVocabularyList() async {
-    try {
-      return await _isar.vocabularyModels
+  Future<List<String>> getCategories() async {
+    final all = await _isar.vocabularyModels
+        .filter()
+        .isDeletedEqualTo(false)
+        .distinctByCategory()
+        .findAll();
+    return all.map((m) => m.category).toSet().toList()..sort();
+  }
+
+  @override
+  Future<List<CategorySummary>> getCategorySummaries() async {
+    final categories = await getCategories();
+    final summaries = <CategorySummary>[];
+
+    for (final cat in categories) {
+      final words = await _isar.vocabularyModels
           .filter()
           .isDeletedEqualTo(false)
-          .sortByCreatedAtDesc()
+          .categoryEqualTo(cat)
           .findAll();
-    } catch (e) {
-      throw CacheException(
-        message: 'Failed to load vocabulary from local DB: $e',
-      );
+
+      final learned = words.where((w) => w.masteryLevel >= 3).length;
+
+      summaries.add(CategorySummary(
+        name: cat,
+        wordCount: words.length,
+        learnedCount: learned,
+      ));
     }
+
+    return summaries;
   }
 
   @override
-  Future<void> deleteVocabulary(int isarId) async {
-    try {
-      await _isar.writeTxn(() async {
-        final entry = await _isar.vocabularyModels.get(isarId);
-        if (entry == null) {
-          throw CacheException(
-            message: 'Vocabulary entry not found (id=$isarId)',
-          );
+  Future<List<VocabularyModel>> getByCategory(String category) async {
+    return _isar.vocabularyModels
+        .filter()
+        .isDeletedEqualTo(false)
+        .categoryEqualTo(category)
+        .sortByCreatedAtDesc()
+        .findAll();
+  }
+
+  @override
+  Stream<List<VocabularyModel>> watchByCategory(String category) {
+    return _isar.vocabularyModels
+        .filter()
+        .isDeletedEqualTo(false)
+        .categoryEqualTo(category)
+        .sortByCreatedAtDesc()
+        .watch(fireImmediately: true);
+  }
+
+  @override
+  Future<void> save(VocabularyModel item) async {
+    await _isar.writeTxn(() async {
+      await _isar.vocabularyModels.put(item);
+    });
+  }
+
+  @override
+  Future<void> saveAll(List<VocabularyModel> items) async {
+    await _isar.writeTxn(() async {
+      await _isar.vocabularyModels.putAll(items);
+    });
+  }
+
+  @override
+  Future<void> toggleStar(int isarId) async {
+    await _isar.writeTxn(() async {
+      final item = await _isar.vocabularyModels.get(isarId);
+      if (item != null) {
+        item.isStarred = !item.isStarred;
+        item.isSynced = false;
+        item.updatedAt = DateTime.now();
+        await _isar.vocabularyModels.put(item);
+      }
+    });
+  }
+
+  @override
+  Future<void> updateMastery(int isarId, int newLevel) async {
+    await _isar.writeTxn(() async {
+      final item = await _isar.vocabularyModels.get(isarId);
+      if (item != null) {
+        item.masteryLevel = newLevel.clamp(0, 5);
+        item.lastTestedAt = DateTime.now();
+        item.isSynced = false;
+        item.updatedAt = DateTime.now();
+        await _isar.vocabularyModels.put(item);
+      }
+    });
+  }
+
+  @override
+  Future<void> softDelete(int isarId) async {
+    await _isar.writeTxn(() async {
+      final item = await _isar.vocabularyModels.get(isarId);
+      if (item != null) {
+        item.isDeleted = true;
+        item.isSynced = false;
+        item.updatedAt = DateTime.now();
+        await _isar.vocabularyModels.put(item);
+      }
+    });
+  }
+
+  @override
+  Future<List<VocabularyModel>> getUnsynced() async {
+    return _isar.vocabularyModels
+        .filter()
+        .isSyncedEqualTo(false)
+        .findAll();
+  }
+
+  @override
+  Future<void> markSynced(List<int> isarIds) async {
+    await _isar.writeTxn(() async {
+      final items = await _isar.vocabularyModels.getAll(isarIds);
+      for (final item in items) {
+        if (item != null) {
+          item.isSynced = true;
+          await _isar.vocabularyModels.put(item);
         }
-        // Soft delete: mark as deleted, mark as unsynced
-        // so the sync service pushes the deletion to the server.
-        entry.isDeleted = true;
-        entry.isSynced = false;
-        entry.updatedAt = DateTime.now();
-        await _isar.vocabularyModels.put(entry);
-      });
-    } on CacheException {
-      rethrow;
-    } catch (e) {
-      throw CacheException(
-        message: 'Failed to delete vocabulary from local DB: $e',
-      );
-    }
+      }
+    });
+  }
+
+  // =========================================================================
+  // Question Banks
+  // =========================================================================
+
+  @override
+  Future<List<QuestionBankModel>> getAllBanks() async {
+    return _isar.questionBankModels
+        .filter()
+        .isDeletedEqualTo(false)
+        .sortByCreatedAtDesc()
+        .findAll();
   }
 
   @override
-  Future<List<VocabularyModel>> getUnsyncedEntries() async {
-    try {
-      return await _isar.vocabularyModels
-          .filter()
-          .isSyncedEqualTo(false)
-          .findAll();
-    } catch (e) {
-      throw CacheException(
-        message: 'Failed to query unsynced entries: $e',
-      );
-    }
+  Future<void> saveBank(QuestionBankModel bank) async {
+    await _isar.writeTxn(() async {
+      await _isar.questionBankModels.put(bank);
+    });
   }
 
   @override
-  Future<void> markAsSynced(List<int> isarIds) async {
-    try {
-      await _isar.writeTxn(() async {
-        for (final id in isarIds) {
-          final entry = await _isar.vocabularyModels.get(id);
-          if (entry != null) {
-            entry.isSynced = true;
-            await _isar.vocabularyModels.put(entry);
-          }
+  Future<void> saveAllBanks(List<QuestionBankModel> banks) async {
+    await _isar.writeTxn(() async {
+      await _isar.questionBankModels.putAll(banks);
+    });
+  }
+
+  // =========================================================================
+  // Quiz Results
+  // =========================================================================
+
+  @override
+  Future<List<QuizResultModel>> getQuizResults({
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    return _isar.quizResultModels
+        .where()
+        .sortByCompletedAtDesc()
+        .offset(offset)
+        .limit(limit)
+        .findAll();
+  }
+
+  @override
+  Future<List<QuizResultModel>> getQuizResultsByBank(
+      String bankBackendId) async {
+    return _isar.quizResultModels
+        .filter()
+        .bankBackendIdEqualTo(bankBackendId)
+        .sortByCompletedAtDesc()
+        .findAll();
+  }
+
+  @override
+  Future<void> saveQuizResult(QuizResultModel result) async {
+    await _isar.writeTxn(() async {
+      await _isar.quizResultModels.put(result);
+    });
+  }
+
+  @override
+  Future<List<QuizResultModel>> getUnsyncedQuizResults() async {
+    return _isar.quizResultModels
+        .filter()
+        .isSyncedEqualTo(false)
+        .findAll();
+  }
+
+  @override
+  Future<void> markQuizResultsSynced(List<int> isarIds) async {
+    await _isar.writeTxn(() async {
+      final items = await _isar.quizResultModels.getAll(isarIds);
+      for (final item in items) {
+        if (item != null) {
+          item.isSynced = true;
+          await _isar.quizResultModels.put(item);
         }
-      });
-    } catch (e) {
-      throw CacheException(
-        message: 'Failed to mark entries as synced: $e',
-      );
-    }
+      }
+    });
   }
 }

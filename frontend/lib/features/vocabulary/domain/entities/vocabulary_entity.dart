@@ -2,26 +2,39 @@ import 'package:equatable/equatable.dart';
 
 /// UC07 — Entity for saved vocabulary words.
 class VocabularyEntity extends Equatable {
-  /// Isar auto-increment primary key (local DB).
-  /// Used for local delete/update operations.
-  final int isarId;
-
-  /// Backend UUID assigned after sync.
-  /// For local-only entries, this is a temporary
-  /// `local_<timestamp>` value.
   final String id;
-
   final String word;
   final String translation;
   final String sourceLanguage;
   final String targetLanguage;
+
+  /// Category for flashcard grouping (e.g. "Weather", "Medical Health").
+  final String category;
+
+  /// Whether the user has starred/favorited this word.
+  final bool isStarred;
+
+  /// Optional IPA pronunciation.
+  final String? pronunciation;
+
+  /// Optional example sentence.
+  final String? example;
+
+  /// Backend translation record ID (for sync).
+  final int? translationId;
+
+  /// Mastery level (0–5) for spaced-repetition.
+  final int masteryLevel;
+
+  /// When this word was last reviewed/tested.
+  final DateTime? lastTestedAt;
+
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isSynced;
   final bool isDeleted;
 
   const VocabularyEntity({
-    required this.isarId,
     required this.id,
     required this.word,
     required this.translation,
@@ -29,18 +42,31 @@ class VocabularyEntity extends Equatable {
     required this.targetLanguage,
     required this.createdAt,
     required this.updatedAt,
+    this.category = 'Chưa phân loại',
+    this.isStarred = false,
+    this.pronunciation,
+    this.example,
+    this.translationId,
+    this.masteryLevel = 0,
+    this.lastTestedAt,
     this.isSynced = false,
     this.isDeleted = false,
   });
 
   @override
   List<Object?> get props => [
-    isarId,
     id,
     word,
     translation,
     sourceLanguage,
     targetLanguage,
+    category,
+    isStarred,
+    pronunciation,
+    example,
+    translationId,
+    masteryLevel,
+    lastTestedAt,
     createdAt,
     updatedAt,
     isSynced,

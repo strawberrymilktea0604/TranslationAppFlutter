@@ -1,11 +1,10 @@
 import 'package:dartz/dartz.dart';
 
-import '../../../../core/error/exceptions.dart';
-import '../../../../core/error/failures.dart';
-import '../../domain/entities/vocabulary_entity.dart';
-import '../../domain/repositories/vocabulary_repository.dart';
-import '../datasources/vocabulary_local_datasource.dart';
-import '../models/vocabulary_model.dart';
+import 'package:frontend/core/error/failures.dart';
+import 'package:frontend/features/vocabulary/domain/entities/vocabulary_entity.dart';
+import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_repository.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
+import 'package:frontend/features/vocabulary/data/models/vocabulary_model.dart';
 
 /// Offline-first implementation of [VocabularyRepository].
 ///
@@ -21,11 +20,62 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }) : _localDataSource = localDataSource;
 
   @override
+  Future<Either<Failure, List<VocabularyEntity>>> getVocabularyList({
+    String? searchQuery,
+    String? category,
+  }) async {
+    try {
+      final models = await _localDataSource.getAll(
+        searchQuery: searchQuery,
+        category: category,
+      );
+      final entities = models.map((m) => m.toEntity()).toList();
+      return Right(entities);
+    } catch (e) {
+      return Left(CacheFailure('Failed to load vocabulary: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<String>>> getCategories() async {
+    try {
+      final categories = await _localDataSource.getCategories();
+      return Right(categories);
+    } catch (e) {
+      return Left(CacheFailure('Failed to load categories: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<CategorySummary>>> getCategorySummaries() async {
+    try {
+      final summaries = await _localDataSource.getCategorySummaries();
+      return Right(summaries);
+    } catch (e) {
+      return Left(CacheFailure('Failed to load category summaries: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<VocabularyEntity>>> getByCategory(
+      String category) async {
+    try {
+      final models = await _localDataSource.getByCategory(category);
+      final entities = models.map((m) => m.toEntity()).toList();
+      return Right(entities);
+    } catch (e) {
+      return Left(CacheFailure('Failed to load words for category: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, VocabularyEntity>> saveVocabulary({
     required String word,
     required String translation,
     required String sourceLanguage,
     required String targetLanguage,
+    String category = 'Chưa phân loại',
+    int? translationId,
   }) async {
     try {
       final now = DateTime.now();
@@ -37,47 +87,54 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         translation: translation,
         sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
+        category: category,
+        translationId: translationId,
         createdAt: now,
         updatedAt: now,
         isSynced: false,
         isDeleted: false,
       );
 
-      final saved = await _localDataSource.saveVocabulary(model);
-      return Right(saved.toEntity());
-    } on CacheException catch (e) {
-      return Left(CacheFailure(e.message));
+      await _localDataSource.save(model);
+      return Right(model.toEntity());
+    } catch (e) {
+      return Left(CacheFailure('Failed to save vocabulary: $e'));
     }
   }
 
   @override
-  Future<Either<Failure, List<VocabularyEntity>>> getVocabularyList() async {
+  Future<Either<Failure, void>> toggleStar(int isarId) async {
     try {
-      final models = await _localDataSource.getVocabularyList();
-      final entities = models.map((m) => m.toEntity()).toList();
-      return Right(entities);
-    } on CacheException catch (e) {
-      return Left(CacheFailure(e.message));
+      await _localDataSource.toggleStar(isarId);
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure('Failed to toggle star: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updateMastery(int isarId, int newLevel) async {
+    try {
+      await _localDataSource.updateMastery(isarId, newLevel);
+      return const Right(null);
+    } catch (e) {
+      return Left(CacheFailure('Failed to update mastery: $e'));
     }
   }
 
   @override
   Future<Either<Failure, void>> deleteVocabulary(String id) async {
     try {
-      // The domain layer uses the string backendId.
-      // We need to find the Isar record by backendId to get the
-      // int-based Isar primary key, then soft-delete.
-      // For simplicity, the Cubit passes the Isar int id as a string.
       final isarId = int.tryParse(id);
       if (isarId == null) {
         return const Left(
           CacheFailure('Invalid vocabulary ID format'),
         );
       }
-      await _localDataSource.deleteVocabulary(isarId);
+      await _localDataSource.softDelete(isarId);
       return const Right(null);
-    } on CacheException catch (e) {
-      return Left(CacheFailure(e.message));
+    } catch (e) {
+      return Left(CacheFailure('Failed to delete vocabulary: $e'));
     }
   }
 }
