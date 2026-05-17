@@ -188,8 +188,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'Authorization': 'Bearer $accessToken',
       },
       body: jsonEncode({
-        if (firstName != null) 'first_name': firstName,
-        if (lastName != null) 'last_name': lastName,
+        'first_name': ?firstName,
+        'last_name': ?lastName,
       }),
     );
     if (response.statusCode == 200) {

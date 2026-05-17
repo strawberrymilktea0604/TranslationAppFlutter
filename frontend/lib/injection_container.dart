@@ -37,7 +37,6 @@ import 'package:frontend/features/vocabulary/domain/usecases/save_vocabulary_use
 import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart';
 import 'package:frontend/features/vocabulary/domain/usecases/delete_vocabulary_usecase.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
-import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart' show GetCategorySummariesUseCase;
 import 'package:frontend/features/history/data/datasources/history_local_datasource.dart';
 import 'package:frontend/features/history/data/repositories/history_repository_impl.dart';
 import 'package:frontend/features/history/domain/repositories/history_repository.dart';
@@ -64,6 +63,12 @@ import 'package:frontend/features/learning/domain/repositories/learning_reposito
 import 'package:frontend/features/learning/domain/usecases/get_learning_summary_usecase.dart';
 import 'package:frontend/features/learning/domain/usecases/get_question_banks_usecase.dart';
 import 'package:frontend/features/learning/presentation/bloc/learning_dashboard_cubit.dart';
+import 'package:frontend/features/learning/data/datasources/quiz_remote_datasource.dart';
+import 'package:frontend/features/learning/data/repositories/quiz_repository_impl.dart';
+import 'package:frontend/features/learning/domain/repositories/quiz_repository.dart';
+import 'package:frontend/features/learning/domain/usecases/get_quiz_questions_usecase.dart';
+import 'package:frontend/features/learning/domain/usecases/submit_quiz_result_usecase.dart';
+import 'package:frontend/features/learning/presentation/bloc/quiz_cubit.dart';
 
 import 'main.dart' show config, isarDatabase;
 
@@ -355,5 +360,33 @@ Future<void> initDependencies() async {
     getLearningSummaryUseCase: sl(),
     getQuestionBanksUseCase: sl(),
     getCategorySummariesUseCase: sl(),
+  ));
+
+  // ==============================
+  //  Feature: Quiz Engine
+  // ==============================
+
+  // DataSource — remote API for quiz questions and result submission.
+  sl.registerLazySingleton<QuizRemoteDataSource>(
+    () => QuizRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  // Repository — binds implementation to abstract interface.
+  sl.registerLazySingleton<QuizRepository>(
+    () => QuizRepositoryImpl(
+      remoteDataSource: sl(),
+      authLocalDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => GetQuizQuestionsUseCase(sl()));
+  sl.registerLazySingleton(() => SubmitQuizResultUseCase(sl()));
+
+  // Cubit — factory: new instance per quiz session.
+  sl.registerFactory(() => QuizCubit(
+    getQuizQuestionsUseCase: sl(),
+    submitQuizResultUseCase: sl(),
   ));
 }

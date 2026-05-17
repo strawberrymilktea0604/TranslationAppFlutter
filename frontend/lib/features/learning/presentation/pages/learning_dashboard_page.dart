@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:frontend/features/learning/domain/entities/learning_summary_entity.dart';
@@ -10,6 +11,8 @@ import 'package:frontend/features/learning/presentation/widgets/learning_summary
 import 'package:frontend/features/learning/presentation/widgets/category_progress_list.dart';
 import 'package:frontend/features/learning/presentation/widgets/question_bank_card.dart';
 import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
+import 'package:frontend/features/learning/domain/entities/quiz_question_entity.dart';
+import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/injection_container.dart';
 
 /// Learning Dashboard page — displays:
@@ -188,12 +191,20 @@ class _LoadedView extends StatelessWidget {
               (bank) => QuestionBankCard(
                 bank: bank,
                 onStart: () {
-                  // TODO: Navigate to quiz page when implemented.
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Bắt đầu: ${bank.title}'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  // Generate sample questions from the bank for demo.
+                  // In production, questions are loaded from the backend
+                  // via QuizCubit.loadAndStartQuiz().
+                  final sampleQuestions = _generateSampleQuestions(bank.title);
+                  final durationSeconds = (bank.durationMinutes ?? 5) * 60;
+
+                  context.push(
+                    AppRoutes.quiz,
+                    extra: {
+                      'questions': sampleQuestions,
+                      'durationSeconds': durationSeconds,
+                      'bankId': bank.backendId,
+                      'bankTitle': bank.title,
+                    },
                   );
                 },
               ),
@@ -201,6 +212,65 @@ class _LoadedView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Generates sample questions for demo/testing.
+  ///
+  /// In production, questions are fetched from the backend
+  /// via [QuizCubit.loadAndStartQuiz].
+  List<QuizQuestionEntity> _generateSampleQuestions(String bankTitle) {
+    return [
+      QuizQuestionEntity(
+        id: 'q1',
+        content: 'What is the correct translation of "Xin chào"?',
+        options: [
+          const QuizOptionEntity(id: 'q1a', text: 'Goodbye', isCorrect: false),
+          const QuizOptionEntity(id: 'q1b', text: 'Hello', isCorrect: true),
+          const QuizOptionEntity(id: 'q1c', text: 'Thank you', isCorrect: false),
+          const QuizOptionEntity(id: 'q1d', text: 'Sorry', isCorrect: false),
+        ],
+      ),
+      QuizQuestionEntity(
+        id: 'q2',
+        content: '"Thank you" trong tiếng Việt là gì?',
+        options: [
+          const QuizOptionEntity(id: 'q2a', text: 'Xin lỗi', isCorrect: false),
+          const QuizOptionEntity(id: 'q2b', text: 'Tạm biệt', isCorrect: false),
+          const QuizOptionEntity(id: 'q2c', text: 'Cảm ơn', isCorrect: true),
+          const QuizOptionEntity(id: 'q2d', text: 'Xin chào', isCorrect: false),
+        ],
+      ),
+      QuizQuestionEntity(
+        id: 'q3',
+        content: 'Choose the correct meaning of "Weather".',
+        options: [
+          const QuizOptionEntity(id: 'q3a', text: 'Thời tiết', isCorrect: true),
+          const QuizOptionEntity(id: 'q3b', text: 'Thời gian', isCorrect: false),
+          const QuizOptionEntity(id: 'q3c', text: 'Thời trang', isCorrect: false),
+          const QuizOptionEntity(id: 'q3d', text: 'Thời đại', isCorrect: false),
+        ],
+      ),
+      QuizQuestionEntity(
+        id: 'q4',
+        content: '"Tôi yêu bạn" means:',
+        options: [
+          const QuizOptionEntity(id: 'q4a', text: 'I miss you', isCorrect: false),
+          const QuizOptionEntity(id: 'q4b', text: 'I need you', isCorrect: false),
+          const QuizOptionEntity(id: 'q4c', text: 'I love you', isCorrect: true),
+          const QuizOptionEntity(id: 'q4d', text: 'I know you', isCorrect: false),
+        ],
+      ),
+      QuizQuestionEntity(
+        id: 'q5',
+        content: 'What does "Trường học" mean in English?',
+        options: [
+          const QuizOptionEntity(id: 'q5a', text: 'Hospital', isCorrect: false),
+          const QuizOptionEntity(id: 'q5b', text: 'Library', isCorrect: false),
+          const QuizOptionEntity(id: 'q5c', text: 'Market', isCorrect: false),
+          const QuizOptionEntity(id: 'q5d', text: 'School', isCorrect: true),
+        ],
+      ),
+    ];
   }
 }
 

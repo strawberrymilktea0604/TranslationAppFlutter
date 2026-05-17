@@ -39,7 +39,7 @@ class SyncRepositoryImpl implements SyncRepository {
   @override
   Future<Either<Failure, SyncResponseEntity>> syncVocabulary() async {
     // 1. Gather all unsynced records from Isar.
-    final unsyncedModels = await _localDataSource.getUnsyncedEntries();
+    final unsyncedModels = await _localDataSource.getUnsynced();
 
     if (unsyncedModels.isEmpty) {
       developer.log(
@@ -92,7 +92,7 @@ class SyncRepositoryImpl implements SyncRepository {
         }
 
         if (syncedIds.isNotEmpty) {
-          await _localDataSource.markAsSynced(syncedIds);
+          await _localDataSource.markSynced(syncedIds);
         }
 
         developer.log(

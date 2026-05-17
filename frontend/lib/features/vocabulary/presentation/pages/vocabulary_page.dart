@@ -271,7 +271,7 @@ class _VocabularyCard extends StatelessWidget {
               Navigator.of(ctx).pop();
               context
                   .read<VocabularyCubit>()
-                  .deleteVocabulary(entry.isarId.toString());
+                  .deleteVocabulary(entry.id);
             },
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
