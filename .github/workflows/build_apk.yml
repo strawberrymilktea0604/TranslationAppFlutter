@@ -38,32 +38,24 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
-      - name: 🔐 Inject google-services.json (Dev)
-        if: github.event.inputs.environment == 'dev'
+      - name: 🔐 Inject & Patch google-services.json
         working-directory: frontend
         env:
-          GOOGLE_SERVICES_JSON_DEV: ${{ secrets.GOOGLE_SERVICES_JSON_DEV }}
+          # Chỉ cần 1 Secret duy nhất cho tất cả môi trường
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          mkdir -p android/app/src/dev/
-          echo "$GOOGLE_SERVICES_JSON_DEV" | base64 --decode > android/app/src/dev/google-services.json
-
-      - name: 🔐 Inject google-services.json (Staging)
-        if: github.event.inputs.environment == 'staging'
-        working-directory: frontend
-        env:
-          GOOGLE_SERVICES_JSON_STAGING: ${{ secrets.GOOGLE_SERVICES_JSON_STAGING }}
-        run: |
-          mkdir -p android/app/src/staging/
-          echo "$GOOGLE_SERVICES_JSON_STAGING" | base64 --decode > android/app/src/staging/google-services.json
-
-      - name: 🔐 Inject google-services.json (Prod)
-        if: github.event.inputs.environment == 'prod'
-        working-directory: frontend
-        env:
-          GOOGLE_SERVICES_JSON_PROD: ${{ secrets.GOOGLE_SERVICES_JSON_PROD }}
-        run: |
-          mkdir -p android/app/src/prod/
-          echo "$GOOGLE_SERVICES_JSON_PROD" | base64 --decode > android/app/src/prod/google-services.json
+          ENV_NAME="${{ github.event.inputs.environment }}"
+          mkdir -p android/app/src/$ENV_NAME/
+          
+          # 1. Giải mã Base64 ra file
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/src/$ENV_NAME/google-services.json
+          
+          # 2. Đổi package_name "thủ công" trong file JSON để qua mặt Gradle
+          if [ "$ENV_NAME" == "dev" ]; then
+            sed -i 's/"package_name": "com.example.frontend"/"package_name": "com.example.frontend.dev"/g' android/app/src/dev/google-services.json
+          elif [ "$ENV_NAME" == "staging" ]; then
+            sed -i 's/"package_name": "com.example.frontend"/"package_name": "com.example.frontend.staging"/g' android/app/src/staging/google-services.json
+          fi
 
       - name: ⚙️ Build APK (Dev)
         if: github.event.inputs.environment == 'dev'
