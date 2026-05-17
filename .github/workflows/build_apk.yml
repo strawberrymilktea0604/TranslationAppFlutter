@@ -38,6 +38,33 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
+      - name: 🔐 Inject google-services.json (Dev)
+        if: github.event.inputs.environment == 'dev'
+        working-directory: frontend
+        env:
+          GOOGLE_SERVICES_JSON_DEV: ${{ secrets.GOOGLE_SERVICES_JSON_DEV }}
+        run: |
+          mkdir -p android/app/src/dev/
+          echo "$GOOGLE_SERVICES_JSON_DEV" | base64 --decode > android/app/src/dev/google-services.json
+
+      - name: 🔐 Inject google-services.json (Staging)
+        if: github.event.inputs.environment == 'staging'
+        working-directory: frontend
+        env:
+          GOOGLE_SERVICES_JSON_STAGING: ${{ secrets.GOOGLE_SERVICES_JSON_STAGING }}
+        run: |
+          mkdir -p android/app/src/staging/
+          echo "$GOOGLE_SERVICES_JSON_STAGING" | base64 --decode > android/app/src/staging/google-services.json
+
+      - name: 🔐 Inject google-services.json (Prod)
+        if: github.event.inputs.environment == 'prod'
+        working-directory: frontend
+        env:
+          GOOGLE_SERVICES_JSON_PROD: ${{ secrets.GOOGLE_SERVICES_JSON_PROD }}
+        run: |
+          mkdir -p android/app/src/prod/
+          echo "$GOOGLE_SERVICES_JSON_PROD" | base64 --decode > android/app/src/prod/google-services.json
+
       - name: ⚙️ Build APK (Dev)
         if: github.event.inputs.environment == 'dev'
         working-directory: frontend
