@@ -3,16 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 import asyncio
+import os
 
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging_config import configure_logging
 from app.core.redis_client import get_redis_client, close_redis, health_check
-from app.api.v1.endpoints import quota
+from app.api.v1.endpoints import quota, management
 from app.services.stt_service import STTService
+from app.services.backup_service import DatabaseBackupService, BackupScheduler
 
 configure_logging()
 logger = logging.getLogger(__name__)
+
+# Global backup scheduler
+backup_scheduler: BackupScheduler = None
 
 
 # ==================== LIFESPAN MANAGEMENT ====================
@@ -22,6 +27,8 @@ async def lifespan(app: FastAPI):
     FastAPI lifespan context manager for startup and shutdown events.
     Replaces deprecated @app.on_event() syntax.
     """
+    global backup_scheduler
+    
     # ==================== STARTUP ====================
     logger.info("🚀 Application starting up...")
     try:
@@ -38,11 +45,38 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to preload STT Model: {e}")
         logger.warning("Application will try to load the model on first request")
+    
+    # ==================== INITIALIZE BACKUP SCHEDULER ====================
+    try:
+        backup_dir = os.getenv("BACKUP_DIR", "/backups/database")
+        backup_service = DatabaseBackupService(
+            db_url=settings.DATABASE_URL,
+            backup_dir=backup_dir,
+            max_backups=7,
+            compress=True,
+        )
+        
+        backup_scheduler = BackupScheduler(backup_service)
+        backup_scheduler.initialize_scheduler()
+        backup_scheduler.start()
+        logger.info("✅ Database backup scheduler initialized and started")
+    except Exception as e:
+        logger.warning(f"⚠️  Backup scheduler initialization failed: {e}")
+        logger.warning("Backups can still be triggered manually via API")
 
     yield
     
     # ==================== SHUTDOWN ====================
     logger.info("🛑 Application shutting down...")
+    
+    # Stop backup scheduler
+    if backup_scheduler:
+        try:
+            backup_scheduler.stop()
+            logger.info("✅ Backup scheduler stopped")
+        except Exception as e:
+            logger.warning(f"⚠️  Backup scheduler shutdown error: {e}")
+    
     try:
         await close_redis()
         logger.info("✅ Redis connection closed successfully")
@@ -68,6 +102,7 @@ app.add_middleware(
 # ==================== API ROUTERS ====================
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(quota.router, prefix="/api/quotas", tags=["AI Quotas"])
+app.include_router(management.router, tags=["management"])
 
 # ==================== HEALTH CHECK ====================
 @app.get("/health", tags=["health"])
