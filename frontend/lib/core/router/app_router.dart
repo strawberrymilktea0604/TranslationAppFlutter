@@ -16,6 +16,7 @@ import 'package:frontend/features/translation/presentation/pages/translation_pag
 import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
 import 'package:frontend/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:frontend/features/profile/presentation/pages/change_password_page.dart';
+import 'package:frontend/features/learning/presentation/pages/learning_dashboard_page.dart';
 
 /// Route path constants to avoid hardcoded strings.
 class AppRoutes {
@@ -33,6 +34,7 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String editProfile = '/edit-profile';
   static const String changePassword = '/change-password';
+  static const String learning = '/learning';
 
   // Legacy routes — kept for backward compatibility, all resolve to
   // TranslationPage (the new primary screen).
@@ -82,7 +84,8 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.translate ||
           state.matchedLocation == AppRoutes.guestHome ||
           state.matchedLocation == AppRoutes.authenticatedHome ||
-          state.matchedLocation == AppRoutes.profile;
+          state.matchedLocation == AppRoutes.profile ||
+          state.matchedLocation == AppRoutes.learning;
 
       // Guard: unauthenticated users cannot access protected routes.
       if (!isAuthenticated && !isPublicPage) {
@@ -217,6 +220,16 @@ GoRouter createRouter(BuildContext context) {
         pageBuilder: (context, state) => CustomTransitionPage(
           key: state.pageKey,
           child: const ChangePasswordPage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: _slideUpFade,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.learning,
+        name: 'learning',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const LearningDashboardPage(),
           transitionDuration: const Duration(milliseconds: 400),
           transitionsBuilder: _slideUpFade,
         ),

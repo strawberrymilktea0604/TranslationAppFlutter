@@ -5,10 +5,9 @@ Handles automated and manual database backups with compression and retention pol
 import os
 import logging
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, List
-import subprocess
 import gzip
 import shutil
 

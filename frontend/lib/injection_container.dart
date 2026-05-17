@@ -59,6 +59,11 @@ import 'package:frontend/features/sync/data/repositories/sync_repository_impl.da
 import 'package:frontend/features/sync/domain/repositories/sync_repository.dart';
 import 'package:frontend/features/sync/domain/usecases/sync_data_usecase.dart';
 import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
+import 'package:frontend/features/learning/data/repositories/learning_repository_impl.dart';
+import 'package:frontend/features/learning/domain/repositories/learning_repository.dart';
+import 'package:frontend/features/learning/domain/usecases/get_learning_summary_usecase.dart';
+import 'package:frontend/features/learning/domain/usecases/get_question_banks_usecase.dart';
+import 'package:frontend/features/learning/presentation/bloc/learning_dashboard_cubit.dart';
 
 import 'main.dart' show config, isarDatabase;
 
@@ -330,5 +335,25 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => SyncCubit(
     syncDataUseCase: sl(),
     networkCubit: sl(),
+  ));
+
+  // ==============================
+  //  Feature: Learning Dashboard
+  // ==============================
+
+  // Repository — reuses VocabularyLocalDataSource for Isar access.
+  sl.registerLazySingleton<LearningRepository>(
+    () => LearningRepositoryImpl(localDataSource: sl()),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => GetLearningSummaryUseCase(sl()));
+  sl.registerLazySingleton(() => GetQuestionBanksUseCase(sl()));
+
+  // Cubit — factory: new instance per screen that provides it.
+  sl.registerFactory(() => LearningDashboardCubit(
+    getLearningSummaryUseCase: sl(),
+    getQuestionBanksUseCase: sl(),
+    getCategorySummariesUseCase: sl(),
   ));
 }

@@ -5,9 +5,7 @@ Handles caching of static assets, API responses, and frequently accessed data.
 import logging
 import json
 from typing import Optional, Any, List, Dict
-from datetime import datetime, timedelta
 from functools import wraps
-import hashlib
 
 from redis.asyncio import Redis
 

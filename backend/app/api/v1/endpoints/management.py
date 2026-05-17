@@ -4,9 +4,8 @@ Requires Admin privileges
 """
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 import logging
-from pathlib import Path
 
 from app.core.dependencies import get_admin_user
 from app.core.redis_client import get_redis_client

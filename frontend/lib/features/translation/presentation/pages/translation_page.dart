@@ -20,6 +20,7 @@ import 'package:frontend/features/translation/presentation/bloc/translation_stat
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.dart';
 import 'package:frontend/features/vocabulary/presentation/pages/vocabulary_page.dart';
+import 'package:frontend/features/learning/presentation/pages/learning_dashboard_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 // ---------------------------------------------------------------------------
@@ -377,6 +378,10 @@ class _TranslationViewState extends State<_TranslationView>
                     icon: Icon(Icons.bookmark_rounded),
                     label: 'Từ vựng',
                   ),
+                  NavigationDestination(
+                    icon: Icon(Icons.school_rounded),
+                    label: 'Học tập',
+                  ),
                 ],
               )
             : null,
@@ -393,6 +398,10 @@ class _TranslationViewState extends State<_TranslationView>
     } else if (_currentIndex == 2) {
       // UC07 — Vocabulary tab (offline-first with Isar)
       return const VocabularyPage(key: ValueKey('vocab'));
+    } else if (_currentIndex == 3) {
+      // Learning Dashboard — shows vocabulary progress + exam list.
+      // The page creates its own BlocProvider internally.
+      return const LearningDashboardPage(key: ValueKey('learning'));
     }
     return _buildTranslationTab(context, cs, theme, isAuth, key: const ValueKey('translate'));
   }
