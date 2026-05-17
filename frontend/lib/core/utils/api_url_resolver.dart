@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 /// Environment variable set via `--dart-define=API_HOST=<ip>`.
@@ -32,8 +33,79 @@ class ApiUrlResolver {
     if (_kApiHostOverride.isNotEmpty) {
       return 'http://$_kApiHostOverride:$port$apiPrefix';
     }
+
+    // Desktop
+    if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+      return 'http://localhost:$port$apiPrefix';
+    }
+
+    // Try to detect if running on emulator vs physical device
+    if (Platform.isAndroid && await _isAndroidEmulator()) {
+      return 'http://10.0.2.2:$port$apiPrefix';
+    }
+    
+    if (Platform.isIOS) {
+      // iOS Simulator often maps localhost directly
+      final localhostPing = await _pingIp('127.0.0.1', port, apiPrefix);
+      if (localhostPing != null) {
+        return localhostPing;
+      }
+    }
+
+    // Subnet Scanning for physical devices / identical network fallback
+    final scannedUrl = await scanForBackend(port: port, apiPrefix: apiPrefix);
+    if (scannedUrl != null) {
+      return scannedUrl;
+    }
+
+    // Fallback if scanning fails
     final host = await _resolveHost();
     return 'http://$host:$port$apiPrefix';
+  }
+
+  /// Tự động quét mạng LAN để tìm server Docker đang mở port
+  static Future<String?> scanForBackend({
+    int port = 8000,
+    String apiPrefix = '/api/v1',
+  }) async {
+    // 1. Lấy IP của thiết bị (điện thoại thật)
+    String? deviceIp = await _getLocalNetworkIp();
+    if (deviceIp == 'localhost') return null;
+
+    // 2. Cắt lấy Subnet (VD: "192.168.1.45" -> "192.168.1")
+    final ipParts = deviceIp.split('.');
+    if (ipParts.length != 4) return null;
+    ipParts.removeLast();
+    final subnet = ipParts.join('.');
+    log('Bắt đầu quét mạng LAN trên dải: $subnet.x:$port...', name: 'ApiUrlResolver');
+
+    // 3. Tạo danh sách các tác vụ kết nối đồng thời để quét nhanh gọn
+    final List<Future<String?>> scanTasks = [];
+    
+    for (int i = 1; i <= 254; i++) {
+      final targetIp = '$subnet.$i';
+      if (targetIp == deviceIp) continue; // Bỏ qua IP của chính điện thoại
+      scanTasks.add(_pingIp(targetIp, port, apiPrefix));
+    }
+
+    // 4. Chờ kết quả và lấy IP đầu tiên phản hồi
+    final results = await Future.wait(scanTasks);
+    try {
+      return results.firstWhere((url) => url != null, orElse: () => null);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Thử mở socket kết nối. Timeout ngắn (300ms) để quét lướt qua nhanh.
+  static Future<String?> _pingIp(String ip, int port, String apiPrefix) async {
+    try {
+      final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 300));
+      socket.destroy(); // Kết nối thành công -> đóng lại ngay
+      return 'http://$ip:$port$apiPrefix';
+    } catch (_) {
+      return null; // Kết nối thất bại (không có ai mở port ở IP này)
+    }
   }
 
   /// Determines the correct hostname based on platform.
@@ -45,27 +117,17 @@ class ApiUrlResolver {
   ///    device can reach the dev server over the same Wi-Fi network.
   static Future<String> _resolveHost() async {
     if (Platform.isAndroid) {
-      // Try to detect if running on emulator vs physical device.
-      // Emulators have specific system properties; a reliable heuristic is
-      // checking the `ro.hardware` or `ro.product.model` via the `android.os.Build`
-      // class. However, from Dart we can check if `10.0.2.2` is reachable.
       final isEmulator = await _isAndroidEmulator();
       if (isEmulator) {
         return '10.0.2.2';
       }
-      // Physical Android device — need to find the host's LAN IP.
       return await _getLocalNetworkIp();
     }
 
     if (Platform.isIOS) {
-      // iOS Simulator shares network stack with the Mac host.
-      // Physical iOS device needs LAN IP just like physical Android.
-      // We can't reliably distinguish Simulator from device in Dart,
-      // so we try localhost first and fall back to LAN IP.
       return 'localhost';
     }
 
-    // Desktop (Windows, macOS, Linux) — always use localhost.
     return 'localhost';
   }
 

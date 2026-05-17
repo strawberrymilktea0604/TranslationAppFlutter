@@ -1,0 +1,69 @@
+name: Build and Distribute APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Chọn môi trường để Build APK'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+jobs:
+  build_and_distribute:
+    name: Build & Upload to Firebase
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clone Repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0' # Chỉnh lại version nếu bạn dùng bản khác
+          channel: 'stable'
+
+      - name: 📦 Install Dependencies
+        working-directory: frontend
+        run: flutter pub get
+
+      - name: ⚙️ Build APK (Dev)
+        if: github.event.inputs.environment == 'dev'
+        working-directory: frontend
+        run: flutter build apk --flavor dev -t lib/main_dev.dart --debug
+
+      - name: ⚙️ Build APK (Staging)
+        if: github.event.inputs.environment == 'staging'
+        working-directory: frontend
+        run: flutter build apk --flavor staging -t lib/main_staging.dart --release
+
+      - name: ⚙️ Build APK (Prod)
+        if: github.event.inputs.environment == 'prod'
+        working-directory: frontend
+        run: flutter build apk --flavor prod -t lib/main_prod.dart --release
+
+      - name: 🔍 Find APK Path
+        id: apk_path
+        run: |
+          APK_FILE=$(find frontend/build/app/outputs/flutter-apk -name "*.apk" | head -n 1)
+          echo "APK_FILE_PATH=$APK_FILE" >> $GITHUB_ENV
+          echo "Found APK at: $APK_FILE"
+
+      - name: 🚀 Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+          groups: testers
+          file: ${{ env.APK_FILE_PATH }}
