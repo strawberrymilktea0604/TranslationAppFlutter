@@ -4,7 +4,6 @@ additional quiz-submission scenarios not covered in test_learning_quiz_submissio
 
 All tests use TestClient with dependency overrides so no real DB is needed.
 """
-import math
 import os
 import sys
 from datetime import datetime, timezone

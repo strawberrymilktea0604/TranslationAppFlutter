@@ -415,7 +415,7 @@ def _make_bank_response(include_correct=False):
 def test_bank_detail_does_not_expose_correct_answer(client, monkeypatch):
     """GET /banks/{id} must never include correct_answer in the response."""
     from sqlalchemy.ext.asyncio import AsyncSession
-    from unittest.mock import MagicMock, AsyncMock
+    from unittest.mock import MagicMock
 
     # Patch the DB execute to return a fake bank
     fake_bank = _make_bank_response()
