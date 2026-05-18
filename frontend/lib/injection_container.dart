@@ -41,6 +41,7 @@ import 'package:frontend/features/history/data/datasources/history_local_datasou
 import 'package:frontend/features/history/data/repositories/history_repository_impl.dart';
 import 'package:frontend/features/history/domain/repositories/history_repository.dart';
 import 'package:frontend/features/history/domain/usecases/get_history_usecase.dart';
+import 'package:frontend/features/history/presentation/bloc/history_cubit.dart';
 import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dart';
 import 'package:frontend/features/ocr/data/repositories/ocr_repository_impl.dart';
 import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
@@ -252,6 +253,13 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetHistoryUseCase(sl()));
   sl.registerLazySingleton(() => DeleteHistoryUseCase(sl()));
   sl.registerLazySingleton(() => ClearHistoryUseCase(sl()));
+
+  // Cubit — factory: new instance per screen that provides it.
+  sl.registerFactory(() => HistoryCubit(
+    getHistoryUseCase: sl(),
+    deleteHistoryUseCase: sl(),
+    clearHistoryUseCase: sl(),
+  ));
 
   // ==============================
   //  Feature: Speech (STT)

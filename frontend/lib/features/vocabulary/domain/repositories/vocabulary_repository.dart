@@ -37,6 +37,6 @@ abstract class VocabularyRepository {
   /// Update mastery level after review.
   Future<Either<Failure, void>> updateMastery(int isarId, int newLevel);
 
-  /// Soft-delete a vocabulary entry.
-  Future<Either<Failure, void>> deleteVocabulary(String id);
+  /// Soft-delete a vocabulary entry by Isar integer ID.
+  Future<Either<Failure, void>> deleteVocabulary(int isarId);
 }

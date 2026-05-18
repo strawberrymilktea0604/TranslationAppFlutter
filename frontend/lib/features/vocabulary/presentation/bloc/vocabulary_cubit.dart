@@ -81,11 +81,11 @@ class VocabularyCubit extends Cubit<VocabularyState> {
   /// Soft-deletes a vocabulary entry in local Isar DB.
   ///
   /// Emits: [VocabularyLoading] → [VocabularyDeleteSuccess] or [VocabularyFailure].
-  Future<void> deleteVocabulary(String id) async {
+  Future<void> deleteVocabulary(int isarId) async {
     emit(const VocabularyLoading());
 
     final result = await _deleteVocabularyUseCase(
-      DeleteVocabularyParams(id: id),
+      DeleteVocabularyParams(isarId: isarId),
     );
 
     result.fold(

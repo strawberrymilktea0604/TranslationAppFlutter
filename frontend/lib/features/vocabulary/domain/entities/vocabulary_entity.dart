@@ -2,6 +2,11 @@ import 'package:equatable/equatable.dart';
 
 /// UC07 — Entity for saved vocabulary words.
 class VocabularyEntity extends Equatable {
+  /// Isar local auto-increment ID. Used for soft-delete operations.
+  /// 0 means not yet persisted (transient).
+  final int isarId;
+
+  /// Backend UUID (or temp "local_xxx" ID before sync).
   final String id;
   final String word;
   final String translation;
@@ -42,6 +47,7 @@ class VocabularyEntity extends Equatable {
     required this.targetLanguage,
     required this.createdAt,
     required this.updatedAt,
+    this.isarId = 0,
     this.category = 'Chưa phân loại',
     this.isStarred = false,
     this.pronunciation,
@@ -55,6 +61,7 @@ class VocabularyEntity extends Equatable {
 
   @override
   List<Object?> get props => [
+    isarId,
     id,
     word,
     translation,

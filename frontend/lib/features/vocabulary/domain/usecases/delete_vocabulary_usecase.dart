@@ -15,17 +15,17 @@ class DeleteVocabularyUseCase extends UseCase<void, DeleteVocabularyParams> {
 
   @override
   Future<Either<Failure, void>> call(DeleteVocabularyParams params) async {
-    return await repository.deleteVocabulary(params.id);
+    return await repository.deleteVocabulary(params.isarId);
   }
 }
 
 /// Parameters for [DeleteVocabularyUseCase].
 class DeleteVocabularyParams extends Equatable {
-  /// The Isar integer ID (as a string) of the entry to soft-delete.
-  final String id;
+  /// The Isar auto-increment integer ID of the entry to soft-delete.
+  final int isarId;
 
-  const DeleteVocabularyParams({required this.id});
+  const DeleteVocabularyParams({required this.isarId});
 
   @override
-  List<Object?> get props => [id];
+  List<Object?> get props => [isarId];
 }

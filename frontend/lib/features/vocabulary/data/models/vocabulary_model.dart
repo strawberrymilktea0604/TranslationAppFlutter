@@ -70,6 +70,7 @@ class VocabularyModel {
 
   VocabularyEntity toEntity() {
     return VocabularyEntity(
+      isarId: id, // Isar auto-increment integer
       id: backendId,
       word: word,
       translation: translation,

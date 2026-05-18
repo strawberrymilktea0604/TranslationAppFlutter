@@ -123,14 +123,8 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
   }
 
   @override
-  Future<Either<Failure, void>> deleteVocabulary(String id) async {
+  Future<Either<Failure, void>> deleteVocabulary(int isarId) async {
     try {
-      final isarId = int.tryParse(id);
-      if (isarId == null) {
-        return const Left(
-          CacheFailure('Invalid vocabulary ID format'),
-        );
-      }
       await _localDataSource.softDelete(isarId);
       return const Right(null);
     } catch (e) {

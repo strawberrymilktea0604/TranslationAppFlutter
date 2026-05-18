@@ -38,6 +38,7 @@ class HistoryModel {
 
   HistoryEntity toEntity() {
     return HistoryEntity(
+      isarId: id, // Isar auto-increment integer
       id: backendId,
       sourceText: sourceText,
       translatedText: translatedText,
