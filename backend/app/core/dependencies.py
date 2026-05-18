@@ -7,8 +7,9 @@ from sqlalchemy.future import select
 
 from app.core.database import get_db
 from app.core import security
-from app.core.redis_client import is_token_revoked
+from app.core.redis_client import get_redis_client, is_token_revoked
 from app.models.user import User
+from app.services.static_cache_service import StaticContentCacheService
 
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -17,6 +18,15 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 # For optional authentication (Guest allowed)
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
+
+async def get_static_cache_service() -> Optional[StaticContentCacheService]:
+    """Return the Redis-backed static cache service when Redis is available."""
+    try:
+        redis_client = await get_redis_client()
+    except Exception:
+        return None
+    return StaticContentCacheService(redis_client)
 
 async def _verify_token_and_get_user(db: AsyncSession, token: str) -> Optional[User]:
     try:

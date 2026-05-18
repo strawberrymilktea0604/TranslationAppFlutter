@@ -8,6 +8,7 @@ from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc, and_, func, or_
+from sqlalchemy.orm import joinedload
 
 from app.models.translation import Vocabulary, Translation
 
@@ -139,7 +140,9 @@ class VocabularyRepository:
             filters.append(Vocabulary.user_id == user_id)
         
         result = await db.execute(
-            select(Vocabulary).filter(and_(*filters))
+            select(Vocabulary)
+            .options(joinedload(Vocabulary.translation), joinedload(Vocabulary.category_rel))
+            .filter(and_(*filters))
         )
         return result.scalars().first()
     
@@ -212,8 +215,6 @@ class VocabularyRepository:
         Returns:
             Tuple of (list of Vocabulary entries with translations, total count)
         """
-        from sqlalchemy.orm import joinedload
-        
         limit = min(limit, 100)
         
         # Get total count
@@ -398,6 +399,7 @@ class VocabularyRepository:
         # Get paginated results
         result = await db.execute(
             select(Vocabulary)
+            .options(joinedload(Vocabulary.translation), joinedload(Vocabulary.category_rel))
             .join(Translation)
             .filter(
                 and_(
@@ -415,7 +417,7 @@ class VocabularyRepository:
             .distinct()
         )
         
-        vocabularies = result.scalars().all()
+        vocabularies = result.unique().scalars().all()
         return vocabularies, total
 
     @staticmethod
@@ -464,7 +466,9 @@ class VocabularyRepository:
             Updated Vocabulary instance, or None if not found / wrong owner.
         """
         result = await db.execute(
-            select(Vocabulary).filter(
+            select(Vocabulary)
+            .options(joinedload(Vocabulary.translation), joinedload(Vocabulary.category_rel))
+            .filter(
                 and_(
                     Vocabulary.id == vocabulary_id,
                     Vocabulary.user_id == user_id,
@@ -483,7 +487,18 @@ class VocabularyRepository:
             vocabulary.last_tested_at = last_tested_at
 
         await db.commit()
-        await db.refresh(vocabulary)
+        refreshed = await db.execute(
+            select(Vocabulary)
+            .options(joinedload(Vocabulary.translation), joinedload(Vocabulary.category_rel))
+            .filter(
+                and_(
+                    Vocabulary.id == vocabulary_id,
+                    Vocabulary.user_id == user_id,
+                    Vocabulary.is_deleted.is_(False)
+                )
+            )
+        )
+        vocabulary = refreshed.scalars().first()
 
         logger.info(
             "✅ Vocabulary progress updated (ID: %s, User: %s)",

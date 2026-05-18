@@ -4,9 +4,11 @@ Handles caching of static assets, API responses, and frequently accessed data.
 """
 import logging
 import json
+import hashlib
 from typing import Optional, Any, List, Dict
 from functools import wraps
 
+from fastapi.encoders import jsonable_encoder
 from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
@@ -59,11 +61,9 @@ class StaticContentCacheService:
         try:
             full_key = f"{prefix}{key}"
             
-            # JSON serialize the value
-            if isinstance(value, (dict, list)):
-                cached_value = json.dumps(value)
-            else:
-                cached_value = str(value)
+            # JSON serialize through FastAPI's encoder so Pydantic models,
+            # datetimes, and SQLAlchemy rows become response-safe payloads.
+            cached_value = json.dumps(jsonable_encoder(value))
             
             # Set in Redis with TTL
             ttl = ttl or self.DEFAULT_TTL_STATIC
@@ -351,8 +351,20 @@ def cache_response(
                 # If no cache service available, just call function
                 return await func(*args, **kwargs)
             
-            # Generate cache key from function name and significant args
-            cache_key = f"{func.__name__}"
+            # Generate cache key from function name and significant request
+            # parameters. Runtime dependencies are intentionally excluded.
+            cache_params = {
+                key: value
+                for key, value in kwargs.items()
+                if key not in {"db", "current_user", "cache_service"}
+            }
+            params_hash = hashlib.sha256(
+                json.dumps(
+                    jsonable_encoder(cache_params),
+                    sort_keys=True,
+                ).encode("utf-8")
+            ).hexdigest()[:16]
+            cache_key = f"{func.__name__}:{params_hash}"
             
             # Try to get from cache
             cached_value = await cache_service.get_cache(

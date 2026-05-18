@@ -164,6 +164,31 @@ async def list_vocabularies(
 
 
 @router.get(
+    "/stats/summary",
+    response_model=SuccessResponse,
+    summary="Get vocabulary statistics",
+    description="Get statistics about user's vocabulary (total count, breakdown by type)."
+)
+async def get_vocabulary_stats_static(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        stats = await VocabularyService.get_user_vocabulary_count(db, current_user.id)
+        return SuccessResponse(
+            success=True,
+            message="Vocabulary statistics retrieved successfully",
+            data=stats
+        )
+    except Exception as e:
+        logger.error(f"âŒ Error retrieving vocabulary stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve vocabulary statistics"
+        )
+
+
+@router.get(
     "/{vocabulary_id}",
     response_model=VocabularyDetailResponse,
     summary="Get vocabulary entry details",
@@ -279,6 +304,41 @@ async def get_vocabulary_stats(
 
 
 # ==================== DELETE ====================
+
+@router.delete(
+    "/batch/remove",
+    response_model=SuccessResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Remove multiple vocabulary entries",
+    description="Remove multiple vocabulary entries at once (max 50)."
+)
+async def remove_multiple_from_vocabulary_static(
+    req: VocabularyCreateMultiple,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        result = await VocabularyService.remove_multiple_from_vocabulary(
+            db, req.translation_ids, current_user.id
+        )
+        return SuccessResponse(
+            success=True,
+            message=result["message"],
+            data=result
+        )
+    except ValueError as e:
+        logger.warning(f"â ï¸  Validation error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"âŒ Error removing multiple from vocabulary: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to remove vocabulary entries"
+        )
+
 
 @router.delete(
     "/{vocabulary_id}",
