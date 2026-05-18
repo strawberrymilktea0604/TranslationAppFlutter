@@ -83,15 +83,7 @@ class _SplashPageState extends State<SplashPage>
   Future<void> _checkServerHealth() async {
     while (mounted && !_serverReady) {
       try {
-        // Ensure we check the exact /api/v1/health endpoint
-        String urlString = config.apiUrl;
-        if (urlString.endsWith('/')) {
-          urlString = urlString.substring(0, urlString.length - 1);
-        }
-        if (!urlString.endsWith('/api/v1')) {
-          urlString = '$urlString/api/v1';
-        }
-        final healthUrl = Uri.parse(urlString).replace(path: '/api/v1/health');
+        final healthUrl = Uri.parse(config.apiUrl).replace(path: '/health');
         
         final response = await http.get(healthUrl).timeout(const Duration(seconds: 3));
         if (response.statusCode == 200) {

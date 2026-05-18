@@ -53,6 +53,14 @@ class ApiUrlResolver {
       }
     }
 
+    if (Platform.isAndroid) {
+      // Check if adb reverse is active (localhost maps to PC)
+      final adbReversePing = await _pingIp('127.0.0.1', port, apiPrefix);
+      if (adbReversePing != null) {
+        return 'http://127.0.0.1:$port$apiPrefix';
+      }
+    }
+
     // Subnet Scanning for physical devices / identical network fallback
     final scannedUrl = await scanForBackend(port: port, apiPrefix: apiPrefix);
     if (scannedUrl != null) {
