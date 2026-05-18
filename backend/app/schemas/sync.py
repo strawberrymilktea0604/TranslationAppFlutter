@@ -25,6 +25,7 @@ class SyncVocabularyItem(BaseModel):
     translation: str = Field(..., max_length=2000)
     source_language: str = Field(..., max_length=10)
     target_language: str = Field(..., max_length=10)
+    category_id: Optional[int] = Field(default=None)
     is_deleted: bool = Field(default=False)
     created_at: datetime
     updated_at: datetime

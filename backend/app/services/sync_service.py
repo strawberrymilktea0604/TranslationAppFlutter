@@ -90,24 +90,50 @@ class SyncService:
 
         # 1. Try to find an existing Translation owned by this user
         #    that matches the word + language pair.
-        stmt = select(Translation).where(
+        stmt = select(Translation, Vocabulary).outerjoin(
+            Vocabulary, 
+            and_(Vocabulary.translation_id == Translation.id, Vocabulary.user_id == user_id)
+        ).where(
             and_(
                 Translation.user_id == user_id,
                 Translation.source_text == item.word,
                 Translation.translated_text == item.translation,
                 Translation.source_language == item.source_language,
                 Translation.target_language == item.target_language,
-            ),
+            )
         )
         result = await db.execute(stmt)
-        existing: Translation | None = result.scalars().first()
+        row = result.first()
 
-        if existing is None:
+        if row is None:
             # ------ Case (b): INSERT new record ------
             return await SyncService._insert_new(db, user_id, item)
 
+        existing_translation, existing_vocab = row
+
+        if existing_vocab is None:
+            # We have a translation, but no vocabulary record yet.
+            vocab_id = _generate_snowflake_id()
+            now = datetime.now(timezone.utc)
+            existing_vocab = Vocabulary(
+                id=vocab_id,
+                user_id=user_id,
+                translation_id=existing_translation.id,
+                category_id=item.category_id,
+                is_deleted=item.is_deleted,
+                created_at=item.created_at or now,
+                updated_at=now,
+            )
+            db.add(existing_vocab)
+            await db.flush()
+            return SyncVocabularyResultItem(
+                client_id=item.client_id,
+                server_id=existing_translation.id,
+                status="created",
+            )
+
         # Ensure both datetimes are comparable (timezone-aware)
-        server_updated = existing.updated_at
+        server_updated = existing_vocab.updated_at
         client_updated = item.updated_at
 
         # Normalise to UTC-aware if naive
@@ -118,23 +144,24 @@ class SyncService:
 
         if client_updated > server_updated:
             # ------ Case (c): UPDATE ------
-            existing.is_deleted = item.is_deleted
-            existing.updated_at = datetime.now(timezone.utc)
+            existing_vocab.is_deleted = item.is_deleted
+            existing_vocab.category_id = item.category_id
+            existing_vocab.updated_at = datetime.now(timezone.utc)
             await db.flush()
-            await db.refresh(existing)
+            await db.refresh(existing_vocab)
 
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing.id,
+                server_id=existing_translation.id,
                 status="updated",
             )
         else:
             # ------ Case (d): UNCHANGED ------
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing.id,
+                server_id=existing_translation.id,
                 status="unchanged",
-                server_updated_at=existing.updated_at,
+                server_updated_at=existing_vocab.updated_at,
             )
 
     @staticmethod
@@ -169,6 +196,7 @@ class SyncService:
             id=vocab_id,
             user_id=user_id,
             translation_id=translation_id,
+            category_id=item.category_id,
             is_deleted=item.is_deleted,
             created_at=item.created_at or now,
             updated_at=now,

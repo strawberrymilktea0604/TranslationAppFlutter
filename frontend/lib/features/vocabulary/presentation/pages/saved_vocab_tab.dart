@@ -24,54 +24,96 @@ class SavedVocabTab extends StatelessWidget {
 class _CategoryListWidget extends StatelessWidget {
   const _CategoryListWidget();
 
+  void _showAddCategoryDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Thêm danh mục'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Tên danh mục',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                context.read<VocabularyCategoryCubit>().createCategory(newName);
+              }
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Tạo'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return BlocConsumer<VocabularyCategoryCubit, VocabularyCategoryState>(
-      listener: (context, state) {
-        if (state is VocabularyCategoryError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: cs.error,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      },
-      builder: (context, state) {
-        if (state is VocabularyCategoryLoading || state is VocabularyCategoryInitial) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (state is VocabularyCategoryLoaded) {
-          final categories = state.categories;
-          if (categories.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.category_rounded, size: 80, color: cs.primary.withOpacity(0.4)),
-                  const SizedBox(height: 16),
-                  Text('Chưa có danh mục nào', style: textTheme.titleMedium?.copyWith(color: cs.onSurfaceVariant)),
-                  const SizedBox(height: 8),
-                  Text('Lưu từ vựng để tạo danh mục mới', style: textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant.withOpacity(0.7))),
-                ],
+    return Scaffold(
+      backgroundColor: Colors.transparent, // To blend with tab view
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddCategoryDialog(context),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Tạo danh mục'),
+      ),
+      body: BlocConsumer<VocabularyCategoryCubit, VocabularyCategoryState>(
+        listener: (context, state) {
+          if (state is VocabularyCategoryError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: cs.error,
+                behavior: SnackBarBehavior.floating,
               ),
             );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final cat = categories[index];
-              return _CategoryCard(category: cat, cs: cs, textTheme: textTheme);
-            },
-          );
-        }
-        return const SizedBox();
-      },
+        },
+        builder: (context, state) {
+          if (state is VocabularyCategoryLoading || state is VocabularyCategoryInitial) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (state is VocabularyCategoryLoaded) {
+            final categories = state.categories;
+            if (categories.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.category_rounded, size: 80, color: cs.primary.withOpacity(0.4)),
+                    const SizedBox(height: 16),
+                    Text('Chưa có danh mục nào', style: textTheme.titleMedium?.copyWith(color: cs.onSurfaceVariant)),
+                    const SizedBox(height: 8),
+                    Text('Lưu từ vựng để tạo danh mục mới', style: textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant.withOpacity(0.7))),
+                  ],
+                ),
+              );
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 100), // padding bottom for fab
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final cat = categories[index];
+                return _CategoryCard(category: cat, cs: cs, textTheme: textTheme);
+              },
+            );
+          }
+          return const SizedBox();
+        },
+      ),
     );
   }
 }

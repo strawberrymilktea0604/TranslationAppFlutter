@@ -11,6 +11,7 @@ class SyncVocabularyItemModel {
   final String translation;
   final String sourceLanguage;
   final String targetLanguage;
+  final int? categoryId;
   final bool isDeleted;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -21,6 +22,7 @@ class SyncVocabularyItemModel {
     required this.translation,
     required this.sourceLanguage,
     required this.targetLanguage,
+    this.categoryId,
     required this.isDeleted,
     required this.createdAt,
     required this.updatedAt,
@@ -34,6 +36,7 @@ class SyncVocabularyItemModel {
       translation: m.translation,
       sourceLanguage: m.sourceLanguage,
       targetLanguage: m.targetLanguage,
+      categoryId: m.categoryId,
       isDeleted: m.isDeleted,
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
@@ -47,6 +50,7 @@ class SyncVocabularyItemModel {
       'translation': translation,
       'source_language': sourceLanguage,
       'target_language': targetLanguage,
+      'category_id': categoryId,
       'is_deleted': isDeleted,
       'created_at': createdAt.toUtc().toIso8601String(),
       'updated_at': updatedAt.toUtc().toIso8601String(),
