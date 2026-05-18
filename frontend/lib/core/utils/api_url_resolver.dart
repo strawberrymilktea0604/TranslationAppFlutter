@@ -100,7 +100,7 @@ class ApiUrlResolver {
   /// Thử mở socket kết nối. Timeout ngắn (300ms) để quét lướt qua nhanh.
   static Future<String?> _pingIp(String ip, int port, String apiPrefix) async {
     try {
-      final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 300));
+      final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 1000));
       socket.destroy(); // Kết nối thành công -> đóng lại ngay
       return 'http://$ip:$port$apiPrefix';
     } catch (_) {

@@ -2,7 +2,7 @@
 Management API endpoints for Database Backups and Cache Management
 Requires Admin privileges
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Path
 from pydantic import BaseModel
 from typing import List, Optional
 import logging
@@ -262,7 +262,7 @@ async def clear_all_cache(
     dependencies=[Depends(get_admin_user)],
 )
 async def clear_cache_by_prefix(
-    prefix: str = Query(..., description="Cache prefix (e.g., 'api_response:', 'vocabulary:')"),
+    prefix: str = Path(..., description="Cache prefix (e.g., 'api_response:', 'vocabulary:')"),
     cache_service: StaticContentCacheService = Depends(get_cache_service),
 ):
     """
