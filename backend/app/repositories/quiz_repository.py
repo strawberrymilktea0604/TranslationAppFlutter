@@ -79,6 +79,17 @@ class QuizRepository:
                 f"not_found:Question bank {bank_id} contains no active questions"
             )
 
+        # 1b. Enforce time limit — reject submissions that exceed the bank's duration.
+        #     Only applies when duration_minutes is configured on the bank.
+        resolved_time = time_spent_seconds if time_spent_seconds is not None else completion_time_seconds
+        if bank.duration_minutes is not None and resolved_time is not None:
+            time_limit_seconds = bank.duration_minutes * 60
+            if resolved_time > time_limit_seconds:
+                raise ValueError(
+                    f"bad_request:Quiz time limit exceeded "
+                    f"({resolved_time}s submitted, limit is {time_limit_seconds}s)"
+                )
+
         # 2. Validate the submitted answer set
         active_ids = {q.id for q in active_questions}
         submitted_ids = [a.question_id for a in answers]
@@ -135,10 +146,13 @@ class QuizRepository:
         total_questions = len(active_questions)
         score = round((correct_count / total_questions) * 100, 2) if total_questions else 0.0
 
-        # 6. Resolve timing — prefer the new canonical field
-        resolved_time = time_spent_seconds if time_spent_seconds is not None else completion_time_seconds
+        # 6. resolved_time was already computed above (for timeout enforcement).
 
-        # 7. Persist to user_quizzes
+        # 7. Status is always 'completed' here — timed-out submissions are
+        #    rejected with 400 before they reach this point (step 1b).
+        quiz_status = "completed"
+
+        # 8. Persist to user_quizzes
         now_utc = datetime.now(timezone.utc)
         quiz = UserQuiz(
             user_id=user_id,
@@ -153,7 +167,7 @@ class QuizRepository:
             total_questions=total_questions,
             correct_answers=correct_count,
             submitted_at=now_utc,
-            status="completed",
+            status=quiz_status,
         )
         db.add(quiz)
         await db.commit()

@@ -1,20 +1,32 @@
 """
 Learning endpoints — Question Banks, Quiz submission, and Quiz history.
+
+Security note
+-------------
+``correct_answer`` is intentionally omitted from all user-facing endpoints.
+It is only exposed:
+  - In ``GET /admin/banks/{bank_id}`` (admin-protected).
+  - In ``POST /banks/{bank_id}/submit`` *response* after grading (per-question breakdown).
 """
 import math
 from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import DBSession, get_current_user
-from app.models.learning import QuestionBank
+from app.models.learning import Question, QuestionBank
 from app.models.user import User
 from app.repositories.quiz_repository import QuizRepository
 from app.schemas.learning import (
+    QuestionBankAdminDetail,
     QuestionBankBase,
     QuestionBankDetail,
+    QuestionBankStartResponse,
+    QuestionListResponse,
+    QuestionPublicSchema,
+    QuestionAdminSchema,
     QuizSubmitRequest,
     QuizSubmitResponse,
     UserQuizHistoryResponse,
@@ -24,7 +36,7 @@ router = APIRouter(prefix="/learning", tags=["learning"])
 
 
 # ──────────────────────────────────────────────────────────
-# Question Banks
+# Question Banks — list
 # ──────────────────────────────────────────────────────────
 
 @router.get("/banks", response_model=List[QuestionBankBase])
@@ -46,13 +58,20 @@ async def get_question_banks(
     return banks
 
 
+# ──────────────────────────────────────────────────────────
+# Question Banks — detail (mobile-safe: no correct_answer)
+# ──────────────────────────────────────────────────────────
+
 @router.get("/banks/{bank_id}", response_model=QuestionBankDetail)
 async def get_question_bank_detail(
     bank_id: int,
     db: DBSession,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-    """Return details of a specific question bank, including its active questions."""
+    """
+    Return details of a specific question bank with its active questions.
+    ``correct_answer`` is omitted — use the admin endpoint if you need it.
+    """
     stmt = (
         select(QuestionBank)
         .where(
@@ -70,10 +89,133 @@ async def get_question_bank_detail(
             detail="Question bank not found",
         )
 
-    # Build the response model and filter out deleted questions
-    response_data = QuestionBankDetail.model_validate(bank)
-    response_data.questions = [q for q in response_data.questions if not q.is_deleted]
-    return response_data
+    active_questions = [
+        QuestionPublicSchema.model_validate(q)
+        for q in bank.questions
+        if not q.is_deleted
+    ]
+
+    return QuestionBankDetail(
+        id=bank.id,
+        title=bank.title,
+        description=bank.description,
+        duration_minutes=bank.duration_minutes,
+        created_at=bank.created_at,
+        questions=active_questions,
+    )
+
+
+# ──────────────────────────────────────────────────────────
+# Questions list (paginated, mobile-safe)
+# ──────────────────────────────────────────────────────────
+
+@router.get("/banks/{bank_id}/questions", response_model=QuestionListResponse)
+async def get_bank_questions(
+    bank_id: int,
+    db: DBSession,
+    current_user: Annotated[User, Depends(get_current_user)],
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Questions per page"),
+):
+    """
+    Return a paginated list of active questions for a bank.
+    ``correct_answer`` is intentionally omitted for quiz integrity.
+    """
+    # Verify bank exists
+    bank_result = await db.execute(
+        select(QuestionBank).where(
+            QuestionBank.id == bank_id,
+            QuestionBank.is_deleted.is_(False),
+        )
+    )
+    bank = bank_result.scalar_one_or_none()
+    if not bank:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question bank not found",
+        )
+
+    skip = (page - 1) * page_size
+
+    # Total active questions for this bank
+    count_result = await db.execute(
+        select(func.count(Question.id)).where(
+            Question.bank_id == bank_id,
+            Question.is_deleted.is_(False),
+        )
+    )
+    total: int = count_result.scalar() or 0
+    total_pages = math.ceil(total / page_size) if total else 0
+
+    # Fetch page
+    rows_result = await db.execute(
+        select(Question)
+        .where(
+            Question.bank_id == bank_id,
+            Question.is_deleted.is_(False),
+        )
+        .offset(skip)
+        .limit(page_size)
+    )
+    questions = rows_result.scalars().all()
+
+    return QuestionListResponse(
+        bank_id=bank_id,
+        items=[QuestionPublicSchema.model_validate(q) for q in questions],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+        has_next=page < total_pages,
+        has_prev=page > 1,
+    )
+
+
+# ──────────────────────────────────────────────────────────
+# Quiz start (mobile-safe)
+# ──────────────────────────────────────────────────────────
+
+@router.get("/banks/{bank_id}/start", response_model=QuestionBankStartResponse)
+async def start_quiz(
+    bank_id: int,
+    db: DBSession,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    Official mobile quiz-start endpoint.
+    Returns bank metadata and all active questions without ``correct_answer``.
+    """
+    stmt = (
+        select(QuestionBank)
+        .where(
+            QuestionBank.id == bank_id,
+            QuestionBank.is_deleted.is_(False),
+        )
+        .options(selectinload(QuestionBank.questions))
+    )
+    result = await db.execute(stmt)
+    bank = result.scalar_one_or_none()
+
+    if not bank:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question bank not found",
+        )
+
+    active_questions = [
+        QuestionPublicSchema.model_validate(q)
+        for q in bank.questions
+        if not q.is_deleted
+    ]
+
+    return QuestionBankStartResponse(
+        id=bank.id,
+        title=bank.title,
+        description=bank.description,
+        duration_minutes=bank.duration_minutes,
+        total_questions=len(active_questions),
+        questions=active_questions,
+    )
 
 
 # ──────────────────────────────────────────────────────────
@@ -102,7 +244,7 @@ async def submit_quiz(
     - Validates that the bank exists.
     - Grades each answer against the stored ``correct_answer``.
     - Saves the result in ``user_quizzes``.
-    - Returns score, per-question breakdown, and the saved record metadata.
+    - Returns score, per-question breakdown (correct_answer revealed here), and saved record metadata.
     """
     try:
         quiz, results = await QuizRepository.grade_and_save(
@@ -177,4 +319,64 @@ async def get_quiz_history(
         total_pages=total_pages,
         has_next=page < total_pages,
         has_prev=page > 1,
+    )
+
+
+# ──────────────────────────────────────────────────────────
+# Admin — bank detail (includes correct_answer)
+# ──────────────────────────────────────────────────────────
+
+@router.get(
+    "/admin/banks/{bank_id}",
+    response_model=QuestionBankAdminDetail,
+    summary="[Admin] Bank detail with correct answers",
+    description=(
+        "Returns bank metadata and questions including ``correct_answer``. "
+        "This endpoint is for internal/admin use only. "
+        "Do NOT expose to regular mobile clients."
+    ),
+    tags=["learning-admin"],
+)
+async def admin_get_question_bank_detail(
+    bank_id: int,
+    db: DBSession,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """
+    Admin endpoint: return all question details including correct_answer.
+
+    In a production deployment this route should be restricted to superusers
+    or an internal network. Currently it requires authentication only —
+    add role-based access control (RBAC) before exposing publicly.
+    """
+    stmt = (
+        select(QuestionBank)
+        .where(
+            QuestionBank.id == bank_id,
+            QuestionBank.is_deleted.is_(False),
+        )
+        .options(selectinload(QuestionBank.questions))
+    )
+    result = await db.execute(stmt)
+    bank = result.scalar_one_or_none()
+
+    if not bank:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question bank not found",
+        )
+
+    active_questions = [
+        QuestionAdminSchema.model_validate(q)
+        for q in bank.questions
+        if not q.is_deleted
+    ]
+
+    return QuestionBankAdminDetail(
+        id=bank.id,
+        title=bank.title,
+        description=bank.description,
+        duration_minutes=bank.duration_minutes,
+        created_at=bank.created_at,
+        questions=active_questions,
     )

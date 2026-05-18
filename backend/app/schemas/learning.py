@@ -4,16 +4,41 @@ from datetime import datetime
 
 
 # ─────────────────────────────────────────────
-# Question / Question Bank schemas
+# Question schemas
 # ─────────────────────────────────────────────
 
-class QuestionSchema(BaseModel):
+class QuestionPublicSchema(BaseModel):
+    """
+    Mobile-safe question schema — correct_answer is intentionally omitted.
+    Use this on all user-facing endpoints so quiz integrity is preserved.
+    """
+    id: int
+    bank_id: int
+    content: str
+    # ``choices`` is the raw DB field name; ``options`` is the canonical public name.
+    choices: Any
+    options: Any = None
+    is_deleted: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def _sync_options(self) -> "QuestionPublicSchema":
+        """Ensure options always mirrors choices for forward-compat clients."""
+        if self.options is None:
+            self.options = self.choices
+        return self
+
+
+class QuestionAdminSchema(BaseModel):
+    """
+    Admin-only question schema — includes correct_answer.
+    Must only be returned from admin-protected endpoints.
+    """
     id: int
     bank_id: int
     content: str
     choices: Any
-    # ``options`` is the primary public name for the multiple-choice list;
-    # it mirrors ``choices`` exactly so both old and new clients work.
     options: Any = None
     correct_answer: str
     is_deleted: bool = False
@@ -21,12 +46,20 @@ class QuestionSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="after")
-    def _sync_options(self) -> "QuestionSchema":
-        """Ensure options always mirrors choices for forward-compat clients."""
+    def _sync_options(self) -> "QuestionAdminSchema":
         if self.options is None:
             self.options = self.choices
         return self
 
+
+# Backward-compat alias — keep old name pointing to the admin schema so any
+# internal code that imported QuestionSchema still works.
+QuestionSchema = QuestionAdminSchema
+
+
+# ─────────────────────────────────────────────
+# Question Bank schemas
+# ─────────────────────────────────────────────
 
 class QuestionBankBase(BaseModel):
     id: int
@@ -39,7 +72,53 @@ class QuestionBankBase(BaseModel):
 
 
 class QuestionBankDetail(QuestionBankBase):
-    questions: List[QuestionSchema] = []
+    """
+    User-facing bank detail — questions are mobile-safe (no correct_answer).
+    """
+    questions: List[QuestionPublicSchema] = []
+
+
+class QuestionBankAdminDetail(QuestionBankBase):
+    """
+    Admin-only bank detail — questions include correct_answer.
+    Only return from /admin/* endpoints.
+    """
+    questions: List[QuestionAdminSchema] = []
+
+
+# ─────────────────────────────────────────────
+# Questions list (paginated) — mobile-safe
+# ─────────────────────────────────────────────
+
+class QuestionListResponse(BaseModel):
+    """Paginated list of questions for a bank (no correct_answer)."""
+    bank_id: int
+    items: List[QuestionPublicSchema]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+
+# ─────────────────────────────────────────────
+# Quiz start response — mobile-safe
+# ─────────────────────────────────────────────
+
+class QuestionBankStartResponse(BaseModel):
+    """
+    Response for the quiz-start endpoint.
+    Contains bank metadata and all active questions without correct_answer.
+    """
+    id: int
+    title: str
+    description: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    total_questions: int
+    questions: List[QuestionPublicSchema]
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ─────────────────────────────────────────────
@@ -79,10 +158,10 @@ class QuizSubmitRequest(BaseModel):
 
 
 class QuizAnswerResult(BaseModel):
-    """Per-question grading result returned to the client."""
+    """Per-question grading result returned to the client after submit."""
     question_id: int
     selected_answer: str
-    correct_answer: str
+    correct_answer: str  # revealed only after grading
     is_correct: bool
 
 
@@ -101,7 +180,7 @@ class QuizSubmitResponse(BaseModel):
     status: str = Field(..., description="'completed' or 'timeout'")
     created_at: datetime
     results: List[QuizAnswerResult] = Field(
-        ..., description="Per-question grading breakdown"
+        ..., description="Per-question grading breakdown (correct_answer revealed)"
     )
 
     model_config = ConfigDict(from_attributes=True)

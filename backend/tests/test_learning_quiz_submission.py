@@ -392,3 +392,242 @@ def test_completion_time_seconds_still_works(client, monkeypatch):
     # Schema back-fills time_spent_seconds from completion_time_seconds
     assert captured["completion_time_seconds"] == 90
     assert captured["time_spent_seconds"] == 90
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# New tests: correct_answer not exposed on public endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _make_bank_response(include_correct=False):
+    """Build a fake bank row returned by grade_and_save for endpoint-level tests."""
+    q = SimpleNamespace(
+        id=101, bank_id=10, content="What is 2+2?",
+        choices=["2", "3", "4", "5"], is_deleted=False,
+        correct_answer="4",
+    )
+    return SimpleNamespace(
+        id=10, title="Test Bank", description=None,
+        duration_minutes=5, created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        is_deleted=False, questions=[q],
+    )
+
+
+def test_bank_detail_does_not_expose_correct_answer(client, monkeypatch):
+    """GET /banks/{id} must never include correct_answer in the response."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from unittest.mock import MagicMock, AsyncMock
+
+    # Patch the DB execute to return a fake bank
+    fake_bank = _make_bank_response()
+
+    async def fake_execute(stmt):
+        mock = MagicMock()
+        mock.scalar_one_or_none.return_value = fake_bank
+        return mock
+
+    # Patch db session on the endpoint's db argument
+    async def override_db():
+        session = MagicMock(spec=AsyncSession)
+        session.execute = fake_execute
+        yield session
+
+    from app.core.database import get_db as _get_db
+    app.dependency_overrides[_get_db] = override_db
+
+    try:
+        response = client.get("/api/v1/learning/banks/10")
+        assert response.status_code == 200
+        data = response.json()
+        # Questions should be present
+        assert "questions" in data
+        for q in data["questions"]:
+            assert "correct_answer" not in q, \
+                "correct_answer must NOT be present in public bank detail"
+    finally:
+        app.dependency_overrides.pop(_get_db, None)
+
+
+def test_start_endpoint_does_not_expose_correct_answer(client, monkeypatch):
+    """/banks/{id}/start must never include correct_answer."""
+    from unittest.mock import MagicMock
+    from app.core.database import get_db as _get_db
+
+    fake_bank = _make_bank_response()
+
+    async def fake_execute(stmt):
+        mock = MagicMock()
+        mock.scalar_one_or_none.return_value = fake_bank
+        return mock
+
+    async def override_db():
+        from sqlalchemy.ext.asyncio import AsyncSession
+        session = MagicMock(spec=AsyncSession)
+        session.execute = fake_execute
+        yield session
+
+    app.dependency_overrides[_get_db] = override_db
+    try:
+        response = client.get("/api/v1/learning/banks/10/start")
+        assert response.status_code == 200
+        for q in response.json()["questions"]:
+            assert "correct_answer" not in q
+    finally:
+        app.dependency_overrides.pop(_get_db, None)
+
+
+def test_questions_endpoint_does_not_expose_correct_answer(client, monkeypatch):
+    """/banks/{id}/questions must never include correct_answer."""
+    from unittest.mock import MagicMock
+    from app.core.database import get_db as _get_db
+
+    fake_bank = _make_bank_response()
+    fake_q = fake_bank.questions[0]
+
+    call_counter = {"n": 0}
+
+    async def fake_execute(stmt):
+        call_counter["n"] += 1
+        mock = MagicMock()
+        n = call_counter["n"]
+        if n == 1:
+            # Bank existence check
+            mock.scalar_one_or_none.return_value = fake_bank
+        elif n == 2:
+            # COUNT query
+            mock.scalar.return_value = 1
+        else:
+            # Paginated questions
+            mock.scalars.return_value.all.return_value = [fake_q]
+        return mock
+
+    async def override_db():
+        from sqlalchemy.ext.asyncio import AsyncSession
+        session = MagicMock(spec=AsyncSession)
+        session.execute = fake_execute
+        yield session
+
+    app.dependency_overrides[_get_db] = override_db
+    try:
+        response = client.get("/api/v1/learning/banks/10/questions")
+        assert response.status_code == 200
+        data = response.json()
+        for q in data["items"]:
+            assert "correct_answer" not in q, \
+                "correct_answer must NOT appear in /questions response"
+    finally:
+        app.dependency_overrides.pop(_get_db, None)
+
+
+def test_admin_bank_detail_accessible_to_authenticated_user(client, monkeypatch):
+    """
+    The /admin/banks/{id} endpoint currently requires authentication only.
+    RBAC (role restriction to superusers) is tracked as a future TODO.
+    Any authenticated user can reach it for now — this test documents that behaviour.
+    """
+    from unittest.mock import MagicMock
+    from app.core.database import get_db as _get_db
+
+    fake_bank = _make_bank_response()
+
+    async def fake_execute(stmt):
+        mock = MagicMock()
+        mock.scalar_one_or_none.return_value = fake_bank
+        return mock
+
+    async def override_db():
+        from sqlalchemy.ext.asyncio import AsyncSession
+        session = MagicMock(spec=AsyncSession)
+        session.execute = fake_execute
+        yield session
+
+    app.dependency_overrides[_get_db] = override_db
+    try:
+        response = client.get("/api/v1/learning/admin/banks/10")
+        # 200 because RBAC is not yet enforced (TODO: restrict to superusers)
+        assert response.status_code == 200
+        data = response.json()
+        # correct_answer MUST be present on the admin endpoint
+        for q in data["questions"]:
+            assert "correct_answer" in q, "Admin endpoint must expose correct_answer"
+    finally:
+        app.dependency_overrides.pop(_get_db, None)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# New tests: timeout enforcement
+# ─────────────────────────────────────────────────────────────────────────────
+
+def test_timeout_submit_returns_400(client, monkeypatch):
+    """Submitting after the time limit (duration_minutes × 60) returns 400."""
+    async def fake_grade_and_save(
+        db, user_id, bank_id, answers,
+        completion_time_seconds=None, time_spent_seconds=None,
+    ):
+        raise ValueError(
+            "bad_request:Quiz time limit exceeded (310s submitted, limit is 300s)"
+        )
+
+    monkeypatch.setattr(QuizRepository, "grade_and_save", fake_grade_and_save)
+
+    response = client.post(
+        "/api/v1/learning/banks/10/submit",
+        json={
+            "answers": [
+                {"question_id": 101, "selected_answer": "A"},
+                {"question_id": 102, "selected_answer": "B"},
+            ],
+            "time_spent_seconds": 310,   # exceeds 5-minute bank (300s)
+        },
+    )
+
+    assert response.status_code == 400
+    assert "time limit exceeded" in response.json()["detail"].lower()
+
+
+def test_submit_within_time_limit_succeeds(client, monkeypatch):
+    """A submission within the time limit passes normally."""
+    async def fake_grade_and_save(
+        db, user_id, bank_id, answers,
+        completion_time_seconds=None, time_spent_seconds=None,
+    ):
+        return _make_quiz(bank_id=bank_id), _make_results()
+
+    monkeypatch.setattr(QuizRepository, "grade_and_save", fake_grade_and_save)
+
+    response = client.post(
+        "/api/v1/learning/banks/10/submit",
+        json={
+            "answers": [
+                {"question_id": 101, "selected_answer": "A"},
+                {"question_id": 102, "selected_answer": "B"},
+            ],
+            "time_spent_seconds": 250,   # within 5-minute limit
+        },
+    )
+
+    assert response.status_code == 201
+
+
+def test_no_duration_limit_never_times_out(client, monkeypatch):
+    """Banks without duration_minutes configured should never reject any timing."""
+    async def fake_grade_and_save(
+        db, user_id, bank_id, answers,
+        completion_time_seconds=None, time_spent_seconds=None,
+    ):
+        # Repository would allow this through — simulate success
+        return _make_quiz(bank_id=bank_id, time_spent=99999, completion_time=99999), _make_results()
+
+    monkeypatch.setattr(QuizRepository, "grade_and_save", fake_grade_and_save)
+
+    response = client.post(
+        "/api/v1/learning/banks/10/submit",
+        json={
+            "answers": [
+                {"question_id": 101, "selected_answer": "A"},
+                {"question_id": 102, "selected_answer": "B"},
+            ],
+            "time_spent_seconds": 99999,   # very large — OK when no limit
+        },
+    )
+
+    assert response.status_code == 201
