@@ -1,8 +1,8 @@
 """init_database
 
-Revision ID: b66e7b982bf6
+Revision ID: 4fe145d789b0
 Revises: 
-Create Date: 2026-05-18 06:16:28.508772
+Create Date: 2026-05-18 07:13:23.017105
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'b66e7b982bf6'
+revision: str = '4fe145d789b0'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -108,6 +108,10 @@ def upgrade() -> None:
     sa.Column('bank_id', sa.BigInteger(), nullable=False),
     sa.Column('score', sa.Float(), nullable=True),
     sa.Column('completion_time_seconds', sa.Integer(), nullable=True),
+    sa.Column('time_spent_seconds', sa.Integer(), nullable=True),
+    sa.Column('total_questions', sa.Integer(), nullable=True),
+    sa.Column('correct_answers', sa.Integer(), nullable=True),
+    sa.Column('submitted_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('status', sa.String(length=50), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
