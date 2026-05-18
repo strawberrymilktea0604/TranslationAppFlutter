@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:frontend/main.dart' show config;
+import 'package:frontend/app_config.dart';
+import 'package:frontend/core/utils/api_url_resolver.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/core/router/app_router.dart';
@@ -79,9 +81,18 @@ class _SplashPageState extends State<SplashPage>
   }
 
   Future<void> _checkServerHealth() async {
-    final healthUrl = Uri.parse(config.apiUrl).replace(path: '/health');
     while (mounted && !_serverReady) {
       try {
+        // Ensure we check the exact /api/v1/health endpoint
+        String urlString = config.apiUrl;
+        if (urlString.endsWith('/')) {
+          urlString = urlString.substring(0, urlString.length - 1);
+        }
+        if (!urlString.endsWith('/api/v1')) {
+          urlString = '$urlString/api/v1';
+        }
+        final healthUrl = Uri.parse(urlString).replace(path: '/api/v1/health');
+        
         final response = await http.get(healthUrl).timeout(const Duration(seconds: 3));
         if (response.statusCode == 200) {
           if (mounted) {
@@ -93,7 +104,17 @@ class _SplashPageState extends State<SplashPage>
           break; // Thoát vòng lặp khi kết nối thành công
         }
       } catch (_) {
-        // Ignored: Server chưa mở cổng
+        // Nếu ping health thất bại, có thể do IP sai (scan lúc khởi động bị miss)
+        // Chúng ta sẽ thử scan lại mạng LAN.
+        if (mounted && !_serverReady) {
+          try {
+            final newUrl = await ApiUrlResolver.scanForBackend();
+            if (newUrl != null && newUrl != config.apiUrl) {
+              // Cập nhật lại config với URL mới tìm thấy
+              config = AppConfig(appName: config.appName, apiUrl: newUrl);
+            }
+          } catch (_) {}
+        }
       }
       
       // Delay 3 giây trước khi thử lại
