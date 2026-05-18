@@ -48,3 +48,4 @@ Thumbs.db
 *.log
 logs/
 .agents/skills
+frontend/android/app/base64_secret.txt 

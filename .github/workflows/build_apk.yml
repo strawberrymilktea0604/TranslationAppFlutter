@@ -38,24 +38,14 @@ jobs:
         working-directory: frontend
         run: flutter pub get
 
-      - name: 🔐 Inject & Patch google-services.json
+      - name: 🔐 Inject google-services.json
         working-directory: frontend
         env:
-          # Chỉ cần 1 Secret duy nhất cho tất cả môi trường
+          # Chỉ cần 1 Secret chứa file JSON "3 trong 1" của Firebase
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          ENV_NAME="${{ github.event.inputs.environment }}"
-          mkdir -p android/app/src/$ENV_NAME/
-          
-          # 1. Giải mã Base64 ra file
-          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/src/$ENV_NAME/google-services.json
-          
-          # 2. Đổi package_name "thủ công" trong file JSON để qua mặt Gradle
-          if [ "$ENV_NAME" == "dev" ]; then
-            sed -i 's/"package_name": "com.example.frontend"/"package_name": "com.example.frontend.dev"/g' android/app/src/dev/google-services.json
-          elif [ "$ENV_NAME" == "staging" ]; then
-            sed -i 's/"package_name": "com.example.frontend"/"package_name": "com.example.frontend.staging"/g' android/app/src/staging/google-services.json
-          fi
+          # Đặt file JSON chung ở cấp thư mục app, Gradle sẽ tự lục tìm đúng config
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
 
       - name: ⚙️ Build APK (Dev)
         if: github.event.inputs.environment == 'dev'
@@ -79,10 +69,20 @@ jobs:
           echo "APK_FILE_PATH=$APK_FILE" >> $GITHUB_ENV
           echo "Found APK at: $APK_FILE"
 
+      - name: 🔀 Set Firebase App ID for Environment
+        run: |
+          if [ "${{ github.event.inputs.environment }}" == "dev" ]; then
+            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID_DEV }}" >> $GITHUB_ENV
+          elif [ "${{ github.event.inputs.environment }}" == "staging" ]; then
+            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID_STAGING }}" >> $GITHUB_ENV
+          else
+            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID_PROD }}" >> $GITHUB_ENV
+          fi
+
       - name: 🚀 Upload to Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
+          appId: ${{ env.FIREBASE_APP_ID }}
           serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
           groups: testers
           file: ${{ env.APK_FILE_PATH }}
