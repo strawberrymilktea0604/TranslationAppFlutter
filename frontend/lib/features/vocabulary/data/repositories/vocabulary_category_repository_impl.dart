@@ -39,7 +39,7 @@ class VocabularyCategoryRepositoryImpl implements VocabularyCategoryRepository {
       final localCategories = await localDataSource.getCategories();
       return Right(localCategories.map((m) => m.toEntity()).toList());
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(ServerFailure(e.toString()));
     }
   }
 
@@ -66,9 +66,9 @@ class VocabularyCategoryRepositoryImpl implements VocabularyCategoryRepository {
       await localDataSource.saveCategory(localModel);
       return Right(localModel.toEntity());
     } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
+      return Left(ServerFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(ServerFailure(e.toString()));
     }
   }
 
@@ -93,12 +93,12 @@ class VocabularyCategoryRepositoryImpl implements VocabularyCategoryRepository {
         await localDataSource.saveCategory(existing);
         return Right(existing.toEntity());
       } else {
-        return Left(ServerFailure(message: 'Category not found locally'));
+        return Left(const ServerFailure('Category not found locally'));
       }
     } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
+      return Left(ServerFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(ServerFailure(e.toString()));
     }
   }
 
@@ -114,9 +114,9 @@ class VocabularyCategoryRepositoryImpl implements VocabularyCategoryRepository {
       await localDataSource.deleteCategory(id);
       return const Right(null);
     } on ServerException catch (e) {
-      return Left(ServerFailure(message: e.message));
+      return Left(ServerFailure(e.message));
     } catch (e) {
-      return Left(ServerFailure(message: e.toString()));
+      return Left(ServerFailure(e.toString()));
     }
   }
 }
