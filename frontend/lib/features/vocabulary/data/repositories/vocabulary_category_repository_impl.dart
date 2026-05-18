@@ -46,12 +46,25 @@ class VocabularyCategoryRepositoryImpl implements VocabularyCategoryRepository {
   @override
   Future<Either<Failure, VocabularyCategoryEntity>> createCategory(String name) async {
     try {
+      // Check for local duplicate
+      final localCategories = await localDataSource.getCategories();
+      if (localCategories.any((cat) => cat.name.toLowerCase() == name.toLowerCase())) {
+        return const Left(ServerFailure('Danh mục này đã tồn tại. Vui lòng chọn tên khác.'));
+      }
+
       if (await networkInfo.isConnected) {
         final token = await authLocalDataSource.getAccessToken();
         if (token != null) {
-          final remoteCategory = await remoteDataSource.createCategory(token, name);
-          await localDataSource.saveCategory(remoteCategory);
-          return Right(remoteCategory.toEntity());
+          try {
+            final remoteCategory = await remoteDataSource.createCategory(token, name);
+            await localDataSource.saveCategory(remoteCategory);
+            return Right(remoteCategory.toEntity());
+          } catch (e) {
+            if (e is ServerException && e.message.contains('exist')) {
+               return Left(ServerFailure('Danh mục này đã tồn tại trên máy chủ.'));
+            }
+            // If other network error, fall through to offline creation
+          }
         }
       }
       

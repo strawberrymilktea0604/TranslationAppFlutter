@@ -1,5 +1,5 @@
 # Multi-stage build for optimized AI library installation
-FROM python:3.12-slim as builder
+FROM python:3.10-slim as builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -19,11 +19,14 @@ RUN python -m pip install --upgrade pip \
     && pip install --no-cache-dir --user -r requirements.txt
 
 # Production stage
-FROM python:3.12-slim
+FROM python:3.10-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/root/.local/bin:$PATH"
+    PATH="/root/.local/bin:$PATH" \
+    OMP_NUM_THREADS=1 \
+    KMP_DUPLICATE_LIB_OK=True \
+    MKL_NUM_THREADS=1
 
 WORKDIR /app
 

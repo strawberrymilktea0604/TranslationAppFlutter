@@ -3,6 +3,7 @@ import 'package:isar/isar.dart';
 import 'package:frontend/features/vocabulary/data/models/vocabulary_model.dart';
 import 'package:frontend/features/vocabulary/data/models/question_bank_model.dart';
 import 'package:frontend/features/vocabulary/data/models/quiz_result_model.dart';
+import 'package:frontend/features/vocabulary/data/models/vocabulary_category_model.dart';
 
 // ---------------------------------------------------------------------------
 // Category summary DTO
@@ -158,21 +159,37 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
 
   @override
   Future<List<CategorySummary>> getCategorySummaries() async {
-    final categories = await getCategories();
+    final categories = await _isar.vocabularyCategoryModels.filter().isDeletedEqualTo(false).findAll();
     final summaries = <CategorySummary>[];
 
     for (final cat in categories) {
       final words = await _isar.vocabularyModels
           .filter()
           .isDeletedEqualTo(false)
-          .categoryEqualTo(cat)
+          .categoryIdEqualTo(cat.backendId) // Query by ID
           .findAll();
 
       final learned = words.where((w) => w.masteryLevel >= 3).length;
 
       summaries.add(CategorySummary(
-        name: cat,
+        name: cat.name,
         wordCount: words.length,
+        learnedCount: learned,
+      ));
+    }
+
+    // Include "Chưa phân loại" for words without category
+    final uncategorizedWords = await _isar.vocabularyModels
+          .filter()
+          .isDeletedEqualTo(false)
+          .categoryIdIsNull()
+          .findAll();
+
+    if (uncategorizedWords.isNotEmpty) {
+      final learned = uncategorizedWords.where((w) => w.masteryLevel >= 3).length;
+      summaries.add(CategorySummary(
+        name: 'Chưa phân loại',
+        wordCount: uncategorizedWords.length,
         learnedCount: learned,
       ));
     }

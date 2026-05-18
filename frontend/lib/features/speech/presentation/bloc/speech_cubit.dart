@@ -2,6 +2,9 @@ import 'package:bloc/bloc.dart';
 
 import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.dart';
 import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
+import 'package:frontend/features/history/domain/entities/history_entity.dart' as frontend_history;
+import 'package:frontend/features/history/domain/repositories/history_repository.dart' as frontend_history;
+import 'package:frontend/injection_container.dart';
 
 part 'speech_state.dart';
 
@@ -69,6 +72,21 @@ class SpeechCubit extends Cubit<SpeechState> {
           srcLang: entity.sourceLanguage,
           tgtLang: entity.targetLanguage,
         ));
+
+        // Lưu lịch sử
+        try {
+          final historyEntity = frontend_history.HistoryEntity(
+            isarId: 0,
+            sourceText: entity.sourceText,
+            translatedText: entity.translatedText,
+            sourceLanguage: entity.sourceLanguage,
+            targetLanguage: entity.targetLanguage,
+            translationType: 'voice',
+            createdAt: DateTime.now(),
+            isSynced: false,
+          );
+          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+        } catch (_) {}
       },
     );
   }
@@ -104,12 +122,29 @@ class SpeechCubit extends Cubit<SpeechState> {
 
     result.fold(
       (failure) => emit(SpeechFailure(failure.message)),
-      (translatedText) => emit(SpeechSuccess(
-        recognisedText: editedText,
-        translatedText: translatedText,
-        srcLang: srcLang,
-        tgtLang: tgtLang,
-      )),
+      (translatedText) {
+        emit(SpeechSuccess(
+          recognisedText: editedText,
+          translatedText: translatedText,
+          srcLang: srcLang,
+          tgtLang: tgtLang,
+        ));
+
+        // Lưu lịch sử
+        try {
+          final historyEntity = frontend_history.HistoryEntity(
+            isarId: 0,
+            sourceText: editedText,
+            translatedText: translatedText,
+            sourceLanguage: srcLang,
+            targetLanguage: tgtLang,
+            translationType: 'voice',
+            createdAt: DateTime.now(),
+            isSynced: false,
+          );
+          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+        } catch (_) {}
+      },
     );
   }
 
