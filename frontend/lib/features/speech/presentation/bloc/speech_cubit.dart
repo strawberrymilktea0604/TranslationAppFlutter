@@ -77,12 +77,13 @@ class SpeechCubit extends Cubit<SpeechState> {
         try {
           final historyEntity = frontend_history.HistoryEntity(
             isarId: 0,
+            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
             sourceText: entity.sourceText,
             translatedText: entity.translatedText,
             sourceLanguage: entity.sourceLanguage,
             targetLanguage: entity.targetLanguage,
-            translationType: 'voice',
             createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
             isSynced: false,
           );
           sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
@@ -134,12 +135,13 @@ class SpeechCubit extends Cubit<SpeechState> {
         try {
           final historyEntity = frontend_history.HistoryEntity(
             isarId: 0,
+            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
             sourceText: editedText,
             translatedText: translatedText,
             sourceLanguage: srcLang,
             targetLanguage: tgtLang,
-            translationType: 'voice',
             createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
             isSynced: false,
           );
           sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);

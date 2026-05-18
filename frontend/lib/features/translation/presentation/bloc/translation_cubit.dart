@@ -35,13 +35,14 @@ class TranslationCubit extends Cubit<TranslationState> {
         // Lưu lịch sử offline sau khi dịch thành công
         try {
           final historyEntity = frontend_history.HistoryEntity(
-            isarId: 0, // Auto-incremented by Isar
+            isarId: 0,
+            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
             sourceText: translation.sourceText,
             translatedText: translation.translatedText,
             sourceLanguage: translation.sourceLanguage,
             targetLanguage: translation.targetLanguage,
-            translationType: 'text',
             createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
             isSynced: false,
           );
           sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
