@@ -111,11 +111,18 @@ async def submit_quiz(
             bank_id=bank_id,
             answers=payload.answers,
             completion_time_seconds=payload.completion_time_seconds,
+            time_spent_seconds=payload.time_spent_seconds,
         )
     except ValueError as exc:
+        msg = str(exc)
+        if msg.startswith("bad_request:"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=msg[len("bad_request:"):].strip(),
+            )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
+            detail=msg[len("not_found:"):].strip() if msg.startswith("not_found:") else msg,
         )
 
     correct_count = sum(1 for r in results if r.is_correct)
@@ -126,7 +133,10 @@ async def submit_quiz(
         score=quiz.score,
         total_questions=len(results),
         correct_count=correct_count,
+        correct_answers=correct_count,
         completion_time_seconds=quiz.completion_time_seconds,
+        time_spent_seconds=quiz.time_spent_seconds,
+        submitted_at=quiz.submitted_at,
         status=quiz.status,
         created_at=quiz.created_at,
         results=results,

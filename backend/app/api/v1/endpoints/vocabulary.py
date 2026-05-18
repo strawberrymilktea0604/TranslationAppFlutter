@@ -30,6 +30,7 @@ from app.schemas.vocabulary import (
     VocabularyCreateMultiple,
     VocabularyDetailResponse,
     VocabularyListResponse,
+    VocabularyProgressUpdate,
 )
 from app.services.vocabulary_service import VocabularyService
 
@@ -182,6 +183,12 @@ async def get_vocabulary_detail(
             db, vocabulary_id, current_user.id
         )
         return result
+    except PermissionError as e:
+        logger.warning(f"⚠️  Forbidden: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
     except ValueError as e:
         logger.warning(f"⚠️  Not found: {e}")
         raise HTTPException(
@@ -193,6 +200,49 @@ async def get_vocabulary_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve vocabulary entry"
+        )
+
+
+@router.patch(
+    "/{vocabulary_id}",
+    response_model=VocabularyDetailResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update flashcard learning progress",
+    description="Update mastery_level and/or last_tested_at for a vocabulary entry. "
+                "Text and language fields are immutable snapshots.",
+)
+async def update_vocabulary_progress(
+    vocabulary_id: int,
+    req: VocabularyProgressUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    PATCH a vocabulary entry's learning-progress fields only.
+    Returns the full updated detail response.
+    """
+    try:
+        result = await VocabularyService.update_vocabulary_progress(
+            db, vocabulary_id, current_user.id, req
+        )
+        return result
+    except PermissionError as e:
+        logger.warning(f"⚠️  Forbidden: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+    except ValueError as e:
+        logger.warning(f"⚠️  Not found: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"❌ Error updating vocabulary progress: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update vocabulary entry"
         )
 
 

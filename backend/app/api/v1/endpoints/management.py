@@ -262,7 +262,7 @@ async def clear_all_cache(
     dependencies=[Depends(get_admin_user)],
 )
 async def clear_cache_by_prefix(
-    prefix: str = Query(..., description="Cache prefix (e.g., 'api_response:', 'vocabulary:')"),
+    prefix: str,
     cache_service: StaticContentCacheService = Depends(get_cache_service),
 ):
     """

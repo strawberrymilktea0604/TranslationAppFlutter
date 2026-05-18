@@ -33,13 +33,19 @@ class Question(Base):
 
 class UserQuiz(Base):
     __tablename__ = "user_quizzes"
-    
+
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     bank_id = Column(BigInteger, ForeignKey("question_banks.id", ondelete="CASCADE"), nullable=False)
     score = Column(Float, nullable=True)
+    # Legacy timing field — kept for backward compatibility
     completion_time_seconds = Column(Integer, nullable=True)
-    status = Column(String(50), nullable=False) # 'completed', 'timeout'
+    # New canonical fields
+    time_spent_seconds = Column(Integer, nullable=True)
+    total_questions = Column(Integer, nullable=True)
+    correct_answers = Column(Integer, nullable=True)
+    submitted_at = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(50), nullable=False)  # 'completed', 'timeout'
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
