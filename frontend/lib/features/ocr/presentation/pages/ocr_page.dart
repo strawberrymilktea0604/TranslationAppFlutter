@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
 import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
+import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 
 // Language model (shared with TranslationPage)
 class _Lang {
@@ -651,12 +653,21 @@ class _OcrPageState extends State<OcrPage> {
                   onPressed: () =>
                       _copy(state.translatedText, 'Đã sao chép bản dịch'),
                 ),
-                // Save flashcard (coming soon)
+                // Save flashcard
                 IconButton(
                   icon: const Icon(Icons.bookmark_border_rounded, size: 20),
-                  tooltip: 'Lưu Flashcard (sắp ra mắt)',
+                  tooltip: 'Lưu Flashcard',
                   color: cs.onSurfaceVariant,
-                  onPressed: () => _showComingSoon('Lưu Flashcard'),
+                  onPressed: () {
+                    showSaveVocabularyDialog(
+                      context: context,
+                      cubit: context.read<VocabularyCubit>(),
+                      word: state.extractedText,
+                      translation: state.translatedText,
+                      sourceLanguage: state.sourceLang,
+                      targetLanguage: state.targetLang,
+                    );
+                  },
                 ),
                 const SizedBox(width: 4),
               ],

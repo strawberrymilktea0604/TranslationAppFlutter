@@ -27,7 +27,8 @@ abstract class VocabularyRepository {
     required String translation,
     required String sourceLanguage,
     required String targetLanguage,
-    String category,
+    String category = 'Chưa phân loại',
+    int? categoryId,
     int? translationId,
   });
 

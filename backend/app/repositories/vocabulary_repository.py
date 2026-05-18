@@ -21,7 +21,8 @@ class VocabularyRepository:
     async def create_vocabulary(
         db: AsyncSession,
         user_id: int,
-        translation_id: int
+        translation_id: int,
+        category_id: Optional[int] = None
     ) -> Vocabulary:
         """
         Create a new vocabulary entry (bookmark a translation for learning).
@@ -73,6 +74,7 @@ class VocabularyRepository:
             id=unique_id,
             user_id=user_id,
             translation_id=translation_id,
+            category_id=category_id,
         )
         
         db.add(new_vocabulary)
@@ -228,7 +230,7 @@ class VocabularyRepository:
         # Get paginated results with joined translation data
         result = await db.execute(
             select(Vocabulary)
-            .options(joinedload(Vocabulary.translation))
+            .options(joinedload(Vocabulary.translation), joinedload(Vocabulary.category_rel))
             .filter(
                 and_(
                     Vocabulary.user_id == user_id,

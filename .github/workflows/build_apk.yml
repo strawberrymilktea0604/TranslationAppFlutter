@@ -50,17 +50,17 @@ jobs:
       - name: ⚙️ Build APK (Dev)
         if: github.event.inputs.environment == 'dev'
         working-directory: frontend
-        run: flutter build apk --flavor dev -t lib/main_dev.dart --debug
+        run: flutter build apk --flavor dev -t lib/main_dev.dart --debug --build-number=${{ github.run_number }}
 
       - name: ⚙️ Build APK (Staging)
         if: github.event.inputs.environment == 'staging'
         working-directory: frontend
-        run: flutter build apk --flavor staging -t lib/main_staging.dart --release
+        run: flutter build apk --flavor staging -t lib/main_staging.dart --release --build-number=${{ github.run_number }}
 
       - name: ⚙️ Build APK (Prod)
         if: github.event.inputs.environment == 'prod'
         working-directory: frontend
-        run: flutter build apk --flavor prod -t lib/main_prod.dart --release
+        run: flutter build apk --flavor prod -t lib/main_prod.dart --release --build-number=${{ github.run_number }}
 
       - name: 🔍 Find APK Path
         id: apk_path

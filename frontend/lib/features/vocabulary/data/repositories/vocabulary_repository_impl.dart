@@ -75,6 +75,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
     required String sourceLanguage,
     required String targetLanguage,
     String category = 'Chưa phân loại',
+    int? categoryId,
     int? translationId,
   }) async {
     try {
@@ -88,6 +89,7 @@ class VocabularyRepositoryImpl implements VocabularyRepository {
         sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
         category: category,
+        categoryId: categoryId,
         translationId: translationId,
         createdAt: now,
         updatedAt: now,

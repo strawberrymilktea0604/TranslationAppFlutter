@@ -37,6 +37,15 @@ import 'package:frontend/features/vocabulary/domain/usecases/save_vocabulary_use
 import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart';
 import 'package:frontend/features/vocabulary/domain/usecases/delete_vocabulary_usecase.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_category_local_datasource.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_category_remote_datasource.dart';
+import 'package:frontend/features/vocabulary/data/repositories/vocabulary_category_repository_impl.dart';
+import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_category_repository.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/get_categories_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/create_category_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/update_category_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/delete_category_usecase.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_category_cubit.dart';
 import 'package:frontend/features/history/data/datasources/history_local_datasource.dart';
 import 'package:frontend/features/history/data/repositories/history_repository_impl.dart';
 import 'package:frontend/features/history/domain/repositories/history_repository.dart';
@@ -227,6 +236,36 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => GetVocabularyListUseCase(sl()));
   sl.registerLazySingleton(() => DeleteVocabularyUseCase(sl()));
   sl.registerLazySingleton(() => GetCategorySummariesUseCase(sl()));
+
+  // ==============================
+  //  Vocabulary Category (UC07)
+  // ==============================
+  sl.registerLazySingleton<VocabularyCategoryLocalDataSource>(
+    () => VocabularyCategoryLocalDataSourceImpl(database: isarDatabase),
+  );
+  sl.registerLazySingleton<VocabularyCategoryRemoteDataSource>(
+    () => VocabularyCategoryRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+  sl.registerLazySingleton<VocabularyCategoryRepository>(
+    () => VocabularyCategoryRepositoryImpl(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      networkInfo: sl(),
+      authLocalDataSource: sl(),
+    ),
+  );
+  
+  sl.registerLazySingleton(() => GetCategoriesUseCase(sl()));
+  sl.registerLazySingleton(() => CreateCategoryUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateCategoryUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteCategoryUseCase(sl()));
+
+  sl.registerFactory(() => VocabularyCategoryCubit(
+    getCategoriesUseCase: sl(),
+    createCategoryUseCase: sl(),
+    updateCategoryUseCase: sl(),
+    deleteCategoryUseCase: sl(),
+  ));
 
   // Cubit — factory: new instance per screen that provides it.
   sl.registerFactory(() => VocabularyCubit(

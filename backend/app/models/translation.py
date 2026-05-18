@@ -21,6 +21,19 @@ class Translation(Base):
     user = relationship("User", back_populates="translations")
     vocabularies = relationship("Vocabulary", back_populates="translation", cascade="all, delete-orphan")
 
+class VocabularyCategory(Base):
+    __tablename__ = "vocabulary_categories"
+    
+    # ID sử dụng Snowflake
+    id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+    vocabularies = relationship("Vocabulary", back_populates="category_rel")
+
 class Vocabulary(Base):
     __tablename__ = "vocabularies"
     
@@ -28,6 +41,7 @@ class Vocabulary(Base):
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     translation_id = Column(BigInteger, ForeignKey("translations.id", ondelete="CASCADE"), nullable=False)
+    category_id = Column(BigInteger, ForeignKey("vocabulary_categories.id", ondelete="RESTRICT"), nullable=True)
     is_deleted = Column(Boolean, default=False)
     mastery_level = Column(Integer, default=0)
     last_tested_at = Column(DateTime(timezone=True), nullable=True)
@@ -36,3 +50,4 @@ class Vocabulary(Base):
 
     user = relationship("User", back_populates="vocabularies")
     translation = relationship("Translation", back_populates="vocabularies")
+    category_rel = relationship("VocabularyCategory", back_populates="vocabularies")

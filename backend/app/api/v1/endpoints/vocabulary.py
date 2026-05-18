@@ -64,7 +64,7 @@ async def add_to_vocabulary(
     """
     try:
         result = await VocabularyService.add_to_vocabulary(
-            db, current_user.id, req.translation_id
+            db, current_user.id, req.translation_id, req.category_id
         )
         return SuccessResponse(
             success=True,

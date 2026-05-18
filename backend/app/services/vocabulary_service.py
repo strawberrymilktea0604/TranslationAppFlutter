@@ -19,7 +19,8 @@ class VocabularyService:
     async def add_to_vocabulary(
         db: AsyncSession,
         user_id: int,
-        translation_id: int
+        translation_id: int,
+        category_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Add a translation to user's vocabulary for learning.
@@ -37,7 +38,7 @@ class VocabularyService:
         """
         try:
             vocabulary = await VocabularyRepository.create_vocabulary(
-                db, user_id, translation_id
+                db, user_id, translation_id, category_id
             )
             return {
                 "success": True,
@@ -130,7 +131,9 @@ class VocabularyService:
             source_text=translation.source_text,
             translated_text=translation.translated_text,
             translation_type=translation.translation_type,
-            translation_created_at=translation.created_at
+            translation_created_at=translation.created_at,
+            category_id=vocabulary.category_id,
+            category=vocabulary.category_rel.name if vocabulary.category_rel else "Chưa phân loại"
         )
     
     @staticmethod
@@ -188,7 +191,9 @@ class VocabularyService:
                     source_text=translation.source_text,
                     translated_text=translation.translated_text,
                     translation_type=translation.translation_type,
-                    translation_created_at=translation.created_at
+                    translation_created_at=translation.created_at,
+                    category_id=vocab.category_id,
+                    category=vocab.category_rel.name if vocab.category_rel else "Chưa phân loại"
                 )
                 items.append(detail)
             except Exception as e:
@@ -349,6 +354,8 @@ class VocabularyService:
             translated_text=translation.translated_text,
             translation_type=translation.translation_type,
             translation_created_at=translation.created_at,
+            category_id=vocabulary.category_id,
+            category=vocabulary.category_rel.name if vocabulary.category_rel else "Chưa phân loại"
         )
     
     @staticmethod

@@ -19,6 +19,9 @@ class VocabularyModel {
   /// Defaults to "Chưa phân loại" when not set.
   @Index()
   late String category;
+  
+  /// Backend category ID
+  int? categoryId;
 
   /// Whether the user has starred/favorited this word.
   late bool isStarred;
@@ -56,6 +59,7 @@ class VocabularyModel {
     required this.createdAt,
     required this.updatedAt,
     this.category = 'Chưa phân loại',
+    this.categoryId,
     this.isStarred = false,
     this.pronunciation,
     this.example,
@@ -77,6 +81,7 @@ class VocabularyModel {
       sourceLanguage: sourceLanguage,
       targetLanguage: targetLanguage,
       category: category,
+      categoryId: categoryId,
       isStarred: isStarred,
       pronunciation: pronunciation,
       example: example,
@@ -98,6 +103,7 @@ class VocabularyModel {
       sourceLanguage: entity.sourceLanguage,
       targetLanguage: entity.targetLanguage,
       category: entity.category,
+      categoryId: entity.categoryId,
       isStarred: entity.isStarred,
       pronunciation: entity.pronunciation,
       example: entity.example,
@@ -119,6 +125,7 @@ class VocabularyModel {
       sourceLanguage: json['source_language'] as String,
       targetLanguage: json['target_language'] as String,
       category: json['category'] as String? ?? 'Chưa phân loại',
+      categoryId: json['category_id'] as int?,
       isStarred: json['is_starred'] as bool? ?? false,
       pronunciation: json['pronunciation'] as String?,
       example: json['example'] as String?,
@@ -142,6 +149,7 @@ class VocabularyModel {
       'source_language': sourceLanguage,
       'target_language': targetLanguage,
       'category': category,
+      'category_id': categoryId,
       'is_starred': isStarred,
       'pronunciation': pronunciation,
       'example': example,

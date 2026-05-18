@@ -11,6 +11,7 @@ import 'package:frontend/core/audio_recorder/bloc/recording_state.dart';
 import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.dart';
+import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 import 'package:frontend/injection_container.dart';
 
 // ---------------------------------------------------------------------------
@@ -449,7 +450,9 @@ class _VoiceSheetState extends State<_VoiceSheet>
             color: Colors.white, bgColor: AppTheme.secondaryColor,
             onTap: () {
               final state = speechState as SpeechSuccess;
-              context.read<VocabularyCubit>().saveVocabulary(
+              showSaveVocabularyDialog(
+                context: context,
+                cubit: context.read<VocabularyCubit>(),
                 word: state.recognisedText,
                 translation: state.translatedText,
                 sourceLanguage: state.srcLang,

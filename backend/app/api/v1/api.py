@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, auth, languages, translation, translate, images, users, audio, vocabulary, learning, sync
-
+from app.api.v1.endpoints import health, auth, languages, translation, translate, images, users, audio, vocabulary, learning, sync, vocabulary_categories
 
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
@@ -13,5 +12,6 @@ api_router.include_router(translate.router)
 api_router.include_router(images.router)
 api_router.include_router(audio.router)
 api_router.include_router(vocabulary.router)
+api_router.include_router(vocabulary_categories.router)
 api_router.include_router(learning.router)
 api_router.include_router(sync.router)

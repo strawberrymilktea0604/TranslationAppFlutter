@@ -15,6 +15,9 @@ class VocabularyEntity extends Equatable {
 
   /// Category for flashcard grouping (e.g. "Weather", "Medical Health").
   final String category;
+  
+  /// Backend ID of the category.
+  final int? categoryId;
 
   /// Whether the user has starred/favorited this word.
   final bool isStarred;
@@ -49,6 +52,7 @@ class VocabularyEntity extends Equatable {
     required this.updatedAt,
     this.isarId = 0,
     this.category = 'Chưa phân loại',
+    this.categoryId,
     this.isStarred = false,
     this.pronunciation,
     this.example,
@@ -68,6 +72,7 @@ class VocabularyEntity extends Equatable {
     sourceLanguage,
     targetLanguage,
     category,
+    categoryId,
     isStarred,
     pronunciation,
     example,

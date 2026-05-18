@@ -38,6 +38,8 @@ class VocabularyCubit extends Cubit<VocabularyState> {
     required String translation,
     required String sourceLanguage,
     required String targetLanguage,
+    String category = 'Chưa phân loại',
+    int? categoryId,
   }) async {
     emit(const VocabularySaving());
 
@@ -47,6 +49,8 @@ class VocabularyCubit extends Cubit<VocabularyState> {
         translation: translation,
         sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
+        category: category,
+        categoryId: categoryId,
       ),
     );
 

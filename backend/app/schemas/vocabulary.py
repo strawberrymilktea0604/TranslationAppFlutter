@@ -12,6 +12,7 @@ class VocabularyCreate(BaseModel):
         ...,
         description="ID of the translation to add to vocabulary"
     )
+    category_id: Optional[int] = Field(None, description="Category ID for flashcard grouping")
 
 
 class VocabularyCreateMultiple(BaseModel):
@@ -50,6 +51,8 @@ class VocabularyDetailResponse(BaseModel):
     user_id: int
     translation_id: int
     is_deleted: bool = False
+    category_id: Optional[int] = Field(None, description="Category ID")
+    category: str = Field("Chưa phân loại", description="Category name")
     mastery_level: int = Field(0, description="Learning mastery level 0–5")
     last_tested_at: Optional[datetime] = Field(None, description="When this card was last tested")
     created_at: Optional[datetime] = None

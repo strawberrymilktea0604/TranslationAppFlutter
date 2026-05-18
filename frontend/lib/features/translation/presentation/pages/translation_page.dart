@@ -20,6 +20,7 @@ import 'package:frontend/features/translation/presentation/bloc/translation_stat
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.dart';
 import 'package:frontend/features/vocabulary/presentation/pages/vocabulary_page.dart';
+import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 import 'package:frontend/features/learning/presentation/pages/learning_dashboard_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -201,7 +202,9 @@ class _TranslationViewState extends State<_TranslationView>
     final translatedText = translationState.translation.translatedText;
     if (sourceText.isEmpty || translatedText.isEmpty) return;
 
-    context.read<VocabularyCubit>().saveVocabulary(
+    showSaveVocabularyDialog(
+      context: context,
+      cubit: context.read<VocabularyCubit>(),
       word: sourceText,
       translation: translatedText,
       sourceLanguage: _srcCode == 'auto' ? 'en' : _srcCode,

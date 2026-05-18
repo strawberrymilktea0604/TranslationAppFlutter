@@ -84,6 +84,8 @@ class PaddleOCRService:
                 return cls._ocr_instances[lang]
 
             try:
+                import os
+                os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
                 from paddleocr import PaddleOCR
 
                 logger.info(f"🔄 Initializing PaddleOCR engine for lang='{lang}' ...")
@@ -93,6 +95,7 @@ class PaddleOCRService:
                     lang=lang,            # Language model
                     show_log=False,       # Suppress PaddlePaddle logs
                     use_gpu=False,        # CPU mode
+                    enable_mkldnn=False,  # Fix: could not create a primitive descriptor for a reorder primitive
                 )
 
                 cls._ocr_instances[lang] = ocr

@@ -27,73 +27,78 @@ const VocabularyModelSchema = CollectionSchema(
       name: r'category',
       type: IsarType.string,
     ),
-    r'createdAt': PropertySchema(
+    r'categoryId': PropertySchema(
       id: 2,
+      name: r'categoryId',
+      type: IsarType.long,
+    ),
+    r'createdAt': PropertySchema(
+      id: 3,
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
     r'example': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'example',
       type: IsarType.string,
     ),
     r'isDeleted': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'isDeleted',
       type: IsarType.bool,
     ),
     r'isStarred': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'isStarred',
       type: IsarType.bool,
     ),
     r'isSynced': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'isSynced',
       type: IsarType.bool,
     ),
     r'lastTestedAt': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'lastTestedAt',
       type: IsarType.dateTime,
     ),
     r'masteryLevel': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'masteryLevel',
       type: IsarType.long,
     ),
     r'pronunciation': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'pronunciation',
       type: IsarType.string,
     ),
     r'sourceLanguage': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'sourceLanguage',
       type: IsarType.string,
     ),
     r'targetLanguage': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'targetLanguage',
       type: IsarType.string,
     ),
     r'translation': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'translation',
       type: IsarType.string,
     ),
     r'translationId': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'translationId',
       type: IsarType.long,
     ),
     r'updatedAt': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
     r'word': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'word',
       type: IsarType.string,
     )
@@ -187,20 +192,21 @@ void _vocabularyModelSerialize(
 ) {
   writer.writeString(offsets[0], object.backendId);
   writer.writeString(offsets[1], object.category);
-  writer.writeDateTime(offsets[2], object.createdAt);
-  writer.writeString(offsets[3], object.example);
-  writer.writeBool(offsets[4], object.isDeleted);
-  writer.writeBool(offsets[5], object.isStarred);
-  writer.writeBool(offsets[6], object.isSynced);
-  writer.writeDateTime(offsets[7], object.lastTestedAt);
-  writer.writeLong(offsets[8], object.masteryLevel);
-  writer.writeString(offsets[9], object.pronunciation);
-  writer.writeString(offsets[10], object.sourceLanguage);
-  writer.writeString(offsets[11], object.targetLanguage);
-  writer.writeString(offsets[12], object.translation);
-  writer.writeLong(offsets[13], object.translationId);
-  writer.writeDateTime(offsets[14], object.updatedAt);
-  writer.writeString(offsets[15], object.word);
+  writer.writeLong(offsets[2], object.categoryId);
+  writer.writeDateTime(offsets[3], object.createdAt);
+  writer.writeString(offsets[4], object.example);
+  writer.writeBool(offsets[5], object.isDeleted);
+  writer.writeBool(offsets[6], object.isStarred);
+  writer.writeBool(offsets[7], object.isSynced);
+  writer.writeDateTime(offsets[8], object.lastTestedAt);
+  writer.writeLong(offsets[9], object.masteryLevel);
+  writer.writeString(offsets[10], object.pronunciation);
+  writer.writeString(offsets[11], object.sourceLanguage);
+  writer.writeString(offsets[12], object.targetLanguage);
+  writer.writeString(offsets[13], object.translation);
+  writer.writeLong(offsets[14], object.translationId);
+  writer.writeDateTime(offsets[15], object.updatedAt);
+  writer.writeString(offsets[16], object.word);
 }
 
 VocabularyModel _vocabularyModelDeserialize(
@@ -212,20 +218,21 @@ VocabularyModel _vocabularyModelDeserialize(
   final object = VocabularyModel(
     backendId: reader.readString(offsets[0]),
     category: reader.readStringOrNull(offsets[1]) ?? 'Chưa phân loại',
-    createdAt: reader.readDateTime(offsets[2]),
-    example: reader.readStringOrNull(offsets[3]),
-    isDeleted: reader.readBoolOrNull(offsets[4]) ?? false,
-    isStarred: reader.readBoolOrNull(offsets[5]) ?? false,
-    isSynced: reader.readBoolOrNull(offsets[6]) ?? false,
-    lastTestedAt: reader.readDateTimeOrNull(offsets[7]),
-    masteryLevel: reader.readLongOrNull(offsets[8]) ?? 0,
-    pronunciation: reader.readStringOrNull(offsets[9]),
-    sourceLanguage: reader.readString(offsets[10]),
-    targetLanguage: reader.readString(offsets[11]),
-    translation: reader.readString(offsets[12]),
-    translationId: reader.readLongOrNull(offsets[13]),
-    updatedAt: reader.readDateTime(offsets[14]),
-    word: reader.readString(offsets[15]),
+    categoryId: reader.readLongOrNull(offsets[2]),
+    createdAt: reader.readDateTime(offsets[3]),
+    example: reader.readStringOrNull(offsets[4]),
+    isDeleted: reader.readBoolOrNull(offsets[5]) ?? false,
+    isStarred: reader.readBoolOrNull(offsets[6]) ?? false,
+    isSynced: reader.readBoolOrNull(offsets[7]) ?? false,
+    lastTestedAt: reader.readDateTimeOrNull(offsets[8]),
+    masteryLevel: reader.readLongOrNull(offsets[9]) ?? 0,
+    pronunciation: reader.readStringOrNull(offsets[10]),
+    sourceLanguage: reader.readString(offsets[11]),
+    targetLanguage: reader.readString(offsets[12]),
+    translation: reader.readString(offsets[13]),
+    translationId: reader.readLongOrNull(offsets[14]),
+    updatedAt: reader.readDateTime(offsets[15]),
+    word: reader.readString(offsets[16]),
   );
   object.id = id;
   return object;
@@ -243,32 +250,34 @@ P _vocabularyModelDeserializeProp<P>(
     case 1:
       return (reader.readStringOrNull(offset) ?? 'Chưa phân loại') as P;
     case 2:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 3:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 4:
-      return (reader.readBoolOrNull(offset) ?? false) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 5:
       return (reader.readBoolOrNull(offset) ?? false) as P;
     case 6:
       return (reader.readBoolOrNull(offset) ?? false) as P;
     case 7:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readBoolOrNull(offset) ?? false) as P;
     case 8:
-      return (reader.readLongOrNull(offset) ?? 0) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 9:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readLongOrNull(offset) ?? 0) as P;
     case 10:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 11:
       return (reader.readString(offset)) as P;
     case 12:
       return (reader.readString(offset)) as P;
     case 13:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 14:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 15:
+      return (reader.readDateTime(offset)) as P;
+    case 16:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -885,6 +894,80 @@ extension VocabularyModelQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'category',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
+      categoryIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'categoryId',
+      ));
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
+      categoryIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'categoryId',
+      ));
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
+      categoryIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'categoryId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
+      categoryIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'categoryId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
+      categoryIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'categoryId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterFilterCondition>
+      categoryIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'categoryId',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
       ));
     });
   }
@@ -2181,6 +2264,20 @@ extension VocabularyModelQuerySortBy
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
+      sortByCategoryId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'categoryId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
+      sortByCategoryIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'categoryId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
       sortByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
@@ -2402,6 +2499,20 @@ extension VocabularyModelQuerySortThenBy
       thenByCategoryDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'category', Sort.desc);
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
+      thenByCategoryId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'categoryId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QAfterSortBy>
+      thenByCategoryIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'categoryId', Sort.desc);
     });
   }
 
@@ -2629,6 +2740,13 @@ extension VocabularyModelQueryWhereDistinct
   }
 
   QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
+      distinctByCategoryId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'categoryId');
+    });
+  }
+
+  QueryBuilder<VocabularyModel, VocabularyModel, QDistinct>
       distinctByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'createdAt');
@@ -2747,6 +2865,12 @@ extension VocabularyModelQueryProperty
   QueryBuilder<VocabularyModel, String, QQueryOperations> categoryProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'category');
+    });
+  }
+
+  QueryBuilder<VocabularyModel, int?, QQueryOperations> categoryIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'categoryId');
     });
   }
 

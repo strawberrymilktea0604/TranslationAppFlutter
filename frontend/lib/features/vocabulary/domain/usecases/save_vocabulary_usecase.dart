@@ -24,6 +24,7 @@ class SaveVocabularyUseCase
       sourceLanguage: params.sourceLanguage,
       targetLanguage: params.targetLanguage,
       category: params.category,
+      categoryId: params.categoryId,
       translationId: params.translationId,
     );
   }
@@ -36,6 +37,7 @@ class SaveVocabularyParams extends Equatable {
   final String sourceLanguage;
   final String targetLanguage;
   final String category;
+  final int? categoryId;
   final int? translationId;
 
   const SaveVocabularyParams({
@@ -44,6 +46,7 @@ class SaveVocabularyParams extends Equatable {
     required this.sourceLanguage,
     required this.targetLanguage,
     this.category = 'Chưa phân loại',
+    this.categoryId,
     this.translationId,
   });
 
@@ -54,6 +57,7 @@ class SaveVocabularyParams extends Equatable {
         sourceLanguage,
         targetLanguage,
         category,
+        categoryId,
         translationId,
       ];
 }

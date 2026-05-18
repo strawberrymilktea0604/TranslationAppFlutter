@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
@@ -79,22 +80,28 @@ class ApiUrlResolver {
     final subnet = ipParts.join('.');
     log('Bắt đầu quét mạng LAN trên dải: $subnet.x:$port...', name: 'ApiUrlResolver');
 
-    // 3. Tạo danh sách các tác vụ kết nối đồng thời để quét nhanh gọn
-    final List<Future<String?>> scanTasks = [];
-    
+    // 3. Quét đồng thời, trả về ngay khi có IP đầu tiên phản hồi
+    final completer = Completer<String?>();
+    int pending = 253; // 254 - 1 (deviceIp)
+
     for (int i = 1; i <= 254; i++) {
       final targetIp = '$subnet.$i';
-      if (targetIp == deviceIp) continue; // Bỏ qua IP của chính điện thoại
-      scanTasks.add(_pingIp(targetIp, port, apiPrefix));
+      if (targetIp == deviceIp) continue;
+      
+      _pingIp(targetIp, port, apiPrefix).then((url) {
+        if (url != null && !completer.isCompleted) {
+          completer.complete(url);
+        } else {
+          pending--;
+          if (pending == 0 && !completer.isCompleted) {
+            completer.complete(null);
+          }
+        }
+      });
     }
 
-    // 4. Chờ kết quả và lấy IP đầu tiên phản hồi
-    final results = await Future.wait(scanTasks);
-    try {
-      return results.firstWhere((url) => url != null, orElse: () => null);
-    } catch (_) {
-      return null;
-    }
+    // Nếu timeout tổng cộng 1.5s chưa xong thì trả về null luôn để tránh treo
+    return await completer.future.timeout(const Duration(milliseconds: 1500), onTimeout: () => null);
   }
 
   /// Thử mở socket kết nối. Timeout ngắn (300ms) để quét lướt qua nhanh.
