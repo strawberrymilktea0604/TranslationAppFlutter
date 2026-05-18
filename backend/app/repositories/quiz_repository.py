@@ -2,7 +2,8 @@
 Quiz Repository - Data access layer for UserQuiz operations.
 """
 import logging
-from typing import List, Tuple
+from datetime import datetime, timezone
+from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -32,7 +33,8 @@ class QuizRepository:
         user_id: int,
         bank_id: int,
         answers: List[UserAnswerItem],
-        completion_time_seconds: int,
+        completion_time_seconds: Optional[int] = None,
+        time_spent_seconds: Optional[int] = None,
     ) -> Tuple[UserQuiz, List[QuizAnswerResult]]:
         """
         Grade user answers against the correct answers stored in the DB,
@@ -44,13 +46,15 @@ class QuizRepository:
             user_id: Authenticated user ID.
             bank_id: ID of the QuestionBank being submitted.
             answers: List of UserAnswerItem (question_id + selected_answer).
-            completion_time_seconds: Elapsed time in seconds.
+            completion_time_seconds: Legacy elapsed time field.
+            time_spent_seconds: Canonical elapsed time field (preferred).
 
         Returns:
             Tuple of (UserQuiz ORM instance, list of QuizAnswerResult).
 
         Raises:
-            ValueError: If the question bank is not found or has no questions.
+            ValueError: Prefixed with "not_found:" or "bad_request:" so the
+                        endpoint can map to the correct HTTP status.
         """
         # 1. Load the bank with its active questions
         bank_result = await db.execute(
@@ -64,19 +68,49 @@ class QuizRepository:
         bank = bank_result.scalar_one_or_none()
 
         if bank is None:
-            raise ValueError(f"Question bank {bank_id} not found")
+            raise ValueError(f"not_found:Question bank {bank_id} not found")
 
         active_questions: List[Question] = [
             q for q in bank.questions if not q.is_deleted
         ]
 
         if not active_questions:
-            raise ValueError(f"Question bank {bank_id} contains no active questions")
+            raise ValueError(
+                f"not_found:Question bank {bank_id} contains no active questions"
+            )
 
-        # 2. Build a lookup map {question_id -> correct_answer}
+        # 2. Validate the submitted answer set
+        active_ids = {q.id for q in active_questions}
+        submitted_ids = [a.question_id for a in answers]
+
+        # a) Duplicate question IDs
+        seen: set = set()
+        duplicates = {qid for qid in submitted_ids if qid in seen or seen.add(qid)}  # type: ignore[func-returns-value]
+        if duplicates:
+            raise ValueError(
+                f"bad_request:Duplicate answers for question IDs: {sorted(duplicates)}"
+            )
+
+        submitted_id_set = set(submitted_ids)
+
+        # b) Unknown question IDs
+        unknown = submitted_id_set - active_ids
+        if unknown:
+            raise ValueError(
+                f"bad_request:Unknown question IDs for this bank: {sorted(unknown)}"
+            )
+
+        # c) Missing answers for active questions
+        missing = active_ids - submitted_id_set
+        if missing:
+            raise ValueError(
+                f"bad_request:Missing answers for question IDs: {sorted(missing)}"
+            )
+
+        # 3. Build a lookup map {question_id -> correct_answer}
         correct_map = {q.id: q.correct_answer for q in active_questions}
 
-        # 3. Grade each submitted answer
+        # 4. Grade each submitted answer
         results: List[QuizAnswerResult] = []
         correct_count = 0
 
@@ -97,20 +131,29 @@ class QuizRepository:
                 )
             )
 
-        # 4. Calculate percentage score
+        # 5. Calculate percentage score
         total_questions = len(active_questions)
         score = round((correct_count / total_questions) * 100, 2) if total_questions else 0.0
 
-        # 5. Determine status
-        status = "completed"
+        # 6. Resolve timing — prefer the new canonical field
+        resolved_time = time_spent_seconds if time_spent_seconds is not None else completion_time_seconds
 
-        # 6. Persist to user_quizzes
+        # 7. Persist to user_quizzes
+        now_utc = datetime.now(timezone.utc)
         quiz = UserQuiz(
             user_id=user_id,
             bank_id=bank_id,
             score=score,
-            completion_time_seconds=completion_time_seconds,
-            status=status,
+            # Legacy field kept populated for backward compat
+            completion_time_seconds=(
+                completion_time_seconds if completion_time_seconds is not None else resolved_time
+            ),
+            # New canonical fields
+            time_spent_seconds=resolved_time,
+            total_questions=total_questions,
+            correct_answers=correct_count,
+            submitted_at=now_utc,
+            status="completed",
         )
         db.add(quiz)
         await db.commit()
@@ -176,6 +219,9 @@ class QuizRepository:
                 bank_title=bank_title,
                 score=quiz.score,
                 completion_time_seconds=quiz.completion_time_seconds,
+                time_spent_seconds=quiz.time_spent_seconds,
+                total_questions=quiz.total_questions,
+                correct_answers=quiz.correct_answers,
                 status=quiz.status,
                 created_at=quiz.created_at,
             )

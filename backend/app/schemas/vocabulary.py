@@ -24,10 +24,10 @@ class VocabularyCreateMultiple(BaseModel):
     )
 
 
-class VocabularyUpdate(BaseModel):
-    """Request schema for updating vocabulary entries (future use for tags, notes, etc.)"""
-    # Placeholder for future fields like tags, learning_level, last_reviewed_at, etc.
-    pass
+class VocabularyProgressUpdate(BaseModel):
+    """Request schema for updating vocabulary learning progress via PATCH."""
+    mastery_level: Optional[int] = Field(None, ge=0, le=5, description="Mastery level 0–5")
+    last_tested_at: Optional[datetime] = Field(None, description="When the flashcard was last tested")
 
 
 class VocabularyResponse(BaseModel):
@@ -45,15 +45,17 @@ class VocabularyResponse(BaseModel):
 class VocabularyDetailResponse(BaseModel):
     """Response schema for vocabulary entry with translation details"""
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     user_id: int
     translation_id: int
     is_deleted: bool = False
+    mastery_level: int = Field(0, description="Learning mastery level 0–5")
+    last_tested_at: Optional[datetime] = Field(None, description="When this card was last tested")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    
-    # Translation details embedded
+
+    # Translation details embedded (via join in service layer)
     source_language: str = Field(..., description="Source language code")
     target_language: str = Field(..., description="Target language code")
     source_text: str = Field(..., description="Original text in source language")

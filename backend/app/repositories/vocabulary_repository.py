@@ -416,4 +416,76 @@ class VocabularyRepository:
         vocabularies = result.scalars().all()
         return vocabularies, total
 
+    @staticmethod
+    async def exists_for_any_user(
+        db: AsyncSession,
+        vocabulary_id: int,
+    ) -> bool:
+        """
+        Check whether a vocabulary entry exists (regardless of owner).
+        Used to distinguish 403 Forbidden from 404 Not Found.
 
+        Args:
+            db: Database session
+            vocabulary_id: Vocabulary ID to check
+
+        Returns:
+            True if the entry exists and is not soft-deleted.
+        """
+        result = await db.execute(
+            select(Vocabulary.id).filter(
+                Vocabulary.id == vocabulary_id,
+                Vocabulary.is_deleted.is_(False)
+            )
+        )
+        return result.scalar() is not None
+
+    @staticmethod
+    async def update_vocabulary_progress(
+        db: AsyncSession,
+        vocabulary_id: int,
+        user_id: int,
+        mastery_level: Optional[int] = None,
+        last_tested_at: Optional[object] = None,
+    ) -> Optional["Vocabulary"]:
+        """
+        Update learning-progress fields on a vocabulary entry.
+
+        Args:
+            db: Database session
+            vocabulary_id: Vocabulary ID
+            user_id: Owner user ID for authorization
+            mastery_level: New mastery level (0-5), or None to leave unchanged.
+            last_tested_at: New last-tested timestamp, or None to leave unchanged.
+
+        Returns:
+            Updated Vocabulary instance, or None if not found / wrong owner.
+        """
+        result = await db.execute(
+            select(Vocabulary).filter(
+                and_(
+                    Vocabulary.id == vocabulary_id,
+                    Vocabulary.user_id == user_id,
+                    Vocabulary.is_deleted.is_(False)
+                )
+            )
+        )
+        vocabulary = result.scalars().first()
+
+        if not vocabulary:
+            return None
+
+        if mastery_level is not None:
+            vocabulary.mastery_level = mastery_level
+        if last_tested_at is not None:
+            vocabulary.last_tested_at = last_tested_at
+
+        await db.commit()
+        await db.refresh(vocabulary)
+
+        logger.info(
+            "✅ Vocabulary progress updated (ID: %s, User: %s)",
+            vocabulary_id,
+            user_id,
+        )
+        return vocabulary

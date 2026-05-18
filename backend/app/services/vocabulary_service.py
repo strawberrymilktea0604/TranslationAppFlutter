@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.translation import Vocabulary, Translation
 from app.repositories.vocabulary_repository import VocabularyRepository
-from app.schemas.vocabulary import VocabularyDetailResponse, VocabularyListResponse
+from app.schemas.vocabulary import VocabularyDetailResponse, VocabularyListResponse, VocabularyProgressUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -91,35 +91,38 @@ class VocabularyService:
     ) -> VocabularyDetailResponse:
         """
         Get detailed vocabulary entry with translation information.
-        
-        Args:
-            db: Database session
-            vocabulary_id: Vocabulary ID
-            user_id: User ID for authorization
-        
-        Returns:
-            VocabularyDetailResponse
-        
+
         Raises:
-            ValueError: If vocabulary not found
+            PermissionError: If vocabulary exists but belongs to another user (→ 403).
+            ValueError: If vocabulary does not exist (→ 404).
         """
         vocabulary = await VocabularyRepository.get_vocabulary_by_id(
             db, vocabulary_id, user_id
         )
-        
+
         if not vocabulary:
+            # Distinguish: does the record exist at all?
+            exists = await VocabularyRepository.exists_for_any_user(db, vocabulary_id)
+            if exists:
+                raise PermissionError(
+                    f"Vocabulary entry {vocabulary_id} belongs to another user"
+                )
             raise ValueError(f"Vocabulary entry {vocabulary_id} not found")
-        
+
         # Get translation details
         translation = vocabulary.translation
         if not translation:
-            raise ValueError(f"Associated translation not found for vocabulary {vocabulary_id}")
-        
+            raise ValueError(
+                f"Associated translation not found for vocabulary {vocabulary_id}"
+            )
+
         return VocabularyDetailResponse(
             id=vocabulary.id,
             user_id=vocabulary.user_id,
             translation_id=vocabulary.translation_id,
             is_deleted=vocabulary.is_deleted,
+            mastery_level=vocabulary.mastery_level or 0,
+            last_tested_at=vocabulary.last_tested_at,
             created_at=vocabulary.created_at,
             updated_at=vocabulary.updated_at,
             source_language=translation.source_language,
@@ -176,6 +179,8 @@ class VocabularyService:
                     user_id=vocab.user_id,
                     translation_id=vocab.translation_id,
                     is_deleted=vocab.is_deleted,
+                    mastery_level=vocab.mastery_level or 0,
+                    last_tested_at=vocab.last_tested_at,
                     created_at=vocab.created_at,
                     updated_at=vocab.updated_at,
                     source_language=translation.source_language,
@@ -276,33 +281,75 @@ class VocabularyService:
         db: AsyncSession,
         vocabulary_id: int,
         user_id: int
-    ) -> Dict[str, Any]:
+    ) -> dict:
         """
         Restore a previously deleted vocabulary entry.
-        
-        Args:
-            db: Database session
-            vocabulary_id: Vocabulary ID
-            user_id: User ID for authorization
-        
-        Returns:
-            Dictionary with result
-        
-        Raises:
-            ValueError: If vocabulary not found
         """
         success = await VocabularyRepository.restore_vocabulary(
             db, vocabulary_id, user_id
         )
-        
+
         if not success:
             raise ValueError(f"Deleted vocabulary entry {vocabulary_id} not found")
-        
+
         return {
             "success": True,
             "message": "Vocabulary entry restored successfully",
             "vocabulary_id": vocabulary_id
         }
+
+    @staticmethod
+    async def update_vocabulary_progress(
+        db: AsyncSession,
+        vocabulary_id: int,
+        user_id: int,
+        update: VocabularyProgressUpdate,
+    ) -> VocabularyDetailResponse:
+        """
+        Apply progress-only updates (mastery_level, last_tested_at) to a vocabulary entry.
+
+        Raises:
+            PermissionError: If the entry exists but belongs to another user (→ 403).
+            ValueError: If the entry does not exist (→ 404).
+        """
+        vocabulary = await VocabularyRepository.update_vocabulary_progress(
+            db,
+            vocabulary_id=vocabulary_id,
+            user_id=user_id,
+            mastery_level=update.mastery_level,
+            last_tested_at=update.last_tested_at,
+        )
+
+        if vocabulary is None:
+            exists = await VocabularyRepository.exists_for_any_user(db, vocabulary_id)
+            if exists:
+                raise PermissionError(
+                    f"Vocabulary entry {vocabulary_id} belongs to another user"
+                )
+            raise ValueError(f"Vocabulary entry {vocabulary_id} not found")
+
+        translation = vocabulary.translation
+        if not translation:
+            raise ValueError(
+                f"Associated translation not found for vocabulary {vocabulary_id}"
+            )
+
+        return VocabularyDetailResponse(
+            id=vocabulary.id,
+            user_id=vocabulary.user_id,
+            translation_id=vocabulary.translation_id,
+            is_deleted=vocabulary.is_deleted,
+            mastery_level=vocabulary.mastery_level or 0,
+            last_tested_at=vocabulary.last_tested_at,
+            created_at=vocabulary.created_at,
+            updated_at=vocabulary.updated_at,
+            source_language=translation.source_language,
+            target_language=translation.target_language,
+            source_text=translation.source_text,
+            translated_text=translation.translated_text,
+            translation_type=translation.translation_type,
+            translation_created_at=translation.created_at,
+        )
     
     @staticmethod
     async def get_user_vocabulary_count(
