@@ -6,6 +6,8 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../auth/data/datasources/auth_local_datasource.dart';
 import '../../../vocabulary/data/datasources/vocabulary_local_datasource.dart';
+import '../../../vocabulary/data/datasources/vocabulary_remote_datasource.dart';
+import '../../../vocabulary/data/models/vocabulary_model.dart';
 import '../../domain/entities/sync_entity.dart';
 import '../../domain/repositories/sync_repository.dart';
 import '../datasources/sync_remote_datasource.dart';
@@ -23,6 +25,7 @@ import '../models/sync_model.dart';
 class SyncRepositoryImpl implements SyncRepository {
   final SyncRemoteDataSource _remoteDataSource;
   final VocabularyLocalDataSource _localDataSource;
+  final VocabularyRemoteDataSource _vocabularyRemoteDataSource;
   final AuthLocalDataSource _authLocalDataSource;
 
   /// Exponential backoff delays in seconds (§5.3).
@@ -31,9 +34,11 @@ class SyncRepositoryImpl implements SyncRepository {
   SyncRepositoryImpl({
     required SyncRemoteDataSource remoteDataSource,
     required VocabularyLocalDataSource localDataSource,
+    required VocabularyRemoteDataSource vocabularyRemoteDataSource,
     required AuthLocalDataSource authLocalDataSource,
   })  : _remoteDataSource = remoteDataSource,
         _localDataSource = localDataSource,
+        _vocabularyRemoteDataSource = vocabularyRemoteDataSource,
         _authLocalDataSource = authLocalDataSource;
 
   @override
@@ -95,8 +100,40 @@ class SyncRepositoryImpl implements SyncRepository {
           await _localDataSource.markSynced(syncedIds);
         }
 
+        // --- PULL SYNC: Overwrite local data with server data ---
+        int page = 1;
+        bool hasNext = true;
+        final serverVocabs = <VocabularyModel>[];
+        final serverIds = <String>{};
+
+        while (hasNext) {
+          final pageData = await _vocabularyRemoteDataSource.getVocabularyList(
+            page: page,
+            accessToken: token,
+          );
+
+          final items = pageData['items'] as List;
+          for (final item in items) {
+            final jsonMap = item as Map<String, dynamic>;
+            final backendId = jsonMap['id'].toString();
+            serverIds.add(backendId);
+            serverVocabs.add(VocabularyModel.fromJson(jsonMap));
+          }
+
+          hasNext = pageData['has_next'] as bool;
+          page++;
+        }
+
+        // Upsert all server records into Isar
+        await _localDataSource.saveAll(serverVocabs);
+        
+        // Delete any local records that are not present in the server's list.
+        // This gracefully handles cases where an admin deletes records from pgAdmin.
+        // If serverIds is empty, this will effectively clear all local synced records.
+        await _localDataSource.deleteNotPresent(serverIds.toList());
+
         developer.log(
-          'Sync completed: ${response.syncedCount} items synced.',
+          'Sync completed: ${response.syncedCount} items pushed, ${serverIds.length} items pulled.',
           name: 'SyncRepository',
         );
 

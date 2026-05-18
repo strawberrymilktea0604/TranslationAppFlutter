@@ -75,6 +75,12 @@ abstract class VocabularyLocalDataSource {
   /// Mark items as synced.
   Future<void> markSynced(List<int> isarIds);
 
+  /// Delete items after sync.
+  Future<void> deleteSynced(List<int> isarIds);
+
+  /// Deletes all vocabularies not present in the valid backend ID list.
+  Future<void> deleteNotPresent(List<String> validBackendIds);
+
   // ---- Question Bank ----
 
   /// All non-deleted question banks.
@@ -289,6 +295,35 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
           await _isar.vocabularyModels.put(item);
         }
       }
+    });
+  }
+
+  @override
+  Future<void> deleteSynced(List<int> isarIds) async {
+    await _isar.writeTxn(() async {
+      await _isar.vocabularyModels.deleteAll(isarIds);
+    });
+  }
+
+  @override
+  Future<void> deleteNotPresent(List<String> validBackendIds) async {
+    await _isar.writeTxn(() async {
+      final List<int> idsToDelete;
+      if (validBackendIds.isEmpty) {
+        // If server has no records, delete all synced records.
+        // We only delete synced ones so we don't accidentally wipe offline records
+        // that haven't been pushed yet (though they should have been pushed earlier).
+        final toDelete = await _isar.vocabularyModels.filter().isSyncedEqualTo(true).findAll();
+        idsToDelete = toDelete.map((e) => e.id).toList();
+      } else {
+        final toDelete = await _isar.vocabularyModels
+            .filter()
+            .not()
+            .anyOf(validBackendIds, (q, String id) => q.backendIdEqualTo(id))
+            .findAll();
+        idsToDelete = toDelete.map((e) => e.id).toList();
+      }
+      await _isar.vocabularyModels.deleteAll(idsToDelete);
     });
   }
 

@@ -13,6 +13,8 @@ import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.
 import 'package:frontend/features/vocabulary/presentation/pages/flashcard_page.dart';
 import 'package:frontend/features/vocabulary/presentation/pages/saved_vocab_tab.dart';
 import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
+import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
+import 'package:frontend/features/sync/presentation/bloc/sync_state.dart';
 import 'package:frontend/injection_container.dart';
 
 /// UC07 — Vocabulary page with two tabs:
@@ -70,31 +72,65 @@ class _VocabularyTabViewState extends State<_VocabularyTabView>
     return Column(
       children: [
         // Tab bar — sits inside the page body, not inside an AppBar
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicator: BoxDecoration(
-              color: AppTheme.primaryColor,
-              borderRadius: BorderRadius.circular(10),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    color: AppTheme.primaryColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: cs.onSurfaceVariant,
+                  labelStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  dividerColor: Colors.transparent,
+                  tabs: const [
+                    Tab(text: 'Lịch sử dịch'),
+                    Tab(text: 'Từ đã lưu'),
+                  ],
+                ),
+              ),
             ),
-            indicatorSize: TabBarIndicatorSize.tab,
-            labelColor: Colors.white,
-            unselectedLabelColor: cs.onSurfaceVariant,
-            labelStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            Padding(
+              padding: const EdgeInsets.only(right: 16, top: 4),
+              child: BlocBuilder<SyncCubit, SyncState>(
+                builder: (context, state) {
+                  final isSyncing = state is SyncSyncing;
+                  return IconButton.filledTonal(
+                    icon: isSyncing 
+                        ? const SizedBox(
+                            width: 18, height: 18, 
+                            child: CircularProgressIndicator(strokeWidth: 2)
+                          ) 
+                        : const Icon(Icons.sync_rounded),
+                    tooltip: 'Đồng bộ',
+                    onPressed: isSyncing
+                        ? null
+                        : () {
+                            context.read<SyncCubit>().requestSync();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Đang đồng bộ dữ liệu...'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                  );
+                },
+              ),
             ),
-            dividerColor: Colors.transparent,
-            tabs: const [
-              Tab(text: 'Lịch sử dịch'),
-              Tab(text: 'Từ đã lưu'),
-            ],
-          ),
+          ],
         ),
         Expanded(
           child: TabBarView(
@@ -319,13 +355,16 @@ class _HistoryCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 // Date
-                Text(
-                  dateStr,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                Expanded(
+                  child: Text(
+                    dateStr,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
                 // Save to vocabulary
                 IconButton(
                   icon: const Icon(Icons.bookmark_add_outlined, size: 18),

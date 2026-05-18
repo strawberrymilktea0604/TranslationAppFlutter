@@ -31,6 +31,7 @@ import 'package:frontend/features/translation/domain/repositories/translation_re
 import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_remote_datasource.dart';
 import 'package:frontend/features/vocabulary/data/repositories/vocabulary_repository_impl.dart';
 import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_repository.dart';
 import 'package:frontend/features/vocabulary/domain/usecases/save_vocabulary_usecase.dart';
@@ -226,6 +227,10 @@ Future<void> initDependencies() async {
     () => VocabularyLocalDataSourceImpl(isar: isarDatabase.isar),
   );
 
+  sl.registerLazySingleton<VocabularyRemoteDataSource>(
+    () => VocabularyRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
   // Repository — all operations go through local Isar DB.
   sl.registerLazySingleton<VocabularyRepository>(
     () => VocabularyRepositoryImpl(localDataSource: sl()),
@@ -375,6 +380,7 @@ Future<void> initDependencies() async {
     () => SyncRepositoryImpl(
       remoteDataSource: sl(),
       localDataSource: sl(),
+      vocabularyRemoteDataSource: sl(),
       authLocalDataSource: sl(),
     ),
   );

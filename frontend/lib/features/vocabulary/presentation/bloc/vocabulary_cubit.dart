@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/usecases/save_vocabulary_usecase.dart';
 import '../../domain/usecases/get_vocabulary_list_usecase.dart';
 import '../../domain/usecases/delete_vocabulary_usecase.dart';
+import '../../../../injection_container.dart';
+import '../../../sync/presentation/bloc/sync_cubit.dart';
 import 'vocabulary_state.dart';
 
 /// Manages vocabulary state.
@@ -56,7 +58,13 @@ class VocabularyCubit extends Cubit<VocabularyState> {
 
     result.fold(
       (failure) => emit(VocabularyFailure(failure.message)),
-      (entity) => emit(VocabularySaveSuccess(entity)),
+      (entity) {
+        emit(VocabularySaveSuccess(entity));
+        // Trigger background sync immediately if online
+        try {
+          sl<SyncCubit>().requestSync();
+        } catch (_) {}
+      },
     );
   }
 
@@ -94,7 +102,13 @@ class VocabularyCubit extends Cubit<VocabularyState> {
 
     result.fold(
       (failure) => emit(VocabularyFailure(failure.message)),
-      (_) => emit(const VocabularyDeleteSuccess()),
+      (_) {
+        emit(const VocabularyDeleteSuccess());
+        // Trigger background sync immediately if online
+        try {
+          sl<SyncCubit>().requestSync();
+        } catch (_) {}
+      },
     );
   }
 }

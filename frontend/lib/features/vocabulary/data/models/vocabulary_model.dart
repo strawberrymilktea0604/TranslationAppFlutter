@@ -119,7 +119,7 @@ class VocabularyModel {
 
   factory VocabularyModel.fromJson(Map<String, dynamic> json) {
     return VocabularyModel(
-      backendId: json['id'] as String,
+      backendId: json['id'].toString(),
       word: json['word'] as String? ?? json['source_text'] as String? ?? '',
       translation: json['translation'] as String? ?? json['translated_text'] as String? ?? '',
       sourceLanguage: json['source_language'] as String,
