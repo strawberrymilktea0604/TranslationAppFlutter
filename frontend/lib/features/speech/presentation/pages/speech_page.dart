@@ -427,9 +427,6 @@ class _VoiceSheetState extends State<_VoiceSheet>
   Widget _buildControls(
       ColorScheme cs, SpeechState speechState, RecordingState recState, bool isTranslating) {
     final isRecording = recState is RecordingInProgress;
-    final isSuccess = speechState is SpeechSuccess;
-    final isFailed = speechState is SpeechFailure;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -443,29 +440,28 @@ class _VoiceSheetState extends State<_VoiceSheet>
             Navigator.of(context).pop();
           },
         ),
-        if (isSuccess) ...[
+        if (speechState is SpeechSuccess) ...[
           const SizedBox(width: 24),
           _ControlBtn(
             icon: Icons.bookmark_add_outlined, label: 'Lưu từ',
             color: Colors.white, bgColor: AppTheme.secondaryColor,
             onTap: () {
-              final state = speechState as SpeechSuccess;
               showSaveVocabularyDialog(
                 context: context,
                 cubit: context.read<VocabularyCubit>(),
-                word: state.recognisedText,
-                translation: state.translatedText,
-                sourceLanguage: state.srcLang,
-                targetLanguage: state.tgtLang,
+                word: speechState.recognisedText,
+                translation: speechState.translatedText,
+                sourceLanguage: speechState.srcLang,
+                targetLanguage: speechState.tgtLang,
               );
             },
           ),
         ],
-        if (isSuccess || isFailed || isRecording)
+        if (speechState is SpeechSuccess || speechState is SpeechFailure || isRecording)
           const SizedBox(width: 24)
         else
           const SizedBox(width: 32),
-        if (isSuccess || isFailed)
+        if (speechState is SpeechSuccess || speechState is SpeechFailure)
           _ControlBtn(
             icon: Icons.refresh_rounded, label: 'Thử lại',
             color: Colors.white, bgColor: AppTheme.primaryColor,

@@ -7,10 +7,7 @@ import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
 import 'package:frontend/features/history/domain/entities/history_entity.dart';
 import 'package:frontend/features/history/presentation/bloc/history_cubit.dart';
 import 'package:frontend/features/history/presentation/bloc/history_state.dart';
-import 'package:frontend/features/vocabulary/domain/entities/vocabulary_entity.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
-import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.dart';
-import 'package:frontend/features/vocabulary/presentation/pages/flashcard_page.dart';
 import 'package:frontend/features/vocabulary/presentation/pages/saved_vocab_tab.dart';
 import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
@@ -308,16 +305,19 @@ class _HistoryCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Sync status
-                if (!entry.isSynced)
-                  Tooltip(
-                    message: 'Chưa đồng bộ',
-                    child: Icon(
-                      Icons.cloud_off_outlined,
-                      size: 16,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                    ),
+                // Sync status icon
+                Tooltip(
+                  message: entry.isSynced ? 'Đã sao lưu' : 'Chưa đồng bộ',
+                  child: Icon(
+                    entry.isSynced
+                        ? Icons.cloud_done_outlined
+                        : Icons.cloud_off_outlined,
+                    size: 16,
+                    color: entry.isSynced
+                        ? cs.primary.withValues(alpha: 0.7)
+                        : cs.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
+                ),
               ],
             ),
             const SizedBox(height: 4),

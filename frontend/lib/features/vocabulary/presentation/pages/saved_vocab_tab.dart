@@ -93,11 +93,11 @@ class _CategoryListWidget extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.category_rounded, size: 80, color: cs.primary.withOpacity(0.4)),
+                    Icon(Icons.category_rounded, size: 80, color: cs.primary.withValues(alpha: 0.4)),
                     const SizedBox(height: 16),
                     Text('Chưa có danh mục nào', style: textTheme.titleMedium?.copyWith(color: cs.onSurfaceVariant)),
                     const SizedBox(height: 8),
-                    Text('Lưu từ vựng để tạo danh mục mới', style: textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant.withOpacity(0.7))),
+                    Text('Lưu từ vựng để tạo danh mục mới', style: textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
                   ],
                 ),
               );
@@ -215,9 +215,42 @@ class _CategoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(category.name, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(
+                      category.name,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text('Nhấn để xem từ vựng và ôn tập', style: textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                    Row(
+                      children: [
+                        Tooltip(
+                          message: category.isSynced
+                              ? 'Đã sao lưu lên database'
+                              : 'Chưa đồng bộ (offline)',
+                          child: Icon(
+                            category.isSynced
+                                ? Icons.cloud_done_outlined
+                                : Icons.cloud_off_outlined,
+                            size: 13,
+                            color: category.isSynced
+                                ? cs.primary.withValues(alpha: 0.7)
+                                : cs.onSurfaceVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          category.isSynced
+                              ? 'Đã sao lưu'
+                              : 'Chưa đồng bộ',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: category.isSynced
+                                ? cs.primary.withValues(alpha: 0.7)
+                                : cs.onSurfaceVariant.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -289,16 +322,74 @@ class _CategoryDetailScreen extends StatelessWidget {
                       itemCount: list.length,
                       itemBuilder: (context, index) {
                         final entry = list[index];
+                        final cs = Theme.of(context).colorScheme;
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
-                            title: Text(entry.word, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(entry.translation, style: TextStyle(color: AppTheme.primaryColor)),
+                            title: Text(
+                              entry.word,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  entry.translation,
+                                  style: TextStyle(
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Tooltip(
+                                      message: entry.isSynced
+                                          ? 'Đã sao lưu lên database'
+                                          : 'Chưa đồng bộ (offline)',
+                                      child: Icon(
+                                        entry.isSynced
+                                            ? Icons.cloud_done_outlined
+                                            : Icons.cloud_off_outlined,
+                                        size: 12,
+                                        color: entry.isSynced
+                                            ? cs.primary.withValues(alpha: 0.7)
+                                            : cs.onSurfaceVariant
+                                                .withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      entry.isSynced
+                                          ? 'Đã sao lưu'
+                                          : 'Chưa đồng bộ',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: entry.isSynced
+                                            ? cs.primary.withValues(alpha: 0.7)
+                                            : cs.onSurfaceVariant
+                                                .withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                             trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                              ),
                               onPressed: () {
-                                context.read<VocabularyCubit>().deleteVocabulary(entry.isarId);
-                                context.read<VocabularyCubit>().loadVocabularyList(category: category.name);
+                                context
+                                    .read<VocabularyCubit>()
+                                    .deleteVocabulary(entry.isarId);
+                                context
+                                    .read<VocabularyCubit>()
+                                    .loadVocabularyList(
+                                      category: category.name,
+                                    );
                               },
                             ),
                           ),

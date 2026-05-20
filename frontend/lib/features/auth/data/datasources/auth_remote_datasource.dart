@@ -181,17 +181,18 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? firstName,
     String? lastName,
   }) async {
-    final response = await client.patch(
-      Uri.parse('$baseUrl/users/me'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $accessToken',
-      },
-      body: jsonEncode({
-        if (firstName != null) 'first_name': firstName,
-        if (lastName != null) 'last_name': lastName,
-      }),
-    );
+      final body = <String, dynamic>{};
+      if (firstName != null) body['first_name'] = firstName;
+      if (lastName != null) body['last_name'] = lastName;
+
+      final response = await client.patch(
+        Uri.parse('$baseUrl/users/me'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode(body),
+      );
     if (response.statusCode == 200) {
       return _decodeBody(response);
     } else {

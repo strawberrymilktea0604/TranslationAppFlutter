@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
 import 'package:frontend/features/vocabulary/domain/entities/vocabulary_entity.dart';
 
