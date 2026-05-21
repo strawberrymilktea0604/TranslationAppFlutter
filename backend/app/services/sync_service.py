@@ -132,7 +132,7 @@ class SyncService:
             await db.flush()
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing_translation.id,
+                server_id=existing_vocab.id,
                 status="created",
             )
 
@@ -156,14 +156,14 @@ class SyncService:
 
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing_translation.id,
+                server_id=existing_vocab.id,
                 status="updated",
             )
         else:
             # ------ Case (d): UNCHANGED ------
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing_translation.id,
+                server_id=existing_vocab.id,
                 status="unchanged",
                 server_updated_at=existing_vocab.updated_at,
             )
@@ -214,6 +214,6 @@ class SyncService:
 
         return SyncVocabularyResultItem(
             client_id=item.client_id,
-            server_id=translation_id,
+            server_id=vocab_id,
             status="created",
         )

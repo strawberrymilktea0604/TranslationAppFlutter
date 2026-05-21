@@ -82,8 +82,8 @@ class SyncRepositoryImpl implements SyncRepository {
           accessToken: token,
         );
 
-        // 4. Mark successfully synced items in Isar.
-        final syncedIds = <int>[];
+        // 4. Mark successfully synced items in Isar and update their backendId.
+        final idMap = <int, String>{};
         for (final result in response.results) {
           if (result.status == 'created' || result.status == 'updated') {
             // Find the local model by clientId (backendId).
@@ -91,13 +91,13 @@ class SyncRepositoryImpl implements SyncRepository {
               (m) => m.backendId == result.clientId,
             );
             if (localModel.isNotEmpty) {
-              syncedIds.add(localModel.first.id);
+              idMap[localModel.first.id] = result.serverId.toString();
             }
           }
         }
 
-        if (syncedIds.isNotEmpty) {
-          await _localDataSource.markSynced(syncedIds);
+        if (idMap.isNotEmpty) {
+          await _localDataSource.markSyncedAndUpdateId(idMap);
         }
 
         // --- PULL SYNC: Overwrite local data with server data ---
