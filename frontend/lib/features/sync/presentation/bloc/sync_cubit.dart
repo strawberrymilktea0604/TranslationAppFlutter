@@ -4,9 +4,12 @@ import 'dart:developer' as developer;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/network/bloc/network_cubit.dart';
+import '../../../../core/network/services/realtime_sync_service.dart';
 import '../../../../core/usecases/usecase.dart';
+import '../../../../features/auth/data/datasources/auth_local_datasource.dart';
 import '../../domain/usecases/sync_data_usecase.dart';
 import 'sync_state.dart';
+import '../../../../injection_container.dart';
 
 /// UC09 — Background Sync Worker.
 ///
@@ -16,6 +19,10 @@ import 'sync_state.dart';
 ///   2. Sends them as a batch to `POST /api/v1/sync/vocabulary`.
 ///   3. Marks them as `isSynced = true` when the BE confirms success.
 ///
+/// Additionally, it opens a WebSocket connection ([RealtimeSyncService])
+/// so the server can push `sync_completed` events in real time.
+/// Flutter tabs subscribe to [syncCompletedStream] to refresh their lists.
+///
 /// The sync is fully automatic — no user interaction required.
 ///
 /// Retry behaviour is handled inside [SyncRepositoryImpl]:
@@ -24,8 +31,15 @@ import 'sync_state.dart';
 class SyncCubit extends Cubit<SyncState> {
   final SyncDataUseCase _syncDataUseCase;
   final NetworkCubit _networkCubit;
+  final RealtimeSyncService _realtimeSyncService;
 
   StreamSubscription<NetworkStatus>? _networkSubscription;
+  StreamSubscription<SyncCompletedEvent>? _wsSubscription;
+
+  /// Broadcast stream of realtime sync events.
+  /// Vocabulary page and History tab listen to this.
+  Stream<SyncCompletedEvent> get syncCompletedStream =>
+      _realtimeSyncService.syncEvents;
 
   /// Guards against overlapping sync cycles.
   bool _isSyncing = false;
@@ -33,10 +47,13 @@ class SyncCubit extends Cubit<SyncState> {
   SyncCubit({
     required SyncDataUseCase syncDataUseCase,
     required NetworkCubit networkCubit,
+    required RealtimeSyncService realtimeSyncService,
   })  : _syncDataUseCase = syncDataUseCase,
         _networkCubit = networkCubit,
+        _realtimeSyncService = realtimeSyncService,
         super(const SyncIdle()) {
     _startListening();
+    _connectWebSocket();
   }
 
   // ------------------------------------------------------------------
@@ -56,8 +73,50 @@ class SyncCubit extends Cubit<SyncState> {
           name: 'SyncCubit',
         );
         _triggerSync();
+        // Re-connect WebSocket if it dropped while offline.
+        _connectWebSocket();
       }
     });
+  }
+
+  // ------------------------------------------------------------------
+  //  WebSocket connection
+  // ------------------------------------------------------------------
+
+  Future<void> _connectWebSocket() async {
+    try {
+      final authLocal = sl<AuthLocalDataSource>();
+      final token = await authLocal.getAccessToken();
+      if (token == null || token.isEmpty) return;
+
+      await _realtimeSyncService.connect(token);
+
+      // Cancel any existing subscription before creating a new one.
+      await _wsSubscription?.cancel();
+      _wsSubscription = _realtimeSyncService.syncEvents.listen(
+        (event) {
+          developer.log(
+            'WS sync_completed received: ${event.syncedCount} items',
+            name: 'SyncCubit',
+          );
+          // Emit a transient SyncSuccess so the VocabularyPage listener
+          // can reload both tabs, then immediately return to idle.
+          if (!isClosed) {
+            emit(SyncSuccess(syncedCount: event.syncedCount, results: const []));
+            emit(const SyncIdle());
+          }
+        },
+        onError: (e) =>
+            developer.log('WS stream error: $e', name: 'SyncCubit'),
+      );
+    } catch (e) {
+      developer.log('WS connect error: $e', name: 'SyncCubit');
+    }
+  }
+
+  /// Call this after a successful login to connect the WebSocket.
+  Future<void> connectWebSocketWithToken(String token) async {
+    await _realtimeSyncService.connect(token);
   }
 
   // ------------------------------------------------------------------
@@ -119,8 +178,10 @@ class SyncCubit extends Cubit<SyncState> {
   // ------------------------------------------------------------------
 
   @override
-  Future<void> close() {
-    _networkSubscription?.cancel();
+  Future<void> close() async {
+    await _networkSubscription?.cancel();
+    await _wsSubscription?.cancel();
+    await _realtimeSyncService.disconnect();
     return super.close();
   }
 }

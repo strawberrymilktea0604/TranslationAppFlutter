@@ -66,6 +66,16 @@ class VocabularyDetailResponse(BaseModel):
     translation_type: Optional[str] = Field(None, description="Type: 'text', 'voice', or 'image'")
     translation_created_at: Optional[datetime] = Field(None, description="When translation was created")
 
+    # Convenience aliases matching the vocabularies table columns.
+    # Flutter VocabularyModel.fromJson reads these directly.
+    @property
+    def word(self) -> str:
+        return self.source_text
+
+    @property
+    def definition(self) -> str:
+        return self.translated_text
+
 
 class VocabularyListResponse(BaseModel):
     """Response schema for list of vocabulary entries with pagination"""

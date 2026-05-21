@@ -121,6 +121,10 @@ class SyncService:
                 translation_id=existing_translation.id,
                 category_id=item.category_id,
                 is_deleted=item.is_deleted,
+                word=item.word,
+                definition=item.translation,
+                source_language=item.source_language,
+                target_language=item.target_language,
                 created_at=item.created_at or now,
                 updated_at=now,
             )
@@ -198,6 +202,10 @@ class SyncService:
             translation_id=translation_id,
             category_id=item.category_id,
             is_deleted=item.is_deleted,
+            word=item.word,
+            definition=item.translation,
+            source_language=item.source_language,
+            target_language=item.target_language,
             created_at=item.created_at or now,
             updated_at=now,
         )
