@@ -67,6 +67,14 @@ class _FlashcardPageState extends State<FlashcardPage> {
               Expanded(
                 child: GestureDetector(
                   onTap: _flipCard,
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity == null) return;
+                    if (details.primaryVelocity! > 300) {
+                      _prevCard();
+                    } else if (details.primaryVelocity! < -300) {
+                      _nextCard();
+                    }
+                  },
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
                     transitionBuilder: (Widget child, Animation<double> animation) {
@@ -113,13 +121,12 @@ class _FlashcardPageState extends State<FlashcardPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 16),
-                          if (!_isFlipped)
-                            TtsIconButton(
-                              text: entry.word,
-                              languageCode: entry.sourceLanguage,
-                              tooltip: 'Phát âm',
-                              iconSize: 32,
-                            ),
+                          TtsIconButton(
+                            text: _isFlipped ? entry.translation : entry.word,
+                            languageCode: _isFlipped ? entry.targetLanguage : entry.sourceLanguage,
+                            tooltip: 'Phát âm',
+                            iconSize: 32,
+                          ),
                           const SizedBox(height: 32),
                           Text(
                             _isFlipped ? 'Chạm để lùi mặt trước' : 'Chạm để xem nghĩa',
