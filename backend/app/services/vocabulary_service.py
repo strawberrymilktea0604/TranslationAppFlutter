@@ -133,7 +133,7 @@ class VocabularyService:
             translation_type=translation.translation_type,
             translation_created_at=translation.created_at,
             category_id=vocabulary.category_id,
-            category=vocabulary.category_rel.name if vocabulary.category_rel else "Chưa phân loại"
+            category=vocabulary.category or (vocabulary.category_rel.name if vocabulary.category_rel else "Chưa phân loại")
         )
     
     @staticmethod
@@ -193,7 +193,7 @@ class VocabularyService:
                     translation_type=translation.translation_type,
                     translation_created_at=translation.created_at,
                     category_id=vocab.category_id,
-                    category=vocab.category_rel.name if vocab.category_rel else "Chưa phân loại"
+                    category=vocab.category or (vocab.category_rel.name if vocab.category_rel else "Chưa phân loại")
                 )
                 items.append(detail)
             except Exception as e:
@@ -355,7 +355,7 @@ class VocabularyService:
             translation_type=translation.translation_type,
             translation_created_at=translation.created_at,
             category_id=vocabulary.category_id,
-            category=vocabulary.category_rel.name if vocabulary.category_rel else "Chưa phân loại"
+            category=vocabulary.category or (vocabulary.category_rel.name if vocabulary.category_rel else "Chưa phân loại")
         )
     
     @staticmethod
