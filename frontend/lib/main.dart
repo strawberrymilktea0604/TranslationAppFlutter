@@ -9,6 +9,7 @@ import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/bloc/tts_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/core/network/bloc/network_cubit.dart';
+import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/l10n/app_localizations.dart';
 
@@ -59,6 +60,9 @@ class MyApp extends StatelessWidget {
         ),
         BlocProvider<NetworkCubit>(create: (_) => sl<NetworkCubit>()),
         BlocProvider<TtsCubit>(create: (_) => sl<TtsCubit>()),
+        // UC09 — Background Sync Worker: auto-syncs when network
+        // transitions to online. Listens to NetworkCubit internally.
+        BlocProvider<SyncCubit>(create: (_) => sl<SyncCubit>()),
       ],
       child: const _AppWithRouter(),
     );

@@ -1,0 +1,227 @@
+"""
+Sync Service — Business logic for offline-first vocabulary synchronisation.
+
+Strategy: Last-Write-Wins based on updated_at (§5.2).
+  1. For each record in batch:
+     a. Find matching server record by (user_id, word, source_language, target_language).
+     b. If NOT found → INSERT new Translation + Vocabulary.
+     c. If found AND client.updated_at > server.updated_at → UPDATE.
+     d. If found AND client.updated_at <= server.updated_at → UNCHANGED,
+        return server data so client can reconcile.
+  2. Return list of results with server_id for each client_id.
+"""
+import logging
+import random
+import time
+from datetime import datetime, timezone
+
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.translation import Translation, Vocabulary
+from app.schemas.sync import (
+    SyncVocabularyItem,
+    SyncVocabularyResultItem,
+    SyncVocabularyResponse,
+)
+
+
+def _generate_snowflake_id() -> int:
+    """Generate a Snowflake-like 64-bit integer ID.
+
+    Matches the pattern used in VocabularyRepository.
+    """
+    return (int(time.time() * 1000) << 22) | random.randint(0, 4194303)
+
+logger = logging.getLogger(__name__)
+
+
+class SyncService:
+    """Handles batch vocabulary synchronisation."""
+
+    @staticmethod
+    async def sync_vocabulary(
+        db: AsyncSession,
+        user_id: int,
+        items: list[SyncVocabularyItem],
+    ) -> SyncVocabularyResponse:
+        """
+        Synchronise a batch of vocabulary records for a user.
+
+        Implements Last-Write-Wins (§5.2).
+        """
+        results: list[SyncVocabularyResultItem] = []
+
+        for item in items:
+            try:
+                result = await SyncService._sync_single_item(
+                    db, user_id, item,
+                )
+                results.append(result)
+            except Exception as exc:
+                logger.error(
+                    "Sync failed for client_id=%s: %s",
+                    item.client_id, exc,
+                )
+                # Skip failed items — the client will retry them next cycle.
+                continue
+
+        await db.commit()
+
+        synced_count = sum(
+            1 for r in results if r.status in ("created", "updated")
+        )
+        return SyncVocabularyResponse(
+            synced_count=synced_count,
+            results=results,
+        )
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    async def _sync_single_item(
+        db: AsyncSession,
+        user_id: int,
+        item: SyncVocabularyItem,
+    ) -> SyncVocabularyResultItem:
+        """Process a single vocabulary item using Last-Write-Wins."""
+        
+        # Sanitize category_id (offline categories have negative IDs in frontend)
+        safe_category_id = item.category_id if item.category_id and item.category_id > 0 else None
+
+        # 1. Try to find an existing Translation owned by this user
+        #    that matches the word + language pair.
+        stmt = select(Translation, Vocabulary).outerjoin(
+            Vocabulary, 
+            and_(Vocabulary.translation_id == Translation.id, Vocabulary.user_id == user_id)
+        ).where(
+            and_(
+                Translation.user_id == user_id,
+                Translation.source_text == item.word,
+                Translation.translated_text == item.translation,
+                Translation.source_language == item.source_language,
+                Translation.target_language == item.target_language,
+            )
+        )
+        result = await db.execute(stmt)
+        row = result.first()
+
+        if row is None:
+            # ------ Case (b): INSERT new record ------
+            return await SyncService._insert_new(db, user_id, item)
+
+        existing_translation, existing_vocab = row
+
+        if existing_vocab is None:
+            # We have a translation, but no vocabulary record yet.
+            vocab_id = _generate_snowflake_id()
+            now = datetime.now(timezone.utc)
+            existing_vocab = Vocabulary(
+                id=vocab_id,
+                user_id=user_id,
+                translation_id=existing_translation.id,
+                category_id=safe_category_id,
+                category=item.category,
+                is_deleted=item.is_deleted,
+                word=item.word,
+                definition=item.translation,
+                source_language=item.source_language,
+                target_language=item.target_language,
+                created_at=item.created_at or now,
+                updated_at=now,
+            )
+            db.add(existing_vocab)
+            await db.flush()
+            return SyncVocabularyResultItem(
+                client_id=item.client_id,
+                server_id=existing_vocab.id,
+                status="created",
+            )
+
+        # Ensure both datetimes are comparable (timezone-aware)
+        server_updated = existing_vocab.updated_at
+        client_updated = item.updated_at
+
+        # Normalise to UTC-aware if naive
+        if server_updated and server_updated.tzinfo is None:
+            server_updated = server_updated.replace(tzinfo=timezone.utc)
+        if client_updated.tzinfo is None:
+            client_updated = client_updated.replace(tzinfo=timezone.utc)
+
+        if client_updated > server_updated:
+            # ------ Case (c): UPDATE ------
+            existing_vocab.is_deleted = item.is_deleted
+            existing_vocab.category_id = safe_category_id
+            existing_vocab.category = item.category
+            existing_vocab.updated_at = datetime.now(timezone.utc)
+            await db.flush()
+            await db.refresh(existing_vocab)
+
+            return SyncVocabularyResultItem(
+                client_id=item.client_id,
+                server_id=existing_vocab.id,
+                status="updated",
+            )
+        else:
+            # ------ Case (d): UNCHANGED ------
+            return SyncVocabularyResultItem(
+                client_id=item.client_id,
+                server_id=existing_vocab.id,
+                status="unchanged",
+                server_updated_at=existing_vocab.updated_at,
+            )
+
+    @staticmethod
+    async def _insert_new(
+        db: AsyncSession,
+        user_id: int,
+        item: SyncVocabularyItem,
+    ) -> SyncVocabularyResultItem:
+        """Insert a brand-new Translation + Vocabulary record."""
+
+        now = datetime.now(timezone.utc)
+        translation_id = _generate_snowflake_id()
+        
+        safe_category_id = item.category_id if item.category_id and item.category_id > 0 else None
+
+        translation = Translation(
+            id=translation_id,
+            user_id=user_id,
+            source_language=item.source_language,
+            target_language=item.target_language,
+            source_text=item.word,
+            translated_text=item.translation,
+            translation_type="text",
+            is_deleted=item.is_deleted,
+            created_at=item.created_at or now,
+            updated_at=now,
+        )
+        db.add(translation)
+        await db.flush()
+
+        # Also create a Vocabulary record linked to this translation.
+        vocab_id = _generate_snowflake_id()
+        vocabulary = Vocabulary(
+            id=vocab_id,
+            user_id=user_id,
+            translation_id=translation_id,
+            category_id=safe_category_id,
+            category=item.category,
+            is_deleted=item.is_deleted,
+            word=item.word,
+            definition=item.translation,
+            source_language=item.source_language,
+            target_language=item.target_language,
+            created_at=item.created_at or now,
+            updated_at=now,
+        )
+        db.add(vocabulary)
+        await db.flush()
+
+        return SyncVocabularyResultItem(
+            client_id=item.client_id,
+            server_id=vocab_id,
+            status="created",
+        )

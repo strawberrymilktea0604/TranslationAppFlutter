@@ -6,10 +6,13 @@ from .user import User, UserToken, UserAiQuota
 from .translation import Translation, Vocabulary
 # Gom model System
 from .system import ApiMetric
+# Gom model Learning
+from .learning import QuestionBank, Question, UserQuiz
 
 __all__ = [
     "Base", 
     "User", "UserToken", "UserAiQuota", 
     "Translation", "Vocabulary", 
-    "ApiMetric"
+    "ApiMetric",
+    "QuestionBank", "Question", "UserQuiz"
 ]

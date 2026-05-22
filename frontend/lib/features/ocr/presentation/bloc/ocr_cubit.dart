@@ -9,6 +9,9 @@ import 'package:frontend/core/image_picker/image_compress_service.dart';
 import 'package:frontend/core/image_picker/image_crop_service.dart';
 import 'package:frontend/features/ocr/domain/usecases/ocr_translate_usecase.dart';
 import 'package:frontend/features/ocr/domain/usecases/retranslate_ocr_text_usecase.dart';
+import 'package:frontend/features/history/domain/entities/history_entity.dart' as frontend_history;
+import 'package:frontend/features/history/domain/repositories/history_repository.dart' as frontend_history;
+import 'package:frontend/injection_container.dart';
 
 part 'ocr_state.dart';
 
@@ -155,6 +158,22 @@ class OcrCubit extends Cubit<OcrState> {
           targetLang: entity.targetLanguage,
           confidence: entity.confidence,
         ));
+
+        // Lưu lịch sử
+        try {
+          final historyEntity = frontend_history.HistoryEntity(
+            isarId: 0,
+            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+            sourceText: entity.extractedText,
+            translatedText: entity.translatedText,
+            sourceLanguage: entity.sourceLanguage,
+            targetLanguage: entity.targetLanguage,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            isSynced: false,
+          );
+          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+        } catch (_) {}
       },
     );
   }
@@ -189,13 +208,31 @@ class OcrCubit extends Cubit<OcrState> {
 
     result.fold(
       (failure) => emit(OcrFailure(failure.message)),
-      (translatedText) => emit(OcrSuccess(
-        extractedText: editedText,
-        translatedText: translatedText,
-        imageBytes: imageBytes,
-        sourceLang: srcLang,
-        targetLang: tgtLang,
-      )),
+      (translatedText) {
+        emit(OcrSuccess(
+          extractedText: editedText,
+          translatedText: translatedText,
+          imageBytes: imageBytes,
+          sourceLang: srcLang,
+          targetLang: tgtLang,
+        ));
+
+        // Lưu lịch sử
+        try {
+          final historyEntity = frontend_history.HistoryEntity(
+            isarId: 0,
+            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+            sourceText: editedText,
+            translatedText: translatedText,
+            sourceLanguage: srcLang,
+            targetLanguage: tgtLang,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            isSynced: false,
+          );
+          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+        } catch (_) {}
+      },
     );
   }
 

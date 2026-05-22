@@ -115,7 +115,8 @@ class OCRService:
                 return result
 
             except PaddleOCRError as e:
-                raise OCRError(str(e)) from e
+                logger.error(f"❌ PaddleOCR failed: {e}. Falling back to Tesseract...")
+                # Fall through to Tesseract below
             except ImportError:
                 logger.warning(
                     "⚠️ PaddleOCR not installed, falling back to Tesseract"

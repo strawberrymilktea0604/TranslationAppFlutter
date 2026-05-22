@@ -1,5 +1,5 @@
-/// Vocabulary Service for Flutter app
-/// Handles API calls to backend vocabulary endpoints
+// Vocabulary Service for Flutter app.
+// Handles API calls to backend vocabulary endpoints.
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;

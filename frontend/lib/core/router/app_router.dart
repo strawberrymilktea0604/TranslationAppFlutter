@@ -16,6 +16,9 @@ import 'package:frontend/features/translation/presentation/pages/translation_pag
 import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
 import 'package:frontend/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:frontend/features/profile/presentation/pages/change_password_page.dart';
+import 'package:frontend/features/learning/presentation/pages/learning_dashboard_page.dart';
+import 'package:frontend/features/learning/presentation/pages/quiz_page.dart';
+import 'package:frontend/features/learning/domain/entities/quiz_question_entity.dart';
 
 /// Route path constants to avoid hardcoded strings.
 class AppRoutes {
@@ -33,6 +36,8 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String editProfile = '/edit-profile';
   static const String changePassword = '/change-password';
+  static const String learning = '/learning';
+  static const String quiz = '/quiz';
 
   // Legacy routes — kept for backward compatibility, all resolve to
   // TranslationPage (the new primary screen).
@@ -82,7 +87,9 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.translate ||
           state.matchedLocation == AppRoutes.guestHome ||
           state.matchedLocation == AppRoutes.authenticatedHome ||
-          state.matchedLocation == AppRoutes.profile;
+          state.matchedLocation == AppRoutes.profile ||
+          state.matchedLocation == AppRoutes.learning ||
+          state.matchedLocation == AppRoutes.quiz;
 
       // Guard: unauthenticated users cannot access protected routes.
       if (!isAuthenticated && !isPublicPage) {
@@ -220,6 +227,38 @@ GoRouter createRouter(BuildContext context) {
           transitionDuration: const Duration(milliseconds: 400),
           transitionsBuilder: _slideUpFade,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.learning,
+        name: 'learning',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const LearningDashboardPage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: _slideUpFade,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.quiz,
+        name: 'quiz',
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final questions = extra['questions'] as List<QuizQuestionEntity>? ?? [];
+          final duration = extra['durationSeconds'] as int? ?? 300;
+          final bankId = extra['bankId'] as String? ?? '';
+          final bankTitle = extra['bankTitle'] as String? ?? 'Quiz';
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: QuizPage(
+              initialQuestions: questions,
+              durationSeconds: duration,
+              bankId: bankId,
+              bankTitle: bankTitle,
+            ),
+            transitionDuration: const Duration(milliseconds: 400),
+            transitionsBuilder: _slideUpFade,
+          );
+        },
       ),
     ],
   );

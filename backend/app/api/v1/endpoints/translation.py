@@ -18,8 +18,6 @@ from app.schemas.translation import (
     TranslationResponse,
     TranslationQuickResponse,
     TranslationListResponse,
-    TranslationSearchRequest,
-    TranslationFilterRequest,
     BulkDeleteRequest,
     BulkDeleteResponse
 )
@@ -133,66 +131,6 @@ async def translate_text(
                 "status": "error",
                 "code": "TRANSLATION_FAILED",
                 "message": "Translation service temporarily unavailable"
-            }
-        )
-
-
-@router.get("/{translation_id}", response_model=SuccessResponse)
-async def get_translation_detail(
-    translation_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """
-    Get detailed information about a specific translation.
-    
-    **Features:**
-    - View full translation details
-    - Authorization check (user can only view their own translations)
-    - Includes timestamps
-    
-    **Path Parameters:**
-    - `translation_id`: Translation ID to retrieve
-    
-    **Example:** GET `/api/v1/translations/12345`
-    
-    Args:
-        translation_id: ID of translation to retrieve
-        db: Database session
-        current_user: Current authenticated user
-    
-    Returns:
-        SuccessResponse with translation details
-    
-    Raises:
-        HTTPException: 404 if translation not found or user unauthorized
-    """
-    try:
-        translation = await TranslationRepository.get_translation_by_id(db, translation_id)
-        
-        if not translation or translation.user_id != current_user.id or translation.is_deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={
-                    "status": "error",
-                    "code": "NOT_FOUND",
-                    "message": "Translation not found"
-                }
-            )
-        
-        response_data = TranslationResponse.model_validate(translation, from_attributes=True)
-        return SuccessResponse(data=response_data)
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to fetch translation detail: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "status": "error",
-                "code": "FETCH_FAILED",
-                "message": "Failed to fetch translation details"
             }
         )
 
@@ -501,6 +439,66 @@ async def get_translation_history(
                 "status": "error",
                 "code": "FETCH_FAILED",
                 "message": "Failed to fetch translation history"
+            }
+        )
+
+
+@router.get("/{translation_id}", response_model=SuccessResponse)
+async def get_translation_detail(
+    translation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get detailed information about a specific translation.
+    
+    **Features:**
+    - View full translation details
+    - Authorization check (user can only view their own translations)
+    - Includes timestamps
+    
+    **Path Parameters:**
+    - `translation_id`: Translation ID to retrieve
+    
+    **Example:** GET `/api/v1/translations/12345`
+    
+    Args:
+        translation_id: ID of translation to retrieve
+        db: Database session
+        current_user: Current authenticated user
+    
+    Returns:
+        SuccessResponse with translation details
+    
+    Raises:
+        HTTPException: 404 if translation not found or user unauthorized
+    """
+    try:
+        translation = await TranslationRepository.get_translation_by_id(db, translation_id)
+        
+        if not translation or translation.user_id != current_user.id or translation.is_deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "status": "error",
+                    "code": "NOT_FOUND",
+                    "message": "Translation not found"
+                }
+            )
+        
+        response_data = TranslationResponse.model_validate(translation, from_attributes=True)
+        return SuccessResponse(data=response_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch translation detail: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "status": "error",
+                "code": "FETCH_FAILED",
+                "message": "Failed to fetch translation details"
             }
         )
 

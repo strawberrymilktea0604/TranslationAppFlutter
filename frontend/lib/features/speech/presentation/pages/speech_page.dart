@@ -9,6 +9,9 @@ import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
 import 'package:frontend/core/audio_recorder/bloc/recording_cubit.dart';
 import 'package:frontend/core/audio_recorder/bloc/recording_state.dart';
 import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.dart';
+import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 import 'package:frontend/injection_container.dart';
 
 // ---------------------------------------------------------------------------
@@ -29,6 +32,7 @@ Future<void> showVoiceTranslationSheet(
       providers: [
         BlocProvider.value(value: context.read<SpeechCubit>()),
         BlocProvider(create: (_) => sl<RecordingCubit>()),
+        BlocProvider(create: (_) => sl<VocabularyCubit>()),
       ],
       child: _VoiceSheet(srcLang: srcLang, tgtLang: tgtLang),
     ),
@@ -101,70 +105,93 @@ class _VoiceSheetState extends State<_VoiceSheet>
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return BlocListener<RecordingCubit, RecordingState>(
-      listener: (context, recState) {
-        // When recording completes, send file to backend for STT+translate
-        if (recState is RecordingSuccess) {
-          context.read<SpeechCubit>().translateAudio(
-            audioFilePath: recState.filePath,
-            srcLang: widget.srcLang,
-            tgtLang: widget.tgtLang,
+    return BlocListener<VocabularyCubit, VocabularyState>(
+      listener: (context, state) {
+        if (state is VocabularySaveSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã lưu "${state.savedEntry.word}"'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: AppTheme.successColor,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        if (state is VocabularyFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi lưu từ vựng: ${state.message}'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: cs.error,
+              duration: const Duration(seconds: 3),
+            ),
           );
         }
       },
-      child: BlocBuilder<SpeechCubit, SpeechState>(
-        builder: (context, speechState) {
-          return BlocBuilder<RecordingCubit, RecordingState>(
-            builder: (context, recState) {
-              final isRecording = recState is RecordingInProgress;
-              final isTranslating = speechState is SpeechTranslating ||
-                  speechState is SpeechRetranslating;
+      child: BlocListener<RecordingCubit, RecordingState>(
+        listener: (context, recState) {
+          if (recState is RecordingSuccess) {
+            context.read<SpeechCubit>().translateAudio(
+              audioFilePath: recState.filePath,
+              srcLang: widget.srcLang,
+              tgtLang: widget.tgtLang,
+            );
+          }
+        },
+        child: BlocBuilder<SpeechCubit, SpeechState>(
+          builder: (context, speechState) {
+            return BlocBuilder<RecordingCubit, RecordingState>(
+              builder: (context, recState) {
+                final isRecording = recState is RecordingInProgress;
+                final isTranslating = speechState is SpeechTranslating ||
+                    speechState is SpeechRetranslating;
 
-              return PopScope(
-                canPop: !isTranslating,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: theme.scaffoldBackgroundColor,
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(28)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.18),
-                        blurRadius: 24, offset: const Offset(0, -4),
+                return PopScope(
+                  canPop: !isTranslating,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.scaffoldBackgroundColor,
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(28)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 24, offset: const Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(width: 40, height: 4,
+                        decoration: BoxDecoration(
+                          color: cs.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
+                      const SizedBox(height: 20),
+                      _buildLangBar(cs, speechState),
+                      const SizedBox(height: 32),
+                      SizedBox(height: 200,
+                        child: _buildVisualiser(cs, isRecording, isTranslating),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildStatusArea(cs, theme, speechState, recState),
+                      const SizedBox(height: 28),
+                      _buildControls(cs, speechState, recState, isTranslating),
+                      const SizedBox(height: 8),
                     ],
                   ),
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 24,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 12),
-                    Container(width: 40, height: 4,
-                      decoration: BoxDecoration(
-                        color: cs.outlineVariant,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildLangBar(cs, speechState),
-                    const SizedBox(height: 32),
-                    SizedBox(height: 200,
-                      child: _buildVisualiser(cs, isRecording, isTranslating),
-                    ),
-                    const SizedBox(height: 24),
-                    _buildStatusArea(cs, theme, speechState, recState),
-                    const SizedBox(height: 28),
-                    _buildControls(cs, speechState, recState, isTranslating),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
+              );
+            },
             );
           },
-          );
-        },
+        ),
       ),
     );
   }
@@ -400,9 +427,6 @@ class _VoiceSheetState extends State<_VoiceSheet>
   Widget _buildControls(
       ColorScheme cs, SpeechState speechState, RecordingState recState, bool isTranslating) {
     final isRecording = recState is RecordingInProgress;
-    final isSuccess = speechState is SpeechSuccess;
-    final isFailed = speechState is SpeechFailure;
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -416,8 +440,28 @@ class _VoiceSheetState extends State<_VoiceSheet>
             Navigator.of(context).pop();
           },
         ),
-        const SizedBox(width: 32),
-        if (isSuccess || isFailed)
+        if (speechState is SpeechSuccess) ...[
+          const SizedBox(width: 24),
+          _ControlBtn(
+            icon: Icons.bookmark_add_outlined, label: 'Lưu từ',
+            color: Colors.white, bgColor: AppTheme.secondaryColor,
+            onTap: () {
+              showSaveVocabularyDialog(
+                context: context,
+                cubit: context.read<VocabularyCubit>(),
+                word: speechState.recognisedText,
+                translation: speechState.translatedText,
+                sourceLanguage: speechState.srcLang,
+                targetLanguage: speechState.tgtLang,
+              );
+            },
+          ),
+        ],
+        if (speechState is SpeechSuccess || speechState is SpeechFailure || isRecording)
+          const SizedBox(width: 24)
+        else
+          const SizedBox(width: 32),
+        if (speechState is SpeechSuccess || speechState is SpeechFailure)
           _ControlBtn(
             icon: Icons.refresh_rounded, label: 'Thử lại',
             color: Colors.white, bgColor: AppTheme.primaryColor,

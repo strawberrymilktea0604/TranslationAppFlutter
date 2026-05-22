@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:frontend/main.dart' show config;
+import 'package:frontend/app_config.dart';
+import 'package:frontend/core/utils/api_url_resolver.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/core/router/app_router.dart';
@@ -79,10 +81,16 @@ class _SplashPageState extends State<SplashPage>
   }
 
   Future<void> _checkServerHealth() async {
-    final healthUrl = Uri.parse(config.apiUrl).replace(path: '/health');
-    while (mounted && !_serverReady) {
+    // Thử kết nối tối đa 3 lần, mỗi lần 2 giây. Nếu thất bại thì vẫn cho vào app (Offline mode).
+    const maxRetries = 3;
+    
+    for (int i = 0; i < maxRetries; i++) {
+      if (!mounted) return;
+      
       try {
-        final response = await http.get(healthUrl).timeout(const Duration(seconds: 3));
+        final healthUrl = Uri.parse(config.apiUrl).replace(path: '/health');
+        
+        final response = await http.get(healthUrl).timeout(const Duration(seconds: 2));
         if (response.statusCode == 200) {
           if (mounted) {
             setState(() {
@@ -90,14 +98,31 @@ class _SplashPageState extends State<SplashPage>
             });
             _tryNavigate();
           }
-          break; // Thoát vòng lặp khi kết nối thành công
+          return; // Kết nối thành công, thoát hàm.
         }
       } catch (_) {
-        // Ignored: Server chưa mở cổng
+        // Thất bại, thử scan lại mạng LAN nếu đang ở IP mặc định
+        if (mounted) {
+          try {
+            final newUrl = await ApiUrlResolver.scanForBackend();
+            if (newUrl != null && newUrl != config.apiUrl) {
+              config = AppConfig(appName: config.appName, apiUrl: newUrl);
+            }
+          } catch (_) {}
+        }
       }
       
-      // Delay 3 giây trước khi thử lại
-      await Future.delayed(const Duration(seconds: 3));
+      if (i < maxRetries - 1) {
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+    
+    // Hết số lần thử mà vẫn chưa được -> Chấp nhận cho vào app (Offline mode)
+    if (mounted) {
+      setState(() {
+        _serverReady = true; // Set true để lừa UI đi tiếp
+      });
+      _tryNavigate();
     }
   }
 

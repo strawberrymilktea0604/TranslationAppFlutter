@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.0+3
 
 environment:
   sdk: ^3.10.7
@@ -93,11 +93,15 @@ dependencies:
 
   # Image cropping — allows users to select text region before OCR (UC06).
   # Uses UCrop on Android and TOCropViewController on iOS.
-  image_cropper: ^8.0.2
+  image_cropper: ^12.2.1
 
   # Audio recording — records from microphone to file (UC05 Speech-to-Text).
   # Uses native AudioRecord/MediaCodec (Android), AVFoundation (iOS).
   record: ^6.2.0
+
+  # WebSocket — realtime sync notifications from server (UC09).
+  # RFC 6455 / Protocol 13. Used by RealtimeSyncService.
+  web_socket_channel: ^3.0.1
 
 dev_dependencies:
   # flutter_test:

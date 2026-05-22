@@ -18,14 +18,28 @@ services:
 
   redis:
     image: redis:7
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    command: 
+      - "redis-server"
+      - "--maxmemory"
+      - "512mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"  # LRU eviction for old entries
+      - "--save"
+      - "60 1000"  # RDB persistence: save if 1000 keys changed in 60 seconds
+      - "--appendonly"
+      - "yes"  # AOF persistence for durability
+      - "--appendfsync"
+      - "everysec"  # Fsync every second
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data  # Persist Redis data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   log_aggregator:
     image: fluent/fluentd:v1.16-1
@@ -65,10 +79,12 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - backups:/backups  # Volume for database backups
     env_file:
       - ./backend/.env
     environment:
       - ENVIRONMENT=development
+      - BACKUP_DIR=/backups/database
     restart: unless-stopped
     logging:
       driver: fluentd
@@ -92,3 +108,5 @@ services:
 
 volumes:
   db_data:
+  redis_data:
+  backups:

@@ -1,5 +1,5 @@
-/// Local Vocabulary Service for Flutter app
-/// Handles local SQLite storage for guest users and offline support
+// Local Vocabulary Service for Flutter app.
+// Handles local SQLite storage for guest users and offline support.
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as path;

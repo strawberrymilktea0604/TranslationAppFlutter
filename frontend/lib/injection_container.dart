@@ -30,6 +30,28 @@ import 'package:frontend/features/translation/data/repositories/translation_repo
 import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
 import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_remote_datasource.dart';
+import 'package:frontend/features/vocabulary/data/repositories/vocabulary_repository_impl.dart';
+import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_repository.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/save_vocabulary_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/delete_vocabulary_usecase.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_category_local_datasource.dart';
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_category_remote_datasource.dart';
+import 'package:frontend/features/vocabulary/data/repositories/vocabulary_category_repository_impl.dart';
+import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_category_repository.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/get_categories_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/create_category_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/update_category_usecase.dart';
+import 'package:frontend/features/vocabulary/domain/usecases/delete_category_usecase.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_category_cubit.dart';
+import 'package:frontend/features/history/data/datasources/history_local_datasource.dart';
+import 'package:frontend/features/history/data/repositories/history_repository_impl.dart';
+import 'package:frontend/features/history/domain/repositories/history_repository.dart';
+import 'package:frontend/features/history/domain/usecases/get_history_usecase.dart';
+import 'package:frontend/features/history/presentation/bloc/history_cubit.dart';
 import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dart';
 import 'package:frontend/features/ocr/data/repositories/ocr_repository_impl.dart';
 import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
@@ -42,8 +64,25 @@ import 'package:frontend/features/speech/domain/repositories/speech_repository.d
 import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.dart';
 import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
 import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
+import 'package:frontend/features/sync/data/datasources/sync_remote_datasource.dart';
+import 'package:frontend/features/sync/data/repositories/sync_repository_impl.dart';
+import 'package:frontend/features/sync/domain/repositories/sync_repository.dart';
+import 'package:frontend/features/sync/domain/usecases/sync_data_usecase.dart';
+import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
+import 'package:frontend/features/learning/data/repositories/learning_repository_impl.dart';
+import 'package:frontend/features/learning/domain/repositories/learning_repository.dart';
+import 'package:frontend/features/learning/domain/usecases/get_learning_summary_usecase.dart';
+import 'package:frontend/features/learning/domain/usecases/get_question_banks_usecase.dart';
+import 'package:frontend/features/learning/presentation/bloc/learning_dashboard_cubit.dart';
+import 'package:frontend/features/learning/data/datasources/quiz_remote_datasource.dart';
+import 'package:frontend/features/learning/data/repositories/quiz_repository_impl.dart';
+import 'package:frontend/features/learning/domain/repositories/quiz_repository.dart';
+import 'package:frontend/features/learning/domain/usecases/get_quiz_questions_usecase.dart';
+import 'package:frontend/features/learning/domain/usecases/submit_quiz_result_usecase.dart';
+import 'package:frontend/features/learning/presentation/bloc/quiz_cubit.dart';
+import 'package:frontend/core/network/services/realtime_sync_service.dart';
 
-import 'main.dart' show config;
+import 'main.dart' show config, isarDatabase;
 
 /// Global service locator instance for Dependency Injection.
 /// Use get_it to register and resolve dependencies.
@@ -73,6 +112,12 @@ Future<void> initDependencies() async {
 
   // Global network connectivity state
   sl.registerLazySingleton<NetworkCubit>(() => NetworkCubit(networkInfo: sl()));
+
+  // Realtime sync notifications via WebSocket (RFC 6455 / Protocol 13).
+  // Singleton — lives for the app lifetime, connection managed by SyncCubit.
+  sl.registerLazySingleton<RealtimeSyncService>(
+    () => RealtimeSyncService(baseApiUrl: config.apiUrl),
+  );
 
   // Secure storage — encrypted Keychain (iOS) /
   // EncryptedSharedPreferences (Android).
@@ -181,14 +226,91 @@ Future<void> initDependencies() async {
   sl.registerFactory(() => TranslationCubit(sl()));
 
   // ==============================
-  //  Feature: Vocabulary
+  //  Feature: Vocabulary (UC07 — Offline-first with Isar)
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  // DataSource — local Isar DB only (offline-first).
+  sl.registerLazySingleton<VocabularyLocalDataSource>(
+    () => VocabularyLocalDataSourceImpl(isar: isarDatabase.isar),
+  );
+
+  sl.registerLazySingleton<VocabularyRemoteDataSource>(
+    () => VocabularyRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  // Repository — all operations go through local Isar DB.
+  sl.registerLazySingleton<VocabularyRepository>(
+    () => VocabularyRepositoryImpl(localDataSource: sl()),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => SaveVocabularyUseCase(sl()));
+  sl.registerLazySingleton(() => GetVocabularyListUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteVocabularyUseCase(sl()));
+  sl.registerLazySingleton(() => GetCategorySummariesUseCase(sl()));
 
   // ==============================
-  //  Feature: History
+  //  Vocabulary Category (UC07)
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+  sl.registerLazySingleton<VocabularyCategoryLocalDataSource>(
+    () => VocabularyCategoryLocalDataSourceImpl(database: isarDatabase),
+  );
+  sl.registerLazySingleton<VocabularyCategoryRemoteDataSource>(
+    () => VocabularyCategoryRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+  sl.registerLazySingleton<VocabularyCategoryRepository>(
+    () => VocabularyCategoryRepositoryImpl(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      networkInfo: sl(),
+      authLocalDataSource: sl(),
+    ),
+  );
+  
+  sl.registerLazySingleton(() => GetCategoriesUseCase(sl()));
+  sl.registerLazySingleton(() => CreateCategoryUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateCategoryUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteCategoryUseCase(sl()));
+
+  sl.registerFactory(() => VocabularyCategoryCubit(
+    getCategoriesUseCase: sl(),
+    createCategoryUseCase: sl(),
+    updateCategoryUseCase: sl(),
+    deleteCategoryUseCase: sl(),
+  ));
+
+  // Cubit — factory: new instance per screen that provides it.
+  sl.registerFactory(() => VocabularyCubit(
+    saveVocabularyUseCase: sl(),
+    getVocabularyListUseCase: sl(),
+    deleteVocabularyUseCase: sl(),
+  ));
+
+  // ==============================
+  //  Feature: History (UC08 — Offline-first with Isar)
+  // ==============================
+
+  // DataSource — local Isar DB only (offline-first).
+  sl.registerLazySingleton<HistoryLocalDataSource>(
+    () => HistoryLocalDataSourceImpl(isar: isarDatabase.isar),
+  );
+
+  // Repository — all operations go through local Isar DB.
+  sl.registerLazySingleton<HistoryRepository>(
+    () => HistoryRepositoryImpl(localDataSource: sl()),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => GetHistoryUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteHistoryUseCase(sl()));
+  sl.registerLazySingleton(() => ClearHistoryUseCase(sl()));
+
+  // Cubit — factory: new instance per screen that provides it.
+  sl.registerFactory(() => HistoryCubit(
+    getHistoryUseCase: sl(),
+    deleteHistoryUseCase: sl(),
+    clearHistoryUseCase: sl(),
+  ));
 
   // ==============================
   //  Feature: Speech (STT)
@@ -252,7 +374,80 @@ Future<void> initDependencies() async {
   ));
 
   // ==============================
-  //  Feature: Sync
+  //  Feature: Sync (UC09 — Background Sync Worker)
   // ==============================
-  // TODO: Register DataSources, Repository, UseCases, Cubits
+
+  // DataSource — calls POST /api/v1/sync/vocabulary.
+  sl.registerLazySingleton<SyncRemoteDataSource>(
+    () => SyncRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  // Repository — implements exponential backoff retry (5s, 10s, 30s).
+  sl.registerLazySingleton<SyncRepository>(
+    () => SyncRepositoryImpl(
+      remoteDataSource: sl(),
+      localDataSource: sl(),
+      vocabularyRemoteDataSource: sl(),
+      authLocalDataSource: sl(),
+    ),
+  );
+
+  // UseCase
+  sl.registerLazySingleton(() => SyncDataUseCase(sl()));
+
+  // Cubit — registered as lazy singleton (global, lives for app lifetime).
+  // Listens to NetworkCubit to auto-trigger sync when online.
+  sl.registerLazySingleton(() => SyncCubit(
+    syncDataUseCase: sl(),
+    networkCubit: sl(),
+    realtimeSyncService: sl(),
+  ));
+
+  // ==============================
+  //  Feature: Learning Dashboard
+  // ==============================
+
+  // Repository — reuses VocabularyLocalDataSource for Isar access.
+  sl.registerLazySingleton<LearningRepository>(
+    () => LearningRepositoryImpl(localDataSource: sl()),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => GetLearningSummaryUseCase(sl()));
+  sl.registerLazySingleton(() => GetQuestionBanksUseCase(sl()));
+
+  // Cubit — factory: new instance per screen that provides it.
+  sl.registerFactory(() => LearningDashboardCubit(
+    getLearningSummaryUseCase: sl(),
+    getQuestionBanksUseCase: sl(),
+    getCategorySummariesUseCase: sl(),
+  ));
+
+  // ==============================
+  //  Feature: Quiz Engine
+  // ==============================
+
+  // DataSource — remote API for quiz questions and result submission.
+  sl.registerLazySingleton<QuizRemoteDataSource>(
+    () => QuizRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+  );
+
+  // Repository — binds implementation to abstract interface.
+  sl.registerLazySingleton<QuizRepository>(
+    () => QuizRepositoryImpl(
+      remoteDataSource: sl(),
+      authLocalDataSource: sl(),
+      networkInfo: sl(),
+    ),
+  );
+
+  // UseCases
+  sl.registerLazySingleton(() => GetQuizQuestionsUseCase(sl()));
+  sl.registerLazySingleton(() => SubmitQuizResultUseCase(sl()));
+
+  // Cubit — factory: new instance per quiz session.
+  sl.registerFactory(() => QuizCubit(
+    getQuizQuestionsUseCase: sl(),
+    submitQuizResultUseCase: sl(),
+  ));
 }
