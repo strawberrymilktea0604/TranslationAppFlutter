@@ -87,6 +87,9 @@ class SyncService:
         item: SyncVocabularyItem,
     ) -> SyncVocabularyResultItem:
         """Process a single vocabulary item using Last-Write-Wins."""
+        
+        # Sanitize category_id (offline categories have negative IDs in frontend)
+        safe_category_id = item.category_id if item.category_id and item.category_id > 0 else None
 
         # 1. Try to find an existing Translation owned by this user
         #    that matches the word + language pair.
@@ -119,8 +122,13 @@ class SyncService:
                 id=vocab_id,
                 user_id=user_id,
                 translation_id=existing_translation.id,
-                category_id=item.category_id,
+                category_id=safe_category_id,
+                category=item.category,
                 is_deleted=item.is_deleted,
+                word=item.word,
+                definition=item.translation,
+                source_language=item.source_language,
+                target_language=item.target_language,
                 created_at=item.created_at or now,
                 updated_at=now,
             )
@@ -128,7 +136,7 @@ class SyncService:
             await db.flush()
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing_translation.id,
+                server_id=existing_vocab.id,
                 status="created",
             )
 
@@ -145,21 +153,22 @@ class SyncService:
         if client_updated > server_updated:
             # ------ Case (c): UPDATE ------
             existing_vocab.is_deleted = item.is_deleted
-            existing_vocab.category_id = item.category_id
+            existing_vocab.category_id = safe_category_id
+            existing_vocab.category = item.category
             existing_vocab.updated_at = datetime.now(timezone.utc)
             await db.flush()
             await db.refresh(existing_vocab)
 
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing_translation.id,
+                server_id=existing_vocab.id,
                 status="updated",
             )
         else:
             # ------ Case (d): UNCHANGED ------
             return SyncVocabularyResultItem(
                 client_id=item.client_id,
-                server_id=existing_translation.id,
+                server_id=existing_vocab.id,
                 status="unchanged",
                 server_updated_at=existing_vocab.updated_at,
             )
@@ -174,6 +183,8 @@ class SyncService:
 
         now = datetime.now(timezone.utc)
         translation_id = _generate_snowflake_id()
+        
+        safe_category_id = item.category_id if item.category_id and item.category_id > 0 else None
 
         translation = Translation(
             id=translation_id,
@@ -196,8 +207,13 @@ class SyncService:
             id=vocab_id,
             user_id=user_id,
             translation_id=translation_id,
-            category_id=item.category_id,
+            category_id=safe_category_id,
+            category=item.category,
             is_deleted=item.is_deleted,
+            word=item.word,
+            definition=item.translation,
+            source_language=item.source_language,
+            target_language=item.target_language,
             created_at=item.created_at or now,
             updated_at=now,
         )
@@ -206,6 +222,6 @@ class SyncService:
 
         return SyncVocabularyResultItem(
             client_id=item.client_id,
-            server_id=translation_id,
+            server_id=vocab_id,
             status="created",
         )

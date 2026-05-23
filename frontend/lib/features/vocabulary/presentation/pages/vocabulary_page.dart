@@ -10,6 +10,7 @@ import 'package:frontend/features/history/domain/entities/history_entity.dart';
 import 'package:frontend/features/history/presentation/bloc/history_cubit.dart';
 import 'package:frontend/features/history/presentation/bloc/history_state.dart';
 import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_cubit.dart';
+import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_category_cubit.dart';
 import 'package:frontend/features/vocabulary/presentation/pages/saved_vocab_tab.dart';
 import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
@@ -68,97 +69,93 @@ class _VocabularyTabViewState extends State<_VocabularyTabView>
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Column(
-      children: [
-        // Tab bar — sits inside the page body, not inside an AppBar
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    color: AppTheme.primaryColor,
-                    borderRadius: BorderRadius.circular(8),
+    return BlocListener<SyncCubit, SyncState>(
+      // Listen for SyncSuccess — both HTTP batch sync and WS push
+      // emit this state. On success, reload both tabs so isSynced
+      // badges update in realtime.
+      listenWhen: (_, current) => current is SyncSuccess,
+      listener: (context, state) {
+        // Reload history list
+        context.read<HistoryCubit>().loadHistory();
+        // Reload vocabulary categories (triggers saved vocab refresh)
+        try {
+          sl<VocabularyCategoryCubit>().loadCategories();
+        } catch (_) {}
+      },
+      child: Column(
+        children: [
+          // Tab bar — sits inside the page body, not inside an AppBar
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(16, 8, 8, 4),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  labelColor: Colors.white,
-                  unselectedLabelColor: cs.onSurfaceVariant,
-                  labelStyle: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                  child: TabBar(
+                    controller: _tabController,
+                    indicator: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    labelColor: Colors.white,
+                    unselectedLabelColor: cs.onSurfaceVariant,
+                    labelStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    dividerColor: Colors.transparent,
+                    tabs: const [
+                      Tab(text: 'Lịch sử dịch'),
+                      Tab(text: 'Từ đã lưu'),
+                    ],
                   ),
-                  dividerColor: Colors.transparent,
-                  tabs: const [
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.history_rounded, size: 18),
-                          SizedBox(width: 6),
-                          Text('History'),
-                        ],
-                      ),
-                    ),
-                    Tab(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.style_rounded, size: 18),
-                          SizedBox(width: 6),
-                          Text('Flashcards'),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
-              child: BlocBuilder<SyncCubit, SyncState>(
-                builder: (context, state) {
-                  final isSyncing = state is SyncSyncing;
-                  return IconButton.filledTonal(
-                    icon: isSyncing 
-                        ? const SizedBox(
-                            width: 18, height: 18, 
-                            child: CircularProgressIndicator(strokeWidth: 2)
-                          ) 
-                        : const Icon(Icons.sync_rounded),
-                    tooltip: 'Sync',
-                    onPressed: isSyncing
-                        ? null
-                        : () {
-                            context.read<SyncCubit>().requestSync();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Syncing data...'),
-                                duration: Duration(seconds: 1),
-                              ),
-                            );
-                          },
-                  );
-                },
+              Padding(
+                padding: const EdgeInsets.only(right: 16, top: 4),
+                child: BlocBuilder<SyncCubit, SyncState>(
+                  builder: (context, state) {
+                    final isSyncing = state is SyncSyncing;
+                    return IconButton.filledTonal(
+                      icon: isSyncing 
+                          ? const SizedBox(
+                              width: 18, height: 18, 
+                              child: CircularProgressIndicator(strokeWidth: 2)
+                            ) 
+                          : const Icon(Icons.sync_rounded),
+                      tooltip: 'Đồng bộ',
+                      onPressed: isSyncing
+                          ? null
+                          : () {
+                              context.read<SyncCubit>().requestSync();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Đang đồng bộ dữ liệu...'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: const [
-              _HistoryTab(),
-              SavedVocabTab(),
             ],
           ),
-        ),
-      ],
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                _HistoryTab(),
+                SavedVocabTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

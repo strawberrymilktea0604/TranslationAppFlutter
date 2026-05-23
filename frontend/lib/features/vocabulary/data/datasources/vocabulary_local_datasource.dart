@@ -75,6 +75,9 @@ abstract class VocabularyLocalDataSource {
   /// Mark items as synced.
   Future<void> markSynced(List<int> isarIds);
 
+  /// Mark items as synced and update their backendId.
+  Future<void> markSyncedAndUpdateId(Map<int, String> idMap);
+
   /// Delete items after sync.
   Future<void> deleteSynced(List<int> isarIds);
 
@@ -292,6 +295,22 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
       for (final item in items) {
         if (item != null) {
           item.isSynced = true;
+          await _isar.vocabularyModels.put(item);
+        }
+      }
+    });
+  }
+
+  @override
+  Future<void> markSyncedAndUpdateId(Map<int, String> idMap) async {
+    await _isar.writeTxn(() async {
+      final ids = idMap.keys.toList();
+      final items = await _isar.vocabularyModels.getAll(ids);
+      for (int i = 0; i < items.length; i++) {
+        final item = items[i];
+        if (item != null) {
+          item.isSynced = true;
+          item.backendId = idMap[ids[i]]!;
           await _isar.vocabularyModels.put(item);
         }
       }

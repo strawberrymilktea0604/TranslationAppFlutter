@@ -80,6 +80,7 @@ import 'package:frontend/features/learning/domain/repositories/quiz_repository.d
 import 'package:frontend/features/learning/domain/usecases/get_quiz_questions_usecase.dart';
 import 'package:frontend/features/learning/domain/usecases/submit_quiz_result_usecase.dart';
 import 'package:frontend/features/learning/presentation/bloc/quiz_cubit.dart';
+import 'package:frontend/core/network/services/realtime_sync_service.dart';
 
 import 'main.dart' show config, isarDatabase;
 
@@ -111,6 +112,12 @@ Future<void> initDependencies() async {
 
   // Global network connectivity state
   sl.registerLazySingleton<NetworkCubit>(() => NetworkCubit(networkInfo: sl()));
+
+  // Realtime sync notifications via WebSocket (RFC 6455 / Protocol 13).
+  // Singleton — lives for the app lifetime, connection managed by SyncCubit.
+  sl.registerLazySingleton<RealtimeSyncService>(
+    () => RealtimeSyncService(baseApiUrl: config.apiUrl),
+  );
 
   // Secure storage — encrypted Keychain (iOS) /
   // EncryptedSharedPreferences (Android).
@@ -393,6 +400,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => SyncCubit(
     syncDataUseCase: sl(),
     networkCubit: sl(),
+    realtimeSyncService: sl(),
   ));
 
   // ==============================

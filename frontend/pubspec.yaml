@@ -99,6 +99,10 @@ dependencies:
   # Uses native AudioRecord/MediaCodec (Android), AVFoundation (iOS).
   record: ^6.2.0
 
+  # WebSocket — realtime sync notifications from server (UC09).
+  # RFC 6455 / Protocol 13. Used by RealtimeSyncService.
+  web_socket_channel: ^3.0.1
+
 dev_dependencies:
   # flutter_test:
   #   sdk: flutter

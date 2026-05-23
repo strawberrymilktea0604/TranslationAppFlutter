@@ -152,9 +152,13 @@ class _SaveVocabularyDialogContentState
               const SizedBox(height: 16),
               // Header row: "Chọn danh mục" + nút tạo mới
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Chọn danh mục:'),
+                  const Flexible(
+                    child: Text(
+                      'Chọn danh mục:',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                   TextButton.icon(
                     onPressed: _showCreateCategoryDialog,
                     icon: const Icon(Icons.add_rounded, size: 16),

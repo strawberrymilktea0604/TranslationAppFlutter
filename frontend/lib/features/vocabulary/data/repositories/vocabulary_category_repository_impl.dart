@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
@@ -29,6 +31,25 @@ class VocabularyCategoryRepositoryImpl implements VocabularyCategoryRepository {
         final token = await authLocalDataSource.getAccessToken();
         if (token != null) {
           try {
+            // 1. Upload unsynced local categories
+            final localCategories = await localDataSource.getCategories();
+            final unsyncedCategories = localCategories.where((c) => !c.isSynced).toList();
+            for (final cat in unsyncedCategories) {
+              try {
+                if (cat.backendId < 0) {
+                  final remoteCat = await remoteDataSource.createCategory(token, cat.name);
+                  await localDataSource.deleteCategory(cat.backendId);
+                  await localDataSource.saveCategory(remoteCat);
+                } else {
+                  final remoteCat = await remoteDataSource.updateCategory(token, cat.backendId, cat.name);
+                  await localDataSource.saveCategory(remoteCat);
+                }
+              } catch (e) {
+                developer.log('Failed to sync category ${cat.name}: $e', name: 'VocabularyCategoryRepository');
+              }
+            }
+
+            // 2. Fetch fresh list from remote
             final remoteCategories = await remoteDataSource.getCategories(token);
             await localDataSource.saveCategories(remoteCategories);
           } catch (e) {

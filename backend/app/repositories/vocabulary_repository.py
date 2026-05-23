@@ -76,6 +76,12 @@ class VocabularyRepository:
             user_id=user_id,
             translation_id=translation_id,
             category_id=category_id,
+            # Denormalized content — copied from translation so vocabulary
+            # rows can be read without a JOIN.
+            word=translation.source_text,
+            definition=translation.translated_text,
+            source_language=translation.source_language,
+            target_language=translation.target_language,
         )
         
         db.add(new_vocabulary)

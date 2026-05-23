@@ -42,6 +42,15 @@ class Vocabulary(Base):
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     translation_id = Column(BigInteger, ForeignKey("translations.id", ondelete="CASCADE"), nullable=False)
     category_id = Column(BigInteger, ForeignKey("vocabulary_categories.id", ondelete="RESTRICT"), nullable=True)
+    category = Column(String(100), nullable=True)
+
+    # Denormalized content columns — copied from translations at save time
+    # so vocabulary can be queried without a JOIN.
+    word = Column(Text, nullable=True)             # = translations.source_text
+    definition = Column(Text, nullable=True)       # = translations.translated_text
+    source_language = Column(String(50), nullable=True)
+    target_language = Column(String(50), nullable=True)
+
     is_deleted = Column(Boolean, default=False)
     mastery_level = Column(Integer, default=0)
     last_tested_at = Column(DateTime(timezone=True), nullable=True)

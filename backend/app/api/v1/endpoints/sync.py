@@ -7,6 +7,8 @@ Features:
 - Batch sync with Last-Write-Wins strategy (§5.2)
 - Requires authentication (UC09)
 - Returns per-item sync status (created / updated / unchanged)
+- After sync, broadcasts a WebSocket event so the client can refresh
+  the History and Saved-Vocab tabs in real time.
 """
 import logging
 
@@ -19,6 +21,7 @@ from app.models.user import User
 from app.schemas.common import SuccessResponse
 from app.schemas.sync import SyncVocabularyRequest, SyncVocabularyResponse
 from app.services.sync_service import SyncService
+from app.api.v1.endpoints.websocket import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ async def sync_vocabulary(
        - If found AND client `updated_at` > server → UPDATE.
        - If found AND client `updated_at` ≤ server → UNCHANGED (return server data).
     2. Client marks successfully synced items as `is_synced = true`.
+    3. Server pushes a `sync_completed` WebSocket event so both tabs refresh.
 
     **Auth:** Requires a valid Bearer token.
     """
@@ -67,6 +71,17 @@ async def sync_vocabulary(
             result.synced_count,
             len(req.items),
         )
+
+        # Push real-time notification to all open WebSocket connections
+        # for this user so the History + Saved-Vocab tabs can reload.
+        try:
+            await ws_manager.broadcast_sync_completed(
+                user_id=current_user.id,
+                synced_count=result.synced_count,
+            )
+        except Exception as ws_err:
+            # WS broadcast is best-effort; never fail the HTTP response.
+            logger.warning("WS broadcast failed for user %s: %s", current_user.id, ws_err)
 
         return SuccessResponse(
             success=True,
