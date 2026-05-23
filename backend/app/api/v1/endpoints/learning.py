@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from app.core.dependencies import DBSession, get_current_user
+from app.core.dependencies import DBSession, get_admin_user, get_current_user
 from app.models.learning import Question, QuestionBank
 from app.models.user import User
 from app.repositories.quiz_repository import QuizRepository
@@ -340,14 +340,12 @@ async def get_quiz_history(
 async def admin_get_question_bank_detail(
     bank_id: int,
     db: DBSession,
-    current_user: Annotated[User, Depends(get_current_user)],
+    _admin: Annotated[User, Depends(get_admin_user)],
 ):
     """
     Admin endpoint: return all question details including correct_answer.
 
-    In a production deployment this route should be restricted to superusers
-    or an internal network. Currently it requires authentication only —
-    add role-based access control (RBAC) before exposing publicly.
+    Protected by ``get_admin_user``: unauthenticated → 401, non-admin → 403.
     """
     stmt = (
         select(QuestionBank)

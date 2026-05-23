@@ -158,7 +158,7 @@ async def list_users(
     if page_size < 1 or page_size > 100:
         page_size = 20
 
-    query = db.query(User).filter(User.is_deleted == False)
+    query = db.query(User).filter(User.is_deleted.is_(False))
     
     # Apply search filter
     if search and search.strip():

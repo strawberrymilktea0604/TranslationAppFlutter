@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_admin_user, get_current_user
 from app.models.user import User
 from app.repositories.translation_repository import TranslationRepository
 from app.schemas.translation import (
@@ -546,6 +546,8 @@ async def delete_translation(
             data={"message": "Translation deleted successfully"}
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to delete translation: {e}")
         raise HTTPException(
@@ -560,36 +562,32 @@ async def delete_translation(
 
 @router.get("/cache/stats", response_model=SuccessResponse)
 async def get_cache_stats(
-    current_user: User = Depends(get_current_user)
+    _admin: User = Depends(get_admin_user),
 ):
     """
     Get translation cache statistics (admin only).
-    
+
     **Features:**
     - Cache hit rate
     - Number of cached translations
     - Memory usage
     - Expiry information
-    
+
     This endpoint helps monitor cache effectiveness and optimization.
-    
+
     Returns:
         SuccessResponse with cache statistics
     """
     try:
-        # Optional: Add admin check if needed
-        # if current_user.role != "admin":
-        #     raise HTTPException(status_code=403, detail="Admin only")
-        
         stats = await TranslationService.get_cache_stats()
-        
+
         return SuccessResponse(
             data={
                 "message": "Cache statistics retrieved",
                 "stats": stats
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Failed to get cache stats: {e}")
         raise HTTPException(
@@ -604,24 +602,20 @@ async def get_cache_stats(
 
 @router.post("/cache/clear", response_model=SuccessResponse)
 async def clear_translation_cache(
-    current_user: User = Depends(get_current_user)
+    _admin: User = Depends(get_admin_user),
 ):
     """
     Clear all translation cache (admin only).
-    
+
     **Warning:** This clears the entire Redis translation cache.
     Use sparingly - will cause a cache warmup period.
-    
+
     Returns:
         SuccessResponse with cache clear status
     """
     try:
-        # Optional: Add admin check
-        # if current_user.role != "admin":
-        #     raise HTTPException(status_code=403, detail="Admin only")
-        
         success = await TranslationService.clear_cache()
-        
+
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -631,11 +625,13 @@ async def clear_translation_cache(
                     "message": "Failed to clear cache"
                 }
             )
-        
+
         return SuccessResponse(
             data={"message": "Translation cache cleared"}
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to clear cache: {e}")
         raise HTTPException(

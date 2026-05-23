@@ -18,7 +18,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-banks-tests")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_admin_user, get_current_user
 from app.main import app
 from app.repositories.quiz_repository import QuizRepository
 from app.schemas.learning import QuizAnswerResult
@@ -34,7 +34,7 @@ def client():
         yield SimpleNamespace(name="test-db")
 
     async def override_get_current_user():
-        return SimpleNamespace(id=42)
+        return SimpleNamespace(id=42, role="user")
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
@@ -366,6 +366,14 @@ def test_start_quiz_404_for_unknown_bank(client, monkeypatch):
 # GET /admin/banks/{id} — includes correct_answer
 # ─────────────────────────────────────────────────────────────────────────────
 
+def test_admin_bank_detail_forbidden_for_regular_user(client, monkeypatch):
+    """GET /admin/banks/{id} must return 403 for a non-admin user."""
+    # The 'client' fixture overrides get_current_user with a plain user (id=42,
+    # no role attribute).  get_admin_user will see a non-admin and raise 403.
+    response = client.get("/api/v1/learning/admin/banks/1")
+    assert response.status_code == 403
+
+
 def test_admin_bank_detail_includes_correct_answer(client, monkeypatch):
     """GET /admin/banks/{id} MUST include correct_answer for admin use."""
     bank = _make_bank()
@@ -375,6 +383,8 @@ def test_admin_bank_detail_includes_correct_answer(client, monkeypatch):
     app.dependency_overrides[_get_db_original] = _override_db(
         [FakeResult(one_or_none=bank)]
     )
+    # Override get_admin_user directly so the admin guard is satisfied
+    app.dependency_overrides[get_admin_user] = lambda: SimpleNamespace(id=99, role="admin")
 
     response = client.get("/api/v1/learning/admin/banks/1")
     assert response.status_code == 200

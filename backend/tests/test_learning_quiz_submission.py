@@ -23,7 +23,7 @@ def client():
         yield SimpleNamespace(name="test-db")
 
     async def override_get_current_user():
-        return SimpleNamespace(id=123)
+        return SimpleNamespace(id=123, role="user")
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
@@ -518,39 +518,15 @@ def test_questions_endpoint_does_not_expose_correct_answer(client, monkeypatch):
         app.dependency_overrides.pop(_get_db, None)
 
 
-def test_admin_bank_detail_accessible_to_authenticated_user(client, monkeypatch):
+def test_admin_bank_detail_requires_admin_role(client, monkeypatch):
     """
-    The /admin/banks/{id} endpoint currently requires authentication only.
-    RBAC (role restriction to superusers) is tracked as a future TODO.
-    Any authenticated user can reach it for now — this test documents that behaviour.
+    The /learning/admin/banks/{id} endpoint is now protected by get_admin_user.
+    A regular authenticated user (role='user') must receive 403.
     """
-    from unittest.mock import MagicMock
-    from app.core.database import get_db as _get_db
-
-    fake_bank = _make_bank_response()
-
-    async def fake_execute(stmt):
-        mock = MagicMock()
-        mock.scalar_one_or_none.return_value = fake_bank
-        return mock
-
-    async def override_db():
-        from sqlalchemy.ext.asyncio import AsyncSession
-        session = MagicMock(spec=AsyncSession)
-        session.execute = fake_execute
-        yield session
-
-    app.dependency_overrides[_get_db] = override_db
-    try:
-        response = client.get("/api/v1/learning/admin/banks/10")
-        # 200 because RBAC is not yet enforced (TODO: restrict to superusers)
-        assert response.status_code == 200
-        data = response.json()
-        # correct_answer MUST be present on the admin endpoint
-        for q in data["questions"]:
-            assert "correct_answer" in q, "Admin endpoint must expose correct_answer"
-    finally:
-        app.dependency_overrides.pop(_get_db, None)
+    response = client.get("/api/v1/learning/admin/banks/10")
+    assert response.status_code == 403, (
+        "Admin bank detail must be restricted to admin role; regular user should get 403"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
