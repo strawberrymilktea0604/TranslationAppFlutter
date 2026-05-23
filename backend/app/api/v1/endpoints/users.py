@@ -125,3 +125,119 @@ async def get_avatar(filename: str):
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Avatar not found")
     return FileResponse(file_path)
+
+
+# ==================== ADMIN ENDPOINTS ====================
+
+async def get_admin_user(current_user: Annotated[User, Depends(get_current_user)]):
+    """
+    Dependency to ensure current user is an admin.
+    """
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return current_user
+
+
+@router.get("/admin/users", response_model=schemas.UserListResponse)
+async def list_users(
+    db: DBSession,
+    admin_user: Annotated[User, Depends(get_admin_user)],
+    page: int = 1,
+    page_size: int = 20,
+    search: str | None = None,
+):
+    """
+    List all users with pagination and search.
+    Only accessible to admin users.
+    """
+    if page < 1:
+        page = 1
+    if page_size < 1 or page_size > 100:
+        page_size = 20
+
+    query = db.query(User).filter(User.is_deleted == False)
+    
+    # Apply search filter
+    if search and search.strip():
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            (User.email.ilike(search_term)) |
+            (User.first_name.ilike(search_term)) |
+            (User.last_name.ilike(search_term))
+        )
+    
+    # Get total count
+    total = await db.execute(query.statement)
+    total = len(total.fetchall())
+    
+    # Apply pagination
+    skip = (page - 1) * page_size
+    users = await db.scalars(
+        query.offset(skip).limit(page_size)
+    )
+    
+    return schemas.UserListResponse(
+        items=[schemas.UserListItem.from_attributes(u) for u in users],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.patch("/admin/users/{user_id}/ban", response_model=schemas.UserRead)
+async def ban_user(
+    user_id: int,
+    db: DBSession,
+    admin_user: Annotated[User, Depends(get_admin_user)],
+):
+    """
+    Ban a user (lock their account).
+    Only accessible to admin users.
+    """
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.role == "admin":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot ban admin users"
+        )
+    
+    user.status = "locked"
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    
+    return user
+
+
+@router.patch("/admin/users/{user_id}/unban", response_model=schemas.UserRead)
+async def unban_user(
+    user_id: int,
+    db: DBSession,
+    admin_user: Annotated[User, Depends(get_admin_user)],
+):
+    """
+    Unban a user (unlock their account).
+    Only accessible to admin users.
+    """
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    user.status = "active"
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    
+    return user

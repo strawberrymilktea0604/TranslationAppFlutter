@@ -48,6 +48,30 @@ class UserPasswordUpdate(BaseModel):
     old_password: str
     new_password: str = Field(min_length=8, max_length=72)
 
+
+class UserListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    role: str
+    status: str
+    created_at: datetime
+
+
+class UserListResponse(BaseModel):
+    items: list[UserListItem]
+    total: int
+    page: int
+    page_size: int
+
+
+class UserStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(active|locked)$")
+
     @field_validator("new_password")
     @classmethod
     def validate_password(cls, v: str) -> str:

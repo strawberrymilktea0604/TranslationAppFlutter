@@ -29,10 +29,23 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>frontend</title>
+  <title>Translation Admin Dashboard</title>
   <link rel="manifest" href="manifest.json">
+
+  <script>
+    // Configure renderer (canvaskit or html)
+    // CanvasKit provides better performance for complex admin dashboards
+    window.flutterWebRenderer = "canvaskit";
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
+  
+  <script>
+    // Ensure CanvasKit is properly loaded
+    if (window.flutterWebRenderer === "canvaskit") {
+      console.log("Using CanvasKit renderer for better performance");
+    }
+  </script>
 </body>
 </html>

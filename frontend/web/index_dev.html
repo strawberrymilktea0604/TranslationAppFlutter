@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Translation Admin Dashboard - Development">
+  
+  <!-- Responsive design -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+  <!-- iOS meta tags -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Translation Admin">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Translation Admin Dashboard - Dev</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Global styles for web */
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Loading indicator */
+    .flutter-loader {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid #fff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+
+  <script>
+    // Configure renderer for development
+    // HTML renderer: faster compilation, but potentially slower runtime
+    // CanvasKit: slower compilation, but better runtime performance
+    window.flutterWebRenderer = "html"; // Use html for faster dev builds
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div class="flutter-loader">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script src="flutter_bootstrap.js" async></script>
+  
+  <script>
+    // Log renderer information
+    window.addEventListener('flutter-initialized', function() {
+      console.log('Flutter initialized - Renderer: html (development)');
+    });
+  </script>
+</body>
+</html>
