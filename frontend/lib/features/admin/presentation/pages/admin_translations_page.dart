@@ -12,7 +12,6 @@ class AdminTranslationsPage extends StatefulWidget {
 
 class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
   final _searchController = TextEditingController();
-  String _filterStatus = 'all';
 
   @override
   void dispose() {
@@ -117,7 +116,7 @@ class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
                 DropdownMenu<String>(
                   initialSelection: 'all',
                   onSelected: (value) {
-                    setState(() => _filterStatus = value ?? 'all');
+                    setState(() {});
                   },
                   dropdownMenuEntries: const [
                     DropdownMenuEntry(value: 'all', label: 'Tất cả'),
@@ -214,7 +213,7 @@ class _AdminTranslationsPageState extends State<AdminTranslationsPage> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: 10,
-                    separatorBuilder: (_, __) => Divider(
+                    separatorBuilder: (context, index) => Divider(
                       height: 1,
                       color: Theme.of(context).colorScheme.outlineVariant,
                     ),

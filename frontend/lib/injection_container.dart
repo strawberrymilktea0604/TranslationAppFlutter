@@ -481,5 +481,6 @@ Future<void> initDependencies() async {
     connectUseCase: sl(),
     repository: sl(),
     authLocalDataSource: sl(),
+    audioRecorderService: sl(),
   ));
 }

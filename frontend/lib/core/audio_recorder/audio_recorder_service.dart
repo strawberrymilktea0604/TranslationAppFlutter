@@ -1,6 +1,8 @@
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'dart:typed_data';
+
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -59,6 +61,15 @@ abstract class AudioRecorderService {
   ///
   /// Returns `null` if no recording was in progress.
   Future<RecordingResult?> stopRecording();
+
+  /// Starts streaming raw audio data.
+  /// 
+  /// The audio is encoded as PCM 16-bit, 16000Hz, mono.
+  /// Throws [StateError] if a recording is already in progress.
+  Future<Stream<Uint8List>> startStreamRecording();
+
+  /// Stops the audio stream recording.
+  Future<void> stopStreamRecording();
 
   /// Cancels the current recording and deletes the temp file.
   ///
@@ -196,6 +207,58 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
       filePath: path,
       duration: duration,
       format: 'm4a',
+    );
+  }
+
+  @override
+  Future<Stream<Uint8List>> startStreamRecording() async {
+    if (_isRecording) {
+      throw StateError(
+        'A recording is already in progress. '
+        'Stop or cancel the current recording first.',
+      );
+    }
+
+    developer.log(
+      'Starting stream recording...',
+      name: 'AudioRecorderService',
+    );
+
+    // Configure recording: PCM 16-bit, 16000Hz, Mono for STT backend.
+    const config = RecordConfig(
+      encoder: AudioEncoder.pcm16bits,
+      sampleRate: 16000,
+      numChannels: 1,
+    );
+
+    final stream = await _recorder.startStream(config);
+
+    _isRecording = true;
+    _isPaused = false;
+    _recordingStartTime = DateTime.now();
+    _totalPausedDuration = Duration.zero;
+    _pauseStartTime = null;
+
+    return stream;
+  }
+
+  @override
+  Future<void> stopStreamRecording() async {
+    if (!_isRecording) {
+      developer.log(
+        'stopStreamRecording called but no recording in progress.',
+        name: 'AudioRecorderService',
+        level: 500,
+      );
+      return;
+    }
+
+    await _recorder.stop();
+    _resetState();
+
+    developer.log(
+      'Stream recording stopped.',
+      name: 'AudioRecorderService',
     );
   }
 

@@ -294,7 +294,7 @@ class _AdminQuizEditorPageState extends State<AdminQuizEditorPage> {
                       colorScheme: colorScheme,
                       textTheme: textTheme,
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

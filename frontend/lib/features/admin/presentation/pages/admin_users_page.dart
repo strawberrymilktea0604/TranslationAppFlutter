@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/app_config.dart';
+import 'package:frontend/main.dart';
 import 'package:frontend/features/admin/presentation/layout/admin_layout.dart';
 import 'package:frontend/services/admin_users_service.dart';
 
@@ -15,7 +15,6 @@ class AdminUsersPage extends StatefulWidget {
 class _AdminUsersPageState extends State<AdminUsersPage> {
   late AdminUsersService _usersService;
   final _searchController = TextEditingController();
-  String _filterRole = 'all';
   String? _accessToken;
   int _currentPage = 1;
   final int _pageSize = 20;
@@ -28,7 +27,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
   /// Initialize service and load users
   Future<void> _initializeService() async {
-    final apiUrl = AppConfig.apiUrl;
+    final apiUrl = config.apiUrl;
     _usersService = AdminUsersService(baseUrl: apiUrl);
     // TODO: Get access token from auth service
     // For now, you need to pass it when calling fetchUsers
@@ -384,7 +383,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _usersService.users.length,
-                separatorBuilder: (_, __) => Divider(
+                separatorBuilder: (context, index) => Divider(
                   height: 1,
                   color: Theme.of(context).colorScheme.outlineVariant,
                 ),
@@ -401,7 +400,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Trang ${_currentPage} - ${_usersService.users.length} trên ${_usersService.totalCount} người dùng',
+              'Trang $_currentPage - ${_usersService.users.length} trên ${_usersService.totalCount} người dùng',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             Row(

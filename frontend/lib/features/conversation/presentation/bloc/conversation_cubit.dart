@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:bloc/bloc.dart';
 
+import 'package:frontend/core/audio_recorder/audio_recorder_service.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:frontend/features/conversation/domain/entities/conversation_entity.dart';
 import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
@@ -24,16 +26,20 @@ class ConversationCubit extends Cubit<ConversationState> {
   final ConnectConversationUseCase _connectUseCase;
   final ConversationRepository _repository;
   final AuthLocalDataSource _authLocalDataSource;
+  final AudioRecorderService _audioRecorderService;
 
   StreamSubscription<ConversationEvent>? _eventSubscription;
+  StreamSubscription<Uint8List>? _audioSubscription;
 
   ConversationCubit({
     required ConnectConversationUseCase connectUseCase,
     required ConversationRepository repository,
     required AuthLocalDataSource authLocalDataSource,
+    required AudioRecorderService audioRecorderService,
   })  : _connectUseCase = connectUseCase,
         _repository = repository,
         _authLocalDataSource = authLocalDataSource,
+        _audioRecorderService = audioRecorderService,
         super(const ConversationInitial());
 
   // ---------------------------------------------------------------------------
@@ -135,24 +141,72 @@ class ConversationCubit extends Cubit<ConversationState> {
 
   /// Transitions the UI to "recording" state.
   ///
-  /// This signals the UI to show the recording animation.
-  /// Actual microphone integration will be done in a future task.
-  void startListening() {
+  /// This signals the UI to show the recording animation and starts
+  /// streaming audio from the microphone to the backend.
+  Future<void> startListening() async {
     if (isClosed) return;
-    emit(ConversationRecording(
-      messages: state.messages,
-      currentSpeaker: state.currentSpeaker,
-      connectionStatus: WebSocketConnectionStatus.connected,
-      sourceLanguage: state.sourceLanguage,
-      targetLanguage: state.targetLanguage,
-    ));
+
+    final hasPermission = await _audioRecorderService.hasPermission();
+    if (!hasPermission) {
+      emit(ConversationFailure(
+        message: 'Cần cấp quyền microphone để ghi âm.',
+        messages: state.messages,
+        currentSpeaker: state.currentSpeaker,
+        sourceLanguage: state.sourceLanguage,
+        targetLanguage: state.targetLanguage,
+      ));
+      return;
+    }
+
+    try {
+      final stream = await _audioRecorderService.startStreamRecording();
+      
+      _audioSubscription?.cancel();
+      _audioSubscription = stream.listen((chunk) {
+        _repository.sendAudioChunk(chunk);
+      }, onError: (error) {
+        if (!isClosed) {
+          emit(ConversationFailure(
+            message: 'Lỗi luồng ghi âm: $error',
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ));
+        }
+      });
+
+      emit(ConversationRecording(
+        messages: state.messages,
+        currentSpeaker: state.currentSpeaker,
+        connectionStatus: WebSocketConnectionStatus.connected,
+        sourceLanguage: state.sourceLanguage,
+        targetLanguage: state.targetLanguage,
+      ));
+    } catch (e) {
+      emit(ConversationFailure(
+        message: 'Lỗi khi bắt đầu ghi âm: $e',
+        messages: state.messages,
+        currentSpeaker: state.currentSpeaker,
+        sourceLanguage: state.sourceLanguage,
+        targetLanguage: state.targetLanguage,
+      ));
+    }
   }
 
   /// Stops the current recording and sends `end_utterance` to the server.
   ///
   /// Emits [ConversationProcessing] while waiting for the translation result.
-  void stopListening() {
+  Future<void> stopListening() async {
     if (isClosed) return;
+    
+    await _audioSubscription?.cancel();
+    _audioSubscription = null;
+    
+    if (_audioRecorderService.isRecording) {
+      await _audioRecorderService.stopStreamRecording();
+    }
+
     _repository.endUtterance();
     emit(ConversationProcessing(
       messages: state.messages,
@@ -190,10 +244,18 @@ class ConversationCubit extends Cubit<ConversationState> {
   }
 
   /// Disconnects and resets to initial state.
-  void disconnect() {
+  Future<void> disconnect() async {
+    await _audioSubscription?.cancel();
+    _audioSubscription = null;
+    
+    if (_audioRecorderService.isRecording) {
+      await _audioRecorderService.stopStreamRecording();
+    }
+
     _eventSubscription?.cancel();
     _eventSubscription = null;
     _repository.disconnect();
+    
     if (!isClosed) {
       emit(const ConversationInitial());
     }
@@ -331,8 +393,12 @@ class ConversationCubit extends Cubit<ConversationState> {
   // ---------------------------------------------------------------------------
 
   @override
-  Future<void> close() {
-    _eventSubscription?.cancel();
+  Future<void> close() async {
+    await _audioSubscription?.cancel();
+    if (_audioRecorderService.isRecording) {
+      await _audioRecorderService.stopStreamRecording();
+    }
+    await _eventSubscription?.cancel();
     return super.close();
   }
 }

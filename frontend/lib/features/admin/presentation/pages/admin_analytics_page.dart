@@ -278,7 +278,7 @@ class AdminAnalyticsPage extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: 6,
-              separatorBuilder: (_, __) => Divider(
+              separatorBuilder: (context, index) => Divider(
                 color: Theme.of(context).colorScheme.outlineVariant,
               ),
               itemBuilder: (context, index) {

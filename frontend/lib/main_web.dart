@@ -1,5 +1,5 @@
-import 'dart:async';
-import 'dart:html' as html;
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -15,7 +15,7 @@ import 'package:frontend/core/network/bloc/network_cubit.dart';
 import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/l10n/app_localizations.dart';
-import 'package:frontend/main.dart' show isarDatabase, GoRouterRefreshStream;
+import 'package:frontend/main.dart' show isarDatabase, config;
 
 /// Web entry point for the Translation Admin Dashboard
 /// 
@@ -63,8 +63,7 @@ void _configureWebRenderer() {
   //   renderer: canvaskit  # or 'html'
   
   // You can also check at runtime:
-  final renderer = html.window.localStorage['flutter.renderer'] ?? 'canvaskit';
-  debugPrint('Web Renderer: $renderer');
+  debugPrint('Web Renderer check skipped to avoid dart:html dependency');
 }
 
 /// Root widget for Admin Dashboard
