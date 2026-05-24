@@ -292,8 +292,8 @@ class _ConversationViewState extends State<_ConversationView> {
 
             Text(
               isConnected
-                  ? 'Nhấn nút mic để bắt đầu nói.\n'
-                      'Cuộc hội thoại sẽ được dịch real-time.'
+                  ? 'Nhấn Bắt đầu hội thoại để bắt đầu.\n'
+                      'Ứng dụng sẽ tự động ghi âm và dịch liên tục.'
                   : 'Kết nối để bắt đầu phiên dịch\n'
                       'hội thoại real-time giữa hai người.',
               textAlign: TextAlign.center,
@@ -361,6 +361,9 @@ class _ConversationViewState extends State<_ConversationView> {
         state is ConversationRecording ||
         state is ConversationProcessing;
     final isRecording = state is ConversationRecording;
+    final hasActiveSession = isRecording ||
+        state is ConversationProcessing ||
+        (state is ConversationConnected && state.sessionId != null);
 
     return Container(
       padding: EdgeInsets.only(
@@ -398,18 +401,20 @@ class _ConversationViewState extends State<_ConversationView> {
                   currentSpeaker: state.currentSpeaker,
                   onToggle: () =>
                       context.read<ConversationCubit>().switchSpeaker(),
-                  enabled: !isRecording,
+                  enabled: true, // Always allow switching speaker
                 ),
 
               if (isConnected) const SizedBox(width: 16),
 
-              // Mic button
-              if (isConnected) _buildMicButton(context, state, isRecording),
+              // Start button (when connected but no session)
+              if (state is ConversationConnected && state.sessionId == null)
+                _buildStartSessionButton(context),
 
-              if (isConnected) const SizedBox(width: 16),
+              if (state is ConversationConnected && state.sessionId == null)
+                const SizedBox(width: 16),
 
               // End session button
-              if (isConnected)
+              if (hasActiveSession)
                 _buildEndButton(context),
 
               // Connect button (when not connected)
@@ -421,7 +426,7 @@ class _ConversationViewState extends State<_ConversationView> {
           // Recording indicator
           if (isRecording) ...[
             const SizedBox(height: 10),
-            _buildRecordingIndicator(context),
+            _buildRecordingIndicator(context, state.volumeLevel),
           ],
         ],
       ),
@@ -527,55 +532,21 @@ class _ConversationViewState extends State<_ConversationView> {
     );
   }
 
-  Widget _buildMicButton(
-    BuildContext context,
-    ConversationState state,
-    bool isRecording,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        final cubit = context.read<ConversationCubit>();
-        if (isRecording) {
-          cubit.stopListening();
-        } else {
-          // Start session if not yet started, then begin listening.
-          if (state is ConversationConnected && state.sessionId == null) {
-            cubit.startSession(
-              sourceLanguage: _srcLang,
-              targetLanguage: _tgtLang,
-            );
-          }
-          cubit.startListening();
-        }
+  Widget _buildStartSessionButton(BuildContext context) {
+    return FilledButton.icon(
+      onPressed: () {
+        context.read<ConversationCubit>().startSession(
+          sourceLanguage: _srcLang,
+          targetLanguage: _tgtLang,
+        );
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: isRecording ? 72 : 60,
-        height: isRecording ? 72 : 60,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isRecording
-                ? [const Color(0xFFF44336), const Color(0xFFD32F2F)]
-                : [const Color(0xFF1976D2), const Color(0xFF0D47A1)],
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: (isRecording
-                      ? const Color(0xFFF44336)
-                      : const Color(0xFF1976D2))
-                  .withValues(alpha: 0.4),
-              blurRadius: isRecording ? 20 : 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(
-          isRecording ? Icons.stop_rounded : Icons.mic_rounded,
-          color: Colors.white,
-          size: isRecording ? 32 : 28,
+      icon: const Icon(Icons.play_arrow_rounded),
+      label: const Text('Bắt đầu hội thoại'),
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xFF4CAF50),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
     );
@@ -614,7 +585,12 @@ class _ConversationViewState extends State<_ConversationView> {
     );
   }
 
-  Widget _buildRecordingIndicator(BuildContext context) {
+  Widget _buildRecordingIndicator(BuildContext context, double volumeLevel) {
+    // Dynamic scale and opacity based on volume level.
+    // Minimum scale is 1.0, maximum is around 1.8.
+    final dynamicScale = 1.0 + (volumeLevel * 0.8);
+    final dynamicOpacity = (0.5 + (volumeLevel * 0.5)).clamp(0.0, 1.0);
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 600),
@@ -624,24 +600,25 @@ class _ConversationViewState extends State<_ConversationView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Pulsing red dot
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.5, end: 1.0),
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.easeInOut,
-                builder: (context, dotOpacity, _) {
-                  return Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF44336)
-                          .withValues(alpha: dotOpacity),
-                      shape: BoxShape.circle,
+              // Dynamic pulsing red dot responding to volume
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 100), // Fast response to volume changes
+                curve: Curves.easeOut,
+                width: 8 * dynamicScale,
+                height: 8 * dynamicScale,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF44336).withValues(alpha: dynamicOpacity),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF44336).withValues(alpha: dynamicOpacity * 0.5),
+                      blurRadius: 4 * dynamicScale,
+                      spreadRadius: 2 * dynamicScale,
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Text(
                 'Đang nghe...',
                 style: GoogleFonts.inter(

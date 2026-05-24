@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:bloc/bloc.dart';
@@ -8,6 +9,7 @@ import 'package:frontend/features/auth/data/datasources/auth_local_datasource.da
 import 'package:frontend/features/conversation/domain/entities/conversation_entity.dart';
 import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
 import 'package:frontend/features/conversation/domain/usecases/connect_conversation_usecase.dart';
+import 'package:frontend/core/utils/vad_util.dart';
 
 part 'conversation_state.dart';
 
@@ -30,6 +32,18 @@ class ConversationCubit extends Cubit<ConversationState> {
 
   StreamSubscription<ConversationEvent>? _eventSubscription;
   StreamSubscription<Uint8List>? _audioSubscription;
+
+  /// Tracks when the current silence started for VAD.
+  DateTime? _silenceStartTime;
+  
+  /// Threshold for automatic stop (e.g. 1.5 seconds of silence).
+  static const _silenceDurationThreshold = Duration(milliseconds: 1500);
+
+  /// Buffer to accumulate audio data for 2-second chunks.
+  List<int> _audioBuffer = [];
+
+  /// Bytes required for 2 seconds of audio (16000Hz * 1 channel * 2 bytes/sample * 2 seconds).
+  static const int _bytesPerTwoSeconds = 64000;
 
   ConversationCubit({
     required ConnectConversationUseCase connectUseCase,
@@ -161,9 +175,55 @@ class ConversationCubit extends Cubit<ConversationState> {
     try {
       final stream = await _audioRecorderService.startStreamRecording();
       
+      _silenceStartTime = null; // Reset silence tracker
+      _audioBuffer.clear(); // Reset audio buffer
+
       _audioSubscription?.cancel();
       _audioSubscription = stream.listen((chunk) {
-        _repository.sendAudioChunk(chunk);
+        _audioBuffer.addAll(chunk);
+
+        // Send audio in 2-second chunks
+        while (_audioBuffer.length >= _bytesPerTwoSeconds) {
+          final chunkToSend = Uint8List.fromList(_audioBuffer.sublist(0, _bytesPerTwoSeconds));
+          _audioBuffer = _audioBuffer.sublist(_bytesPerTwoSeconds);
+
+          if (state.connectionStatus == WebSocketConnectionStatus.connected && state is ConversationRecording) {
+            try {
+              final now = DateTime.now();
+              developer.log('Sending 2s audio chunk (${chunkToSend.length} bytes)', time: now, name: 'ConversationCubit');
+              _repository.sendAudioChunk(chunkToSend);
+            } catch (e) {
+              developer.log('Failed to send audio chunk: $e', name: 'ConversationCubit', error: e);
+            }
+          }
+        }
+
+        // VAD Logic
+        final volume = VadUtil.calculateNormalizedVolume(chunk);
+        if (VadUtil.isSilence(volume, threshold: 0.05)) {
+          _silenceStartTime ??= DateTime.now();
+          if (DateTime.now().difference(_silenceStartTime!) > _silenceDurationThreshold) {
+            developer.log('Silence detected for > 1.5s, stopping listening...', name: 'ConversationCubit');
+            stopListening();
+            _silenceStartTime = null;
+            return;
+          }
+        } else {
+          _silenceStartTime = null;
+        }
+
+        // Emit new state with volume level for UI animation
+        if (!isClosed && state is ConversationRecording) {
+          emit(ConversationRecording(
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            connectionStatus: state.connectionStatus,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+            volumeLevel: volume,
+          ));
+        }
+
       }, onError: (error) {
         if (!isClosed) {
           emit(ConversationFailure(
@@ -200,11 +260,26 @@ class ConversationCubit extends Cubit<ConversationState> {
   Future<void> stopListening() async {
     if (isClosed) return;
     
+    _silenceStartTime = null; // Reset
+    
     await _audioSubscription?.cancel();
     _audioSubscription = null;
     
     if (_audioRecorderService.isRecording) {
       await _audioRecorderService.stopStreamRecording();
+    }
+
+    // Send any remaining audio in the buffer before ending utterance
+    if (_audioBuffer.isNotEmpty && state.connectionStatus == WebSocketConnectionStatus.connected) {
+      try {
+        final chunkToSend = Uint8List.fromList(_audioBuffer);
+        final now = DateTime.now();
+        developer.log('Sending remaining audio chunk (${chunkToSend.length} bytes)', time: now, name: 'ConversationCubit');
+        _repository.sendAudioChunk(chunkToSend);
+      } catch (e) {
+        developer.log('Failed to send remaining audio chunk: $e', name: 'ConversationCubit', error: e);
+      }
+      _audioBuffer.clear();
     }
 
     _repository.endUtterance();
@@ -230,9 +305,10 @@ class ConversationCubit extends Cubit<ConversationState> {
     _emitWithUpdatedSpeaker(newSpeaker);
   }
 
-  /// Ends the conversation session.
-  void endSession() {
+  /// Ends the conversation session and stops continuous recording.
+  Future<void> endSession() async {
     if (isClosed) return;
+    await stopListening();
     _repository.endSession();
     emit(ConversationConnected(
       messages: state.messages,
@@ -254,6 +330,7 @@ class ConversationCubit extends Cubit<ConversationState> {
 
     _eventSubscription?.cancel();
     _eventSubscription = null;
+    _audioBuffer.clear();
     _repository.disconnect();
     
     if (!isClosed) {
@@ -305,6 +382,8 @@ class ConversationCubit extends Cubit<ConversationState> {
           targetLanguage: state.targetLanguage,
           sessionId: event.sessionId,
         ));
+        // Auto-start listening (continuous recording) once session starts
+        startListening();
 
       case ConversationMetadataAcknowledged():
         // No state change needed — metadata is acknowledged.

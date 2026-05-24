@@ -23,12 +23,16 @@ sealed class ConversationState {
   /// Target language code (ISO 639-1).
   final String targetLanguage;
 
+  /// Current microphone volume level (0.0 to 1.0) when recording.
+  final double volumeLevel;
+
   const ConversationState({
     this.messages = const [],
     this.currentSpeaker = ConversationSpeaker.speakerA,
     this.connectionStatus = WebSocketConnectionStatus.disconnected,
     this.sourceLanguage = 'vi',
     this.targetLanguage = 'en',
+    this.volumeLevel = 0.0,
   });
 }
 
@@ -74,6 +78,7 @@ final class ConversationRecording extends ConversationState {
     required super.connectionStatus,
     required super.sourceLanguage,
     required super.targetLanguage,
+    super.volumeLevel = 0.0,
   });
 }
 
