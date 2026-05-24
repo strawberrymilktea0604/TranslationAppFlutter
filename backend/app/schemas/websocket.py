@@ -10,9 +10,16 @@ the hot receive loop.
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictInt,
+    field_validator,
+)
 
-from app.schemas.realtime_session import Speaker
+from app.schemas.realtime_session import AudioFormat, Speaker
 
 
 # ==============================================================================
@@ -64,6 +71,78 @@ class WsSpeakerChangedEvent(BaseModel):
     speaker: Speaker = Field(..., description="New active speaker.")
 
 
+class WsAudioMetadataEvent(BaseModel):
+    """
+    Sent by the client after session_start and before binary audio.
+
+    Example::
+        {
+            "event": "audio_metadata",
+            "sample_rate": 44100,
+            "audio_format": "pcm_s16le",
+            "speaker": "SPEAKER_A",
+            "source_language": "vi",
+            "target_language": "en"
+        }
+
+    Flutter camelCase aliases are accepted for the metadata field names.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    event: Literal["audio_metadata"]
+    sample_rate: StrictInt = Field(
+        ...,
+        validation_alias=AliasChoices("sample_rate", "sampleRate"),
+        description="Input audio sample rate in Hz.",
+    )
+    audio_format: AudioFormat = Field(
+        ...,
+        validation_alias=AliasChoices("audio_format", "audioFormat"),
+        description="Input audio encoding/container.",
+    )
+    speaker: Speaker = Field(..., description="Current active speaker.")
+    source_language: str = Field(
+        ...,
+        min_length=2,
+        max_length=5,
+        validation_alias=AliasChoices("source_language", "sourceLanguage"),
+        description="ISO 639-1 source language code or 'auto'.",
+    )
+    target_language: str = Field(
+        ...,
+        min_length=2,
+        max_length=5,
+        validation_alias=AliasChoices("target_language", "targetLanguage"),
+        description="ISO 639-1 target language code.",
+    )
+
+    @field_validator("sample_rate")
+    @classmethod
+    def validate_sample_rate(cls, value: int) -> int:
+        allowed = {8000, 16000, 22050, 24000, 32000, 44100, 48000}
+        if value not in allowed:
+            raise ValueError(
+                "sample_rate must be one of: "
+                "8000, 16000, 22050, 24000, 32000, 44100, 48000"
+            )
+        return value
+
+    @field_validator("audio_format", mode="before")
+    @classmethod
+    def normalize_audio_format(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @field_validator("source_language", "target_language", mode="before")
+    @classmethod
+    def normalize_language(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+
 class WsPingEvent(BaseModel):
     """
     Keepalive ping. Server replies with a pong event.
@@ -108,6 +187,7 @@ class WsSessionEndEvent(BaseModel):
 KNOWN_EVENTS = frozenset(
     {
         "session_start",
+        "audio_metadata",
         "ping",
         "speaker_changed",
         "end_utterance",

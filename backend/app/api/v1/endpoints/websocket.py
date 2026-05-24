@@ -42,6 +42,8 @@ See app/schemas/websocket.py for full message schemas.
 import json
 import logging
 import time
+import wave
+from io import BytesIO
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -55,10 +57,11 @@ from app.core.pcm_buffer import BufferOverflowError
 from app.core.redis_client import is_token_revoked
 from app.core.security import verify_token
 from app.models.user import User
-from app.schemas.realtime_session import SessionStatus
+from app.schemas.realtime_session import AudioFormat, AudioMetadata, SessionStatus
 from app.schemas.translation import TranslationRequest
 from app.schemas.websocket import (
     KNOWN_EVENTS,
+    WsAudioMetadataEvent,
     WsSessionStartEvent,
     WsSpeakerChangedEvent,
 )
@@ -142,6 +145,42 @@ manager = ConnectionManager()
 def _error_event(code: str, message: str) -> dict:
     """Build a standard error event dict."""
     return {"event": "error", "code": code, "message": message}
+
+
+_AUDIO_FORMAT_SUFFIXES = {
+    AudioFormat.WAV: ".wav",
+    AudioFormat.M4A: ".m4a",
+    AudioFormat.AAC: ".aac",
+    AudioFormat.MP3: ".mp3",
+    AudioFormat.OGG: ".ogg",
+    AudioFormat.FLAC: ".flac",
+}
+
+
+def _language_for_stt(source_language: str) -> Optional[str]:
+    """Return None for auto-detect, otherwise the explicit source language."""
+    return None if source_language.lower() == "auto" else source_language
+
+
+def _wrap_pcm_s16le_as_wav(audio_bytes: bytes, sample_rate: int) -> bytes:
+    """Wrap raw mono signed 16-bit little-endian PCM bytes in a WAV container."""
+    output = BytesIO()
+    with wave.open(output, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(audio_bytes)
+    return output.getvalue()
+
+
+def _prepare_audio_for_stt(
+    audio_bytes: bytes,
+    metadata: AudioMetadata,
+) -> tuple[bytes, str]:
+    """Prepare buffered audio bytes and temp-file suffix for faster-whisper."""
+    if metadata.audio_format == AudioFormat.PCM_S16LE:
+        return _wrap_pcm_s16le_as_wav(audio_bytes, metadata.sample_rate), ".wav"
+    return audio_bytes, _AUDIO_FORMAT_SUFFIXES.get(metadata.audio_format, ".tmp")
 
 
 async def _authenticate_ws(
@@ -339,9 +378,23 @@ async def websocket_conversation(
                     continue
 
                 session = conversation_manager.get_session(active_session_id)
-                if session:
-                    session.status = SessionStatus.RECORDING
-                    session.mark_active()
+                if session is None:
+                    await websocket.send_json(
+                        _error_event("SESSION_NOT_FOUND", "Session state missing.")
+                    )
+                    continue
+
+                if session.audio_metadata is None:
+                    await websocket.send_json(
+                        _error_event(
+                            "MISSING_AUDIO_METADATA",
+                            "Audio metadata must be sent before binary audio.",
+                        )
+                    )
+                    continue
+
+                session.status = SessionStatus.RECORDING
+                session.mark_active()
 
                 try:
                     buffer.append(chunk)
@@ -438,6 +491,69 @@ async def websocket_conversation(
                 )
 
             # ------------------------------------------------------
+            # audio_metadata
+            # ------------------------------------------------------
+            elif event_name == "audio_metadata":
+                if active_session_id is None:
+                    await websocket.send_json(
+                        _error_event(
+                            "INVALID_SESSION_STATE",
+                            "audio_metadata received before session_start.",
+                        )
+                    )
+                    continue
+
+                buffer = conversation_manager.get_buffer(active_session_id)
+                if buffer is not None and not buffer.is_empty:
+                    await websocket.send_json(
+                        _error_event(
+                            "METADATA_UPDATE_REJECTED",
+                            "Cannot update audio metadata while audio is buffered. "
+                            "Send end_utterance before changing metadata.",
+                        )
+                    )
+                    continue
+
+                try:
+                    evt = WsAudioMetadataEvent(**data)
+                except Exception as parse_exc:  # noqa: BLE001
+                    await websocket.send_json(
+                        _error_event(
+                            "INVALID_AUDIO_METADATA",
+                            f"audio_metadata validation error: {parse_exc}",
+                        )
+                    )
+                    continue
+
+                session = conversation_manager.get_session(active_session_id)
+                if session is None:
+                    await websocket.send_json(
+                        _error_event("SESSION_NOT_FOUND", "Session state missing.")
+                    )
+                    continue
+
+                metadata = AudioMetadata(
+                    sample_rate=evt.sample_rate,
+                    audio_format=evt.audio_format,
+                    speaker=evt.speaker,
+                    source_language=evt.source_language,
+                    target_language=evt.target_language,
+                )
+                session.audio_metadata = metadata
+                session.source_language = metadata.source_language
+                session.target_language = metadata.target_language
+                session.current_speaker = metadata.speaker
+                session.mark_active()
+
+                await websocket.send_json(
+                    {
+                        "event": "audio_metadata_ack",
+                        "session_id": active_session_id,
+                        "metadata": metadata.model_dump(mode="json"),
+                    }
+                )
+
+            # ------------------------------------------------------
             # ping
             # ------------------------------------------------------
             elif event_name == "ping":
@@ -504,6 +620,15 @@ async def websocket_conversation(
                     )
                     continue
 
+                if session.audio_metadata is None:
+                    await websocket.send_json(
+                        _error_event(
+                            "MISSING_AUDIO_METADATA",
+                            "Audio metadata must be sent before end_utterance.",
+                        )
+                    )
+                    continue
+
                 session.status = SessionStatus.PROCESSING
                 session.mark_active()
 
@@ -511,13 +636,19 @@ async def websocket_conversation(
                 # arrive while STT/translate are running.
                 audio_bytes = buffer.get_audio()
                 buffer.reset()
+                audio_bytes, file_extension = _prepare_audio_for_stt(
+                    audio_bytes,
+                    session.audio_metadata,
+                )
 
                 pipeline_start = time.time()
 
                 # --- STT (short-lived DB session not needed here) ---
                 try:
                     stt_result = await STTService.transcribe_audio(
-                        audio_bytes, language=session.source_language
+                        audio_bytes,
+                        language=_language_for_stt(session.source_language),
+                        file_extension=file_extension,
                     )
                 except STTError as stt_exc:
                     logger.error(

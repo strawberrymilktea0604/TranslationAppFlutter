@@ -8,7 +8,7 @@ import uuid
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 
 
 # ==============================================================================
@@ -19,6 +19,17 @@ class Speaker(str, Enum):
     """Speaker roles in a two-way conversation."""
     SPEAKER_A = "SPEAKER_A"
     SPEAKER_B = "SPEAKER_B"
+
+
+class AudioFormat(str, Enum):
+    """Audio formats accepted from the real-time WebSocket client."""
+    PCM_S16LE = "pcm_s16le"
+    WAV = "wav"
+    M4A = "m4a"
+    AAC = "aac"
+    MP3 = "mp3"
+    OGG = "ogg"
+    FLAC = "flac"
 
 
 class SessionStatus(str, Enum):
@@ -32,6 +43,26 @@ class SessionStatus(str, Enum):
 # ==============================================================================
 # SESSION STATE MODEL
 # ==============================================================================
+
+class AudioMetadata(BaseModel):
+    """Client-provided audio and translation context for a session."""
+
+    sample_rate: StrictInt = Field(..., description="Input audio sample rate in Hz.")
+    audio_format: AudioFormat = Field(..., description="Input audio encoding/container.")
+    speaker: Speaker = Field(..., description="Current active speaker.")
+    source_language: str = Field(
+        ...,
+        min_length=2,
+        max_length=5,
+        description="ISO 639-1 source language code or 'auto'.",
+    )
+    target_language: str = Field(
+        ...,
+        min_length=2,
+        max_length=5,
+        description="ISO 639-1 target language code.",
+    )
+
 
 class TranslationSession(BaseModel):
     """Represents the complete state of an active real-time translation session."""
@@ -66,6 +97,10 @@ class TranslationSession(BaseModel):
     current_speaker: Optional[Speaker] = Field(
         default=None,
         description="Current active speaker. None if undefined.",
+    )
+    audio_metadata: Optional[AudioMetadata] = Field(
+        default=None,
+        description="Most recent validated audio metadata from the client.",
     )
     status: SessionStatus = Field(
         default=SessionStatus.IDLE,

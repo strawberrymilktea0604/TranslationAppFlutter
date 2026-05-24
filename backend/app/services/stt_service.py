@@ -82,7 +82,12 @@ class STTService:
         }
 
     @classmethod
-    async def transcribe_audio(cls, audio_bytes: bytes, language: Optional[str] = None) -> dict:
+    async def transcribe_audio(
+        cls,
+        audio_bytes: bytes,
+        language: Optional[str] = None,
+        file_extension: str = ".tmp",
+    ) -> dict:
         """
         Transcribe audio bytes to text.
         
@@ -103,7 +108,8 @@ class STTService:
         try:
             # Create a temporary file to save the audio bytes
             # faster-whisper requires a file path or a binary stream, but file path is safer for various formats
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".tmp") as temp_file:
+            suffix = file_extension if file_extension.startswith(".") else f".{file_extension}"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
                 temp_file.write(audio_bytes)
                 temp_file_path = temp_file.name
 

@@ -8,6 +8,8 @@ tests are fast and deterministic.
 Existing /api/v1/ws sync behaviour is verified in the last test class.
 """
 
+import io
+import wave
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -49,6 +51,40 @@ def _make_user(
     user.is_deleted = is_deleted
     user.status = status
     return user
+
+
+def _send_session_start(
+    ws,
+    source_language: str = "vi",
+    target_language: str = "en",
+    speaker: str = "SPEAKER_A",
+) -> dict:
+    ws.send_json({
+        "event": "session_start",
+        "source_language": source_language,
+        "target_language": target_language,
+        "speaker": speaker,
+    })
+    return ws.receive_json()
+
+
+def _send_audio_metadata(
+    ws,
+    sample_rate: int = 44100,
+    audio_format: str = "pcm_s16le",
+    speaker: str = "SPEAKER_A",
+    source_language: str = "vi",
+    target_language: str = "en",
+) -> dict:
+    ws.send_json({
+        "event": "audio_metadata",
+        "sample_rate": sample_rate,
+        "audio_format": audio_format,
+        "speaker": speaker,
+        "source_language": source_language,
+        "target_language": target_language,
+    })
+    return ws.receive_json()
 
 
 # Common mock patches applied by most tests
@@ -269,13 +305,8 @@ class TestSessionLifecycle:
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                ws.receive_json()  # session_started
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
 
                 # Second session_start on same connection
                 ws.send_json({
@@ -291,7 +322,171 @@ class TestSessionLifecycle:
 
 
 # ---------------------------------------------------------------------------
-# 3. Binary audio buffer tests
+# 3. Audio metadata tests
+# ---------------------------------------------------------------------------
+
+
+class TestAudioMetadata:
+    """Tests for audio_metadata validation and session state updates."""
+
+    def test_audio_metadata_updates_session_state(self):
+        from app.services.conversation_session_manager import conversation_manager
+
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+        session_id = None
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                start = _send_session_start(ws)
+                session_id = start["session_id"]
+
+                ack = _send_audio_metadata(
+                    ws,
+                    sample_rate=48000,
+                    audio_format="PCM_S16LE",
+                    speaker="SPEAKER_B",
+                    source_language="en",
+                    target_language="vi",
+                )
+
+                session = conversation_manager.get_session(session_id)
+                assert session is not None
+                assert session.audio_metadata is not None
+                assert session.audio_metadata.sample_rate == 48000
+                assert session.audio_metadata.audio_format.value == "pcm_s16le"
+                assert session.current_speaker.value == "SPEAKER_B"
+                assert session.source_language == "en"
+                assert session.target_language == "vi"
+
+        assert ack["event"] == "audio_metadata_ack"
+        assert ack["metadata"] == {
+            "sample_rate": 48000,
+            "audio_format": "pcm_s16le",
+            "speaker": "SPEAKER_B",
+            "source_language": "en",
+            "target_language": "vi",
+        }
+
+    def test_audio_metadata_accepts_flutter_camel_case(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+
+                ws.send_json({
+                    "event": "audio_metadata",
+                    "sampleRate": 44100,
+                    "audioFormat": "m4a",
+                    "speaker": "SPEAKER_A",
+                    "sourceLanguage": "vi",
+                    "targetLanguage": "en",
+                })
+                ack = ws.receive_json()
+
+        assert ack["event"] == "audio_metadata_ack"
+        assert ack["metadata"]["sample_rate"] == 44100
+        assert ack["metadata"]["audio_format"] == "m4a"
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {
+                "event": "audio_metadata",
+                "audio_format": "pcm_s16le",
+                "speaker": "SPEAKER_A",
+                "source_language": "vi",
+                "target_language": "en",
+            },
+            {
+                "event": "audio_metadata",
+                "sample_rate": 12345,
+                "audio_format": "pcm_s16le",
+                "speaker": "SPEAKER_A",
+                "source_language": "vi",
+                "target_language": "en",
+            },
+            {
+                "event": "audio_metadata",
+                "sample_rate": 44100,
+                "audio_format": "webm",
+                "speaker": "SPEAKER_A",
+                "source_language": "vi",
+                "target_language": "en",
+            },
+            {
+                "event": "audio_metadata",
+                "sample_rate": "44100",
+                "audio_format": "pcm_s16le",
+                "speaker": "SPEAKER_A",
+                "source_language": "vi",
+                "target_language": "en",
+            },
+            {
+                "event": "audio_metadata",
+                "sample_rate": 44100,
+                "audio_format": "pcm_s16le",
+                "speaker": "SPEAKER_C",
+                "source_language": "vi",
+                "target_language": "en",
+            },
+        ],
+    )
+    def test_invalid_audio_metadata_returns_error(self, payload):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                ws.send_json(payload)
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "INVALID_AUDIO_METADATA"
+
+    def test_audio_metadata_update_rejected_when_buffer_has_audio(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(b"\x00" * 512)
+
+                error = _send_audio_metadata(
+                    ws,
+                    sample_rate=16000,
+                    speaker="SPEAKER_B",
+                    source_language="en",
+                    target_language="vi",
+                )
+
+        assert error["event"] == "error"
+        assert error["code"] == "METADATA_UPDATE_REJECTED"
+
+
+# ---------------------------------------------------------------------------
+# 4. Binary audio buffer tests
 # ---------------------------------------------------------------------------
 
 
@@ -327,8 +522,10 @@ class TestBinaryAudio:
 
         received_audio = []
 
-        async def _capture_stt(audio_bytes, language):
+        async def _capture_stt(audio_bytes, language, file_extension=".tmp"):
             received_audio.append(audio_bytes)
+            assert language == "vi"
+            assert file_extension == ".wav"
             return {"text": "Xin chào", "language": "vi", "language_probability": 0.99}
 
         translate_mock = AsyncMock(return_value=("Hello", False, 50.0))
@@ -340,13 +537,8 @@ class TestBinaryAudio:
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                ws.receive_json()  # session_started
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
 
                 # Send two PCM chunks then flush
                 ws.send_bytes(b"\x00" * 512)
@@ -357,10 +549,34 @@ class TestBinaryAudio:
         # STT must have been called with both chunks concatenated (1024 bytes)
         assert result["event"] == "translation_result"
         assert len(received_audio) == 1
-        assert len(received_audio[0]) == 1024
+        with wave.open(io.BytesIO(received_audio[0]), "rb") as wav_file:
+            assert wav_file.getframerate() == 44100
+            assert wav_file.getnchannels() == 1
+            assert wav_file.getsampwidth() == 2
+            pcm_frames = wav_file.readframes(wav_file.getnframes())
+
+        assert len(pcm_frames) == 1024
         # First 512 bytes are 0x00, second 512 are 0xff
-        assert received_audio[0][:512] == b"\x00" * 512
-        assert received_audio[0][512:] == b"\xff" * 512
+        assert pcm_frames[:512] == b"\x00" * 512
+        assert pcm_frames[512:] == b"\xff" * 512
+
+    def test_binary_after_session_start_before_metadata_returns_error(self):
+        """Binary frame before audio_metadata must return MISSING_AUDIO_METADATA."""
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                ws.send_bytes(b"\x00" * 1024)
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "MISSING_AUDIO_METADATA"
 
     def test_end_utterance_empty_buffer_returns_error(self):
         """end_utterance with no audio → EMPTY_AUDIO_BUFFER error."""
@@ -373,13 +589,8 @@ class TestBinaryAudio:
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                ws.receive_json()  # session_started
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
 
                 ws.send_json({"event": "end_utterance"})
                 error = ws.receive_json()
@@ -419,13 +630,8 @@ class TestEndUtterancePipeline:
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                ws.receive_json()  # session_started
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
 
                 ws.send_bytes(b"\x00" * 1024)
                 ws.send_json({"event": "end_utterance"})
@@ -465,13 +671,8 @@ class TestEndUtterancePipeline:
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                ws.receive_json()  # session_started
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
 
                 # First utterance — succeeds
                 ws.send_bytes(b"\x00" * 2048)
@@ -508,13 +709,8 @@ class TestEndUtterancePipeline:
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                ws.receive_json()
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
 
                 ws.send_bytes(b"\x00" * 512)
                 ws.send_json({"event": "end_utterance"})
@@ -538,13 +734,8 @@ class TestEndUtterancePipeline:
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                ws.receive_json()
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
 
                 ws.send_bytes(b"\x00" * 512)
                 ws.send_json({"event": "end_utterance"})
