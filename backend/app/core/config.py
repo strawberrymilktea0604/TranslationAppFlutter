@@ -50,8 +50,52 @@ class Settings(BaseSettings):
     GUEST_MAX_CHAR_LENGTH: int = 500
     USER_MAX_REQUESTS_PER_HOUR: int = 100
     USER_MAX_CHAR_LENGTH: int = 5000
+    ADMIN_MAX_REQUESTS_PER_HOUR: int = 1000
+    ADMIN_MAX_CHAR_LENGTH: int = 50000
+    PREMIUM_MAX_REQUESTS_PER_HOUR: int = 500
     RATE_LIMIT_WINDOW_SECONDS: int = 3600  # 1 hour
     FALLBACK_MAX_REQUESTS_PER_MINUTE: int = 20  # Limit to avoid IP ban by Google (googletrans)
+
+    # WebSocket Configuration
+    WEBSOCKET_ENABLED: bool = True
+    WEBSOCKET_PING_INTERVAL: int = 30  # seconds
+    WEBSOCKET_PING_TIMEOUT: int = 10  # seconds
+    WEBSOCKET_CONNECTION_TIMEOUT: int = 30  # seconds
+    WEBSOCKET_MAX_CONNECTIONS_PER_USER: int = 5
+    WEBSOCKET_MESSAGE_QUEUE_SIZE: int = 100
+    WEBSOCKET_BUFFER_SIZE: int = 1024  # KB
+    CONVERSATION_SESSION_TIMEOUT: int = 300  # 5 minutes
+    CONVERSATION_SEGMENT_TIMEOUT: int = 10  # seconds
+    CONVERSATION_MAX_AUDIO_SIZE: int = 50  # MB
+    CONVERSATION_MAX_SESSIONS_PER_USER: int = 3
+    AUDIO_CHUNK_SIZE: int = 4096  # bytes
+    AUDIO_SAMPLE_RATE: int = 16000  # Hz
+    AUDIO_CHANNELS: int = 1  # mono
+    AUDIO_FORMAT: str = "pcm_s16le"
+    WEBSOCKET_POOL_SIZE: int = 100
+    WEBSOCKET_MESSAGE_RATE_LIMIT: int = 1000  # messages per minute
+    WEBSOCKET_AUDIO_RATE_LIMIT_MB: int = 50  # MB per minute
+    WEBSOCKET_LOG_LEVEL: str = "INFO"
+
+    # Logging Configuration
+    LOG_LEVEL: str = Field(default="INFO")
+    LOG_FORMAT: str = Field(default="json")  # json or standard
+    FLUENTD_ENABLED: bool = True
+    FLUENTD_HOST: str = "log_aggregator"
+    FLUENTD_PORT: int = 24224
+    FLUENTD_BUFFER_LIMIT: str = "256m"
+    FLUENTD_FLUSH_INTERVAL: str = "10s"
+    REALTIME_SESSION_LOGGING_ENABLED: bool = True
+    REALTIME_SESSION_VERBOSE: bool = False
+    SESSION_LOG_RETENTION_DAYS: int = 30
+    SESSION_LOG_COMPRESSION: bool = True
+    PERFORMANCE_METRICS_ENABLED: bool = True
+    METRICS_FLUSH_INTERVAL: int = 60  # seconds
+    AUDIT_LOGGING_ENABLED: bool = True
+    AUDIT_LOG_ADMIN_ACTIONS: bool = True
+    AUDIT_LOG_USER_LOGIN: bool = True
+    ERROR_RATE_ALERT_THRESHOLD: float = 0.1  # 10%
+    LATENCY_ALERT_THRESHOLD_MS: int = 5000  # 5 seconds
 
     # CORS configuration
     BACKEND_CORS_ORIGINS: list[str] = Field(
