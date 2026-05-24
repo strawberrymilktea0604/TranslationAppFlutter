@@ -13,6 +13,7 @@ import 'package:frontend/features/auth/presentation/pages/password_setup_page.da
 import 'package:frontend/features/auth/presentation/pages/success_page.dart';
 import 'package:frontend/features/auth/presentation/pages/register_page.dart';
 import 'package:frontend/features/translation/presentation/pages/translation_page.dart';
+import 'package:frontend/features/conversation/presentation/pages/conversation_page.dart';
 import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
 import 'package:frontend/features/profile/presentation/pages/edit_profile_page.dart';
 import 'package:frontend/features/profile/presentation/pages/change_password_page.dart';
@@ -38,6 +39,7 @@ class AppRoutes {
   static const String changePassword = '/change-password';
   static const String learning = '/learning';
   static const String quiz = '/quiz';
+  static const String conversation = '/conversation';
 
   // Legacy routes — kept for backward compatibility, all resolve to
   // TranslationPage (the new primary screen).
@@ -89,7 +91,8 @@ GoRouter createRouter(BuildContext context) {
           state.matchedLocation == AppRoutes.authenticatedHome ||
           state.matchedLocation == AppRoutes.profile ||
           state.matchedLocation == AppRoutes.learning ||
-          state.matchedLocation == AppRoutes.quiz;
+          state.matchedLocation == AppRoutes.quiz ||
+          state.matchedLocation == AppRoutes.conversation;
 
       // Guard: unauthenticated users cannot access protected routes.
       if (!isAuthenticated && !isPublicPage) {
@@ -259,6 +262,17 @@ GoRouter createRouter(BuildContext context) {
             transitionsBuilder: _slideUpFade,
           );
         },
+      ),
+      // ── Conversation — Real-time voice translation ────────────────
+      GoRoute(
+        path: AppRoutes.conversation,
+        name: 'conversation',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const ConversationPage(),
+          transitionDuration: const Duration(milliseconds: 400),
+          transitionsBuilder: _slideUpFade,
+        ),
       ),
     ],
   );

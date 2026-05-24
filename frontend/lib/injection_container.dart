@@ -81,6 +81,11 @@ import 'package:frontend/features/learning/domain/usecases/get_quiz_questions_us
 import 'package:frontend/features/learning/domain/usecases/submit_quiz_result_usecase.dart';
 import 'package:frontend/features/learning/presentation/bloc/quiz_cubit.dart';
 import 'package:frontend/core/network/services/realtime_sync_service.dart';
+import 'package:frontend/features/conversation/data/datasources/conversation_remote_datasource.dart';
+import 'package:frontend/features/conversation/data/repositories/conversation_repository_impl.dart';
+import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
+import 'package:frontend/features/conversation/domain/usecases/connect_conversation_usecase.dart';
+import 'package:frontend/features/conversation/presentation/bloc/conversation_cubit.dart';
 
 import 'main.dart' show config, isarDatabase;
 
@@ -449,5 +454,32 @@ Future<void> initDependencies() async {
   sl.registerFactory(() => QuizCubit(
     getQuizQuestionsUseCase: sl(),
     submitQuizResultUseCase: sl(),
+  ));
+
+  // ==============================
+  //  Feature: Conversation (Real-time Voice Translation)
+  // ==============================
+
+  // DataSource — WebSocket connection to /api/v1/ws/conversation.
+  sl.registerLazySingleton<ConversationRemoteDataSource>(
+    () => ConversationRemoteDataSourceImpl(),
+  );
+
+  // Repository — maps raw WS messages to domain ConversationEvents.
+  sl.registerLazySingleton<ConversationRepository>(
+    () => ConversationRepositoryImpl(
+      dataSource: sl(),
+      baseApiUrl: config.apiUrl,
+    ),
+  );
+
+  // UseCase
+  sl.registerLazySingleton(() => ConnectConversationUseCase(sl()));
+
+  // Cubit — factory: new instance per conversation screen.
+  sl.registerFactory(() => ConversationCubit(
+    connectUseCase: sl(),
+    repository: sl(),
+    authLocalDataSource: sl(),
   ));
 }
