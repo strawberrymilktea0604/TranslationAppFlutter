@@ -72,15 +72,6 @@ class UserListResponse(BaseModel):
 class UserStatusUpdate(BaseModel):
     status: str = Field(pattern="^(active|locked)$")
 
-    @field_validator("new_password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        if not any(char.isdigit() for char in v):
-            raise ValueError('Password must contain at least one digit')
-        if not any(char.isalpha() for char in v):
-            raise ValueError('Password must contain at least one letter')
-        return v
-
 
 class Token(BaseModel):
     """Token response schema (login, register, refresh)"""
