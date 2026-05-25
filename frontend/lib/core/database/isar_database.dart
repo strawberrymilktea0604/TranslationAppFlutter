@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -26,13 +27,37 @@ class IsarDatabase {
     if (kIsWeb) return; // Isar 3.x does not support Web
 
     final dir = await getApplicationDocumentsDirectory();
-    _isar = await Isar.open([
-      UserModelSchema,
-      HistoryModelSchema,
-      VocabularyModelSchema,
-      VocabularyCategoryModelSchema,
-      QuestionBankModelSchema,
-      QuizResultModelSchema,
-    ], directory: dir.path);
+    
+    try {
+      _isar = await Isar.open([
+        UserModelSchema,
+        HistoryModelSchema,
+        VocabularyModelSchema,
+        VocabularyCategoryModelSchema,
+        QuestionBankModelSchema,
+        QuizResultModelSchema,
+      ], directory: dir.path);
+    } catch (e) {
+      debugPrint('Isar open failed: $e. Attempting to delete and recreate database...');
+      // Delete old database files if schema mismatch or corruption occurs
+      final dbFile = File('${dir.path}/default.isar');
+      final lockFile = File('${dir.path}/default.isar.lock');
+      if (await dbFile.exists()) {
+        await dbFile.delete();
+      }
+      if (await lockFile.exists()) {
+        await lockFile.delete();
+      }
+      
+      // Try opening again
+      _isar = await Isar.open([
+        UserModelSchema,
+        HistoryModelSchema,
+        VocabularyModelSchema,
+        VocabularyCategoryModelSchema,
+        QuestionBankModelSchema,
+        QuizResultModelSchema,
+      ], directory: dir.path);
+    }
   }
 }
