@@ -39,7 +39,12 @@ class IsarDatabase {
       ], directory: dir.path);
     } catch (e) {
       debugPrint('Isar open failed: $e. Attempting to delete and recreate database...');
-      // Delete old database files if schema mismatch or corruption occurs
+      
+      try {
+        await Isar.getInstance()?.close(deleteFromDisk: true);
+      } catch (_) {}
+
+      // Delete old database files manually just in case
       final dbFile = File('${dir.path}/default.isar');
       final lockFile = File('${dir.path}/default.isar.lock');
       if (await dbFile.exists()) {
@@ -49,7 +54,7 @@ class IsarDatabase {
         await lockFile.delete();
       }
       
-      // Try opening again
+      // Try opening again with a fallback name to avoid Isar registry lock
       _isar = await Isar.open([
         UserModelSchema,
         HistoryModelSchema,
@@ -57,7 +62,7 @@ class IsarDatabase {
         VocabularyCategoryModelSchema,
         QuestionBankModelSchema,
         QuizResultModelSchema,
-      ], directory: dir.path);
+      ], directory: dir.path, name: 'translation_db_fallback');
     }
   }
 }
