@@ -69,7 +69,6 @@ async def lifespan(app: FastAPI):
         from app.core.database import async_session_maker
         from app.models.user import User
         from app.core.security import hash_password
-        from app.core.config import settings
         from sqlalchemy.future import select
 
         async with async_session_maker() as session:
