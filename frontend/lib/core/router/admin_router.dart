@@ -11,11 +11,14 @@ import 'package:frontend/features/admin/presentation/pages/admin_question_bank_p
 import 'package:frontend/features/admin/presentation/pages/admin_quiz_editor_page.dart';
 import 'package:frontend/features/admin/presentation/pages/admin_translations_page.dart';
 import 'package:frontend/features/admin/presentation/pages/admin_analytics_page.dart';
+import 'package:frontend/features/admin/presentation/pages/admin_login_page.dart';
+import 'package:frontend/features/admin/presentation/pages/admin_settings_page.dart';
 
 /// Admin Route paths
 class AdminRoutes {
   AdminRoutes._();
 
+  static const String login = '/login';
   static const String dashboard = '/admin/dashboard';
   static const String users = '/admin/users';
   static const String questionBank = '/admin/question-bank';
@@ -33,17 +36,21 @@ GoRouter createAdminRouter(BuildContext context) {
     initialLocation: AdminRoutes.dashboard,
     debugLogDiagnostics: true,
 
-    /// Admin redirect logic - only authenticated admin users
+    /// Admin redirect logic — only authenticated users can access /admin/* routes.
     redirect: (BuildContext context, GoRouterState state) {
       final authState = context.read<AuthCubit>().state;
       final isAuthenticated = authState is AuthAuthenticated;
-      
-      // TODO: Check if user has admin role
-      // final isAdmin = (authState as AuthAuthenticated?)?.user?.role == 'admin';
+      final isLoading = authState is AuthInitial || authState is AuthInProgress;
+      final isOnLogin = state.matchedLocation == AdminRoutes.login;
 
-      if (!isAuthenticated) {
-        return '/login';
-      }
+      // Wait until auth check completes
+      if (isLoading) return null;
+
+      // Not authenticated → go to login
+      if (!isAuthenticated && !isOnLogin) return AdminRoutes.login;
+
+      // Already authenticated → skip login page
+      if (isAuthenticated && isOnLogin) return AdminRoutes.dashboard;
 
       return null;
     },
@@ -52,6 +59,14 @@ GoRouter createAdminRouter(BuildContext context) {
     refreshListenable: GoRouterRefreshStream(context),
 
     routes: <RouteBase>[
+      // Public route — login page
+      GoRoute(
+        path: AdminRoutes.login,
+        name: 'admin_login',
+        builder: (context, state) => const AdminLoginPage(),
+      ),
+
+      // Protected routes — require authentication
       GoRoute(
         path: AdminRoutes.dashboard,
         name: 'admin_dashboard',
@@ -82,7 +97,28 @@ GoRouter createAdminRouter(BuildContext context) {
         name: 'admin_analytics',
         builder: (context, state) => const AdminAnalyticsPage(),
       ),
+      GoRoute(
+        path: AdminRoutes.settings,
+        name: 'admin_settings',
+        builder: (context, state) => const AdminSettingsPage(),
+      ),
     ],
+    errorBuilder: (context, state) => Scaffold(
+      appBar: AppBar(title: const Text('Không tìm thấy trang')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('GoException: no routes for location: ${state.uri.path}'),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => context.go(AdminRoutes.dashboard),
+              child: const Text('Home'),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 

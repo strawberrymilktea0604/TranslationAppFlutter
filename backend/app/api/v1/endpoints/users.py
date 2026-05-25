@@ -10,6 +10,7 @@ from app.core.dependencies import DBSession, get_current_user
 from app.models.user import User
 from app.schemas import user as schemas
 from app.services.image_service import ImageService
+from sqlalchemy import select, func, or_
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -158,29 +159,31 @@ async def list_users(
     if page_size < 1 or page_size > 100:
         page_size = 20
 
-    query = db.query(User).filter(User.is_deleted.is_(False))
+    query = select(User).where(User.is_deleted.is_(False))
     
     # Apply search filter
     if search and search.strip():
         search_term = f"%{search.strip()}%"
-        query = query.filter(
-            (User.email.ilike(search_term)) |
-            (User.first_name.ilike(search_term)) |
-            (User.last_name.ilike(search_term))
+        query = query.where(
+            or_(
+                User.email.ilike(search_term),
+                User.first_name.ilike(search_term),
+                User.last_name.ilike(search_term)
+            )
         )
     
     # Get total count
-    total = await db.execute(query.statement)
-    total = len(total.fetchall())
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar_one()
     
     # Apply pagination
     skip = (page - 1) * page_size
-    users = await db.scalars(
-        query.offset(skip).limit(page_size)
-    )
+    users_result = await db.execute(query.offset(skip).limit(page_size))
+    users = users_result.scalars().all()
     
     return schemas.UserListResponse(
-        items=[schemas.UserListItem.from_attributes(u) for u in users],
+        items=[schemas.UserListItem.model_validate(u) for u in users],
         total=total,
         page=page,
         page_size=page_size,
@@ -204,10 +207,10 @@ async def ban_user(
             detail="User not found"
         )
     
-    if user.role == "admin":
+    if user.id == admin_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot ban admin users"
+            detail="Cannot ban yourself"
         )
     
     user.status = "locked"

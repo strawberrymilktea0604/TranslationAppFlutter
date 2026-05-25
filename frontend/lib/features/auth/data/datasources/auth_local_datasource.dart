@@ -53,16 +53,14 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     required String refreshToken,
   }) async {
     try {
-      await Future.wait([
-        _secureStorage.write(
-          key: SecureStorageKeys.accessToken,
-          value: accessToken,
-        ),
-        _secureStorage.write(
-          key: SecureStorageKeys.refreshToken,
-          value: refreshToken,
-        ),
-      ]);
+      await _secureStorage.write(
+        key: SecureStorageKeys.accessToken,
+        value: accessToken,
+      );
+      await _secureStorage.write(
+        key: SecureStorageKeys.refreshToken,
+        value: refreshToken,
+      );
     } catch (e) {
       throw CacheException(message: 'Failed to save tokens: ${e.toString()}');
     }
@@ -87,16 +85,17 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     String? avatarUrl,
   }) async {
     try {
-      await Future.wait([
-        _secureStorage.write(key: SecureStorageKeys.userId, value: userId),
-        _secureStorage.write(key: SecureStorageKeys.userEmail, value: email),
-        if (name != null)
-          _secureStorage.write(key: SecureStorageKeys.userName, value: name),
-        if (role != null)
-          _secureStorage.write(key: SecureStorageKeys.userRole, value: role),
-        if (avatarUrl != null)
-          _secureStorage.write(key: 'user_avatar', value: avatarUrl),
-      ]);
+      await _secureStorage.write(key: SecureStorageKeys.userId, value: userId);
+      await _secureStorage.write(key: SecureStorageKeys.userEmail, value: email);
+      if (name != null) {
+        await _secureStorage.write(key: SecureStorageKeys.userName, value: name);
+      }
+      if (role != null) {
+        await _secureStorage.write(key: SecureStorageKeys.userRole, value: role);
+      }
+      if (avatarUrl != null) {
+        await _secureStorage.write(key: 'user_avatar', value: avatarUrl);
+      }
     } catch (e) {
       throw CacheException(
         message: 'Failed to save user data: ${e.toString()}',
@@ -120,7 +119,18 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<void> clearAll() async {
     try {
-      await _secureStorage.deleteAll();
+      // Workaround for flutter_secure_storage Web bug:
+      // deleteAll() can corrupt the storage state in the same session,
+      // causing subsequent writes to silently fail until a page reload (F5).
+      // Workaround for flutter_secure_storage Web concurrency bug:
+      // Sequential operations are safe, Future.wait or deleteAll() can fail or corrupt state.
+      await _secureStorage.delete(SecureStorageKeys.accessToken);
+      await _secureStorage.delete(SecureStorageKeys.refreshToken);
+      await _secureStorage.delete(SecureStorageKeys.userId);
+      await _secureStorage.delete(SecureStorageKeys.userEmail);
+      await _secureStorage.delete(SecureStorageKeys.userName);
+      await _secureStorage.delete(SecureStorageKeys.userRole);
+      await _secureStorage.delete('user_avatar');
     } catch (e) {
       throw CacheException(message: 'Failed to clear storage: ${e.toString()}');
     }

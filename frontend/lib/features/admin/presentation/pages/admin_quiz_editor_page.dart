@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/features/admin/presentation/layout/admin_layout.dart';
 
 /// Admin Quiz Editor Page
 /// Manages quiz creation, editing, and question composition
@@ -80,8 +81,9 @@ class _AdminQuizEditorPageState extends State<AdminQuizEditorPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return SingleChildScrollView(
-      child: Padding(
+    return AdminLayout(
+      child: SingleChildScrollView(
+        child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +303,7 @@ class _AdminQuizEditorPageState extends State<AdminQuizEditorPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

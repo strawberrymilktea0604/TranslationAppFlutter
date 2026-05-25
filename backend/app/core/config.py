@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
+    # Default Admin Account
+    DEFAULT_ADMIN_EMAIL: str = "admin@example.com"
+    DEFAULT_ADMIN_PASSWORD: str = "admin123"
+    
     # Redis (for token blacklisting & session management)
     REDIS_URL: str = Field(default="redis://localhost:6379/0")
     TOKEN_BLACKLIST_EXPIRY_MINUTES: int = 1440  # 24 hours: clear old blacklist entries

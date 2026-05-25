@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/features/admin/presentation/layout/admin_layout.dart';
 
 /// Admin Question Bank Management Page
 /// Manages learning questions and answer options
@@ -75,8 +76,9 @@ class _AdminQuestionBankPageState extends State<AdminQuestionBankPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return SingleChildScrollView(
-      child: Padding(
+    return AdminLayout(
+      child: SingleChildScrollView(
+        child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,7 +300,7 @@ class _AdminQuestionBankPageState extends State<AdminQuestionBankPage> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

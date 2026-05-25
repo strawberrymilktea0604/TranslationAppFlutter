@@ -64,6 +64,34 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️  Backup scheduler initialization failed: {e}")
         logger.warning("Backups can still be triggered manually via API")
 
+    # ==================== SEED DEFAULT DATA ====================
+    try:
+        from app.core.database import async_session_maker
+        from app.models.user import User
+        from app.core.security import hash_password
+        from app.core.config import settings
+        from sqlalchemy.future import select
+
+        async with async_session_maker() as session:
+            # Check if admin exists
+            result = await session.execute(select(User).where(User.email == settings.DEFAULT_ADMIN_EMAIL))
+            admin_user = result.scalars().first()
+            if not admin_user:
+                logger.info("🌱 Creating default admin account...")
+                new_admin = User(
+                    email=settings.DEFAULT_ADMIN_EMAIL,
+                    password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
+                    first_name="Super",
+                    last_name="Admin",
+                    role="admin",
+                    status="active"
+                )
+                session.add(new_admin)
+                await session.commit()
+                logger.info(f"✅ Default admin account created: {settings.DEFAULT_ADMIN_EMAIL}")
+    except Exception as e:
+        logger.error(f"❌ Failed to seed default data: {e}")
+
     yield
     
     # ==================== SHUTDOWN ====================

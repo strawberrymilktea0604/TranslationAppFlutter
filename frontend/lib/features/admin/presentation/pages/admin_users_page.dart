@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/features/admin/presentation/layout/admin_layout.dart';
 import 'package:frontend/services/admin_users_service.dart';
+import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
+import 'package:frontend/injection_container.dart';
 
 /// Admin Users Management Page
 /// Displays and manages all application users
@@ -25,25 +29,27 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     _initializeService();
   }
 
-  /// Initialize service and load users
+  /// Initialize service
   Future<void> _initializeService() async {
     final apiUrl = config.apiUrl;
     _usersService = AdminUsersService(baseUrl: apiUrl);
-    // TODO: Get access token from auth service
-    // For now, you need to pass it when calling fetchUsers
     await _loadUsers();
   }
 
   /// Load users from API
   Future<void> _loadUsers({int page = 1}) async {
     try {
-      // TODO: Get real access token from your auth service
-      // This is a temporary placeholder
+      final token = await sl<AuthLocalDataSource>().getAccessToken();
+      if (token == null) {
+        throw Exception('Token not found in local storage. Please login again.');
+      }
+      _accessToken = token;
+      
       await _usersService.fetchUsers(
         page: page,
         pageSize: _pageSize,
         search: _searchController.text.isNotEmpty ? _searchController.text : null,
-        accessToken: _accessToken, // Pass your actual token here
+        accessToken: _accessToken, 
       );
       setState(() => _currentPage = page);
     } catch (e) {
@@ -434,8 +440,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     );
   }
 
-  /// Build individual user row
   Widget _buildUserRow(BuildContext context, AdminUser user) {
+    String? currentUserId;
+    final authState = sl<AuthCubit>().state;
+    if (authState is AuthAuthenticated) {
+      currentUserId = authState.user.id;
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -512,28 +523,30 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (user.isBanned)
-                  IconButton(
-                    icon: const Icon(Icons.check_circle_outline, size: 20),
-                    onPressed: () => _showConfirmDialog(
-                      context,
-                      'Mở khóa người dùng?',
-                      'Người dùng ${user.displayName} sẽ có thể đăng nhập lại.',
-                      () => _unbanUser(user),
+                if (user.id.toString() != currentUserId) ...[
+                  if (user.isBanned)
+                    IconButton(
+                      icon: const Icon(Icons.check_circle_outline, size: 20),
+                      onPressed: () => _showConfirmDialog(
+                        context,
+                        'Mở khóa người dùng?',
+                        'Người dùng ${user.displayName} sẽ có thể đăng nhập lại.',
+                        () => _unbanUser(user),
+                      ),
+                      tooltip: 'Mở khóa',
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.block, size: 20),
+                      onPressed: () => _showConfirmDialog(
+                        context,
+                        'Khóa người dùng?',
+                        'Người dùng ${user.displayName} sẽ không thể đăng nhập.',
+                        () => _banUser(user),
+                      ),
+                      tooltip: 'Khóa',
                     ),
-                    tooltip: 'Mở khóa',
-                  )
-                else
-                  IconButton(
-                    icon: const Icon(Icons.block, size: 20),
-                    onPressed: () => _showConfirmDialog(
-                      context,
-                      'Khóa người dùng?',
-                      'Người dùng ${user.displayName} sẽ không thể đăng nhập.',
-                      () => _banUser(user),
-                    ),
-                    tooltip: 'Khóa',
-                  ),
+                ],
               ],
             ),
           ),

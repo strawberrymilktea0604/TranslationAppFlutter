@@ -180,24 +180,23 @@ class AuthRepositoryImpl implements AuthRepository {
       final accessToken = await _localDataSource.getAccessToken();
       final refreshTokenValue = await _localDataSource.getRefreshToken();
 
-      // 2. Best-effort: try to revoke tokens on the server.
-      //    Even if the BE call fails, we MUST clear local tokens.
+      // 2. ALWAYS clear local tokens on logout FIRST (critical).
+      //    This prevents race conditions where a slow remote logout clears
+      //    the newly saved tokens if the user quickly logs in again.
+      await _localDataSource.clearAll();
+
+      // 3. Best-effort: try to revoke tokens on the server without blocking.
+      //    This makes logout instant for the user and prevents race conditions.
       if (accessToken != null && refreshTokenValue != null) {
-        try {
-          if (await _networkInfo.isConnected) {
-            await _remoteDataSource.logout(
+        _networkInfo.isConnected.then((connected) {
+          if (connected) {
+            _remoteDataSource.logout(
               accessToken: accessToken,
               refreshToken: refreshTokenValue,
-            );
+            ).catchError((_) {});
           }
-        } catch (_) {
-          // Ignore remote logout errors.
-          // Local token cleanup is the priority.
-        }
+        });
       }
-
-      // 3. ALWAYS clear local tokens on logout (critical).
-      await _localDataSource.clearAll();
 
       return const Right(null);
     } on CacheException catch (e) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/router/admin_router.dart';
+import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 
 /// Admin Layout with Sidebar and Topbar
 /// Provides a standard dashboard layout for admin interface
@@ -119,7 +121,8 @@ class _AdminLayoutState extends State<AdminLayout> {
           child: PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'logout') {
-                // TODO: Handle logout
+                context.read<AuthCubit>().logout();
+                context.go(AdminRoutes.login);
               } else if (value == 'profile') {
                 // TODO: Navigate to profile
               }

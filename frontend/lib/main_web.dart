@@ -6,34 +6,27 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:frontend/app_config.dart';
-import 'package:frontend/core/database/isar_database.dart';
 import 'package:frontend/core/router/admin_router.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/bloc/tts_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/core/network/bloc/network_cubit.dart';
 import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
-import 'package:frontend/injection_container.dart';
+import 'package:frontend/injection_container.dart' show sl;
+import 'package:frontend/injection_container_web.dart';
 import 'package:frontend/l10n/app_localizations.dart';
-import 'package:frontend/main.dart' show isarDatabase, config;
+import 'package:frontend/main.dart' show config;
 
 /// Web entry point for the Translation Admin Dashboard
-/// 
-/// Configuration:
-/// - Uses CanvasKit renderer for better performance and rendering consistency
-/// - Optimized layout for desktop/tablet screens
-/// - Admin-only routing
-/// - Supports both light and dark themes
+///
+/// NOTE: Isar 3.x does NOT support Flutter Web.
+/// All local datasources (Vocabulary, History) are replaced with
+/// no-op Web stubs — data comes exclusively from the backend API.
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Configure CanvasKit renderer for web
   _configureWebRenderer();
-
-  // Initialize Isar database (shared with mobile)
-  isarDatabase = IsarDatabase();
-  await isarDatabase.init();
 
   // Initialize config for web environment
   config = const AppConfig(
@@ -41,8 +34,8 @@ void main() async {
     apiUrl: 'http://localhost:8000/api/v1',
   );
 
-  // Initialize all dependencies (GetIt)
-  await initDependencies();
+  // Initialize all dependencies — Web version (no Isar)
+  await initDependenciesWeb();
 
   runApp(const AdminApp());
 }
