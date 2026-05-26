@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import 'package:frontend/features/vocabulary/data/models/vocabulary_model.dart';
 import 'package:frontend/features/vocabulary/data/models/question_bank_model.dart';

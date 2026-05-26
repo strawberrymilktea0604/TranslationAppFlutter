@@ -16,7 +16,7 @@ extension GetVocabularyCategoryModelCollection on Isar {
 
 const VocabularyCategoryModelSchema = CollectionSchema(
   name: r'VocabularyCategoryModel',
-  id: 2850616322253582336,
+  id: 2850616322253582584,
   properties: {
     r'backendId': PropertySchema(
       id: 0,
@@ -33,22 +33,15 @@ const VocabularyCategoryModelSchema = CollectionSchema(
       name: r'isDeleted',
       type: IsarType.bool,
     ),
-    r'isSynced': PropertySchema(
-      id: 3,
-      name: r'isSynced',
-      type: IsarType.bool,
-    ),
-    r'name': PropertySchema(
-      id: 4,
-      name: r'name',
-      type: IsarType.string,
-    ),
+    r'isSynced': PropertySchema(id: 3, name: r'isSynced', type: IsarType.bool),
+    r'name': PropertySchema(id: 4, name: r'name', type: IsarType.string),
     r'updatedAt': PropertySchema(
       id: 5,
       name: r'updatedAt',
       type: IsarType.dateTime,
-    )
+    ),
   },
+
   estimateSize: _vocabularyCategoryModelEstimateSize,
   serialize: _vocabularyCategoryModelSerialize,
   deserialize: _vocabularyCategoryModelDeserialize,
@@ -56,7 +49,7 @@ const VocabularyCategoryModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026880,
+      id: 8781752057772026410,
       name: r'backendId',
       unique: true,
       replace: true,
@@ -65,11 +58,11 @@ const VocabularyCategoryModelSchema = CollectionSchema(
           name: r'backendId',
           type: IndexType.value,
           caseSensitive: false,
-        )
+        ),
       ],
     ),
     r'createdAt': IndexSchema(
-      id: -3433535483987302400,
+      id: -3433535483987302584,
       name: r'createdAt',
       unique: false,
       replace: false,
@@ -78,16 +71,17 @@ const VocabularyCategoryModelSchema = CollectionSchema(
           name: r'createdAt',
           type: IndexType.value,
           caseSensitive: false,
-        )
+        ),
       ],
-    )
+    ),
   },
   links: {},
   embeddedSchemas: {},
+
   getId: _vocabularyCategoryModelGetId,
   getLinks: _vocabularyCategoryModelGetLinks,
   attach: _vocabularyCategoryModelAttach,
-  version: '3.1.0+1',
+  version: '3.3.2',
 );
 
 int _vocabularyCategoryModelEstimateSize(
@@ -161,12 +155,16 @@ Id _vocabularyCategoryModelGetId(VocabularyCategoryModel object) {
 }
 
 List<IsarLinkBase<dynamic>> _vocabularyCategoryModelGetLinks(
-    VocabularyCategoryModel object) {
+  VocabularyCategoryModel object,
+) {
   return [];
 }
 
 void _vocabularyCategoryModelAttach(
-    IsarCollection<dynamic> col, Id id, VocabularyCategoryModel object) {
+  IsarCollection<dynamic> col,
+  Id id,
+  VocabularyCategoryModel object,
+) {
   object.id = id;
 }
 
@@ -189,13 +187,15 @@ extension VocabularyCategoryModelByIndex
   }
 
   Future<List<VocabularyCategoryModel?>> getAllByBackendId(
-      List<int> backendIdValues) {
+    List<int> backendIdValues,
+  ) {
     final values = backendIdValues.map((e) => [e]).toList();
     return getAllByIndex(r'backendId', values);
   }
 
   List<VocabularyCategoryModel?> getAllByBackendIdSync(
-      List<int> backendIdValues) {
+    List<int> backendIdValues,
+  ) {
     final values = backendIdValues.map((e) => [e]).toList();
     return getAllByIndexSync(r'backendId', values);
   }
@@ -214,8 +214,10 @@ extension VocabularyCategoryModelByIndex
     return putByIndex(r'backendId', object);
   }
 
-  Id putByBackendIdSync(VocabularyCategoryModel object,
-      {bool saveLinks = true}) {
+  Id putByBackendIdSync(
+    VocabularyCategoryModel object, {
+    bool saveLinks = true,
+  }) {
     return putByIndexSync(r'backendId', object, saveLinks: saveLinks);
   }
 
@@ -223,8 +225,10 @@ extension VocabularyCategoryModelByIndex
     return putAllByIndex(r'backendId', objects);
   }
 
-  List<Id> putAllByBackendIdSync(List<VocabularyCategoryModel> objects,
-      {bool saveLinks = true}) {
+  List<Id> putAllByBackendIdSync(
+    List<VocabularyCategoryModel> objects, {
+    bool saveLinks = true,
+  }) {
     return putAllByIndexSync(r'backendId', objects, saveLinks: saveLinks);
   }
 }
@@ -232,14 +236,14 @@ extension VocabularyCategoryModelByIndex
 extension VocabularyCategoryModelQueryWhereSort
     on QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QWhere> {
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterWhere>
-      anyId() {
+  anyId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(const IdWhereClause.any());
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterWhere>
-      anyBackendId() {
+  anyBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         const IndexWhereClause.any(indexName: r'backendId'),
@@ -248,7 +252,7 @@ extension VocabularyCategoryModelQueryWhereSort
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterWhere>
-      anyCreatedAt() {
+  anyCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         const IndexWhereClause.any(indexName: r'createdAt'),
@@ -257,20 +261,30 @@ extension VocabularyCategoryModelQueryWhereSort
   }
 }
 
-extension VocabularyCategoryModelQueryWhere on QueryBuilder<
-    VocabularyCategoryModel, VocabularyCategoryModel, QWhereClause> {
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> idEqualTo(Id id) {
+extension VocabularyCategoryModelQueryWhere
+    on
+        QueryBuilder<
+          VocabularyCategoryModel,
+          VocabularyCategoryModel,
+          QWhereClause
+        > {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  idEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: id,
-        upper: id,
-      ));
+      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> idNotEqualTo(Id id) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  idNotEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -292,8 +306,12 @@ extension VocabularyCategoryModelQueryWhere on QueryBuilder<
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> idGreaterThan(Id id, {bool include = false}) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  idGreaterThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -301,8 +319,12 @@ extension VocabularyCategoryModelQueryWhere on QueryBuilder<
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> idLessThan(Id id, {bool include = false}) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  idLessThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -310,448 +332,583 @@ extension VocabularyCategoryModelQueryWhere on QueryBuilder<
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> idBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  idBetween(
     Id lowerId,
     Id upperId, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: lowerId,
-        includeLower: includeLower,
-        upper: upperId,
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IdWhereClause.between(
+          lower: lowerId,
+          includeLower: includeLower,
+          upper: upperId,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> backendIdEqualTo(int backendId) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  backendIdEqualTo(int backendId) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'backendId',
-        value: [backendId],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'backendId', value: [backendId]),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> backendIdNotEqualTo(int backendId) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  backendIdNotEqualTo(int backendId) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [],
-              upper: [backendId],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [backendId],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [],
+                upper: [backendId],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [backendId],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [backendId],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [],
-              upper: [backendId],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [backendId],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [],
+                upper: [backendId],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> backendIdGreaterThan(
-    int backendId, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  backendIdGreaterThan(int backendId, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'backendId',
-        lower: [backendId],
-        includeLower: include,
-        upper: [],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'backendId',
+          lower: [backendId],
+          includeLower: include,
+          upper: [],
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> backendIdLessThan(
-    int backendId, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  backendIdLessThan(int backendId, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'backendId',
-        lower: [],
-        upper: [backendId],
-        includeUpper: include,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'backendId',
+          lower: [],
+          upper: [backendId],
+          includeUpper: include,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> backendIdBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  backendIdBetween(
     int lowerBackendId,
     int upperBackendId, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'backendId',
-        lower: [lowerBackendId],
-        includeLower: includeLower,
-        upper: [upperBackendId],
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'backendId',
+          lower: [lowerBackendId],
+          includeLower: includeLower,
+          upper: [upperBackendId],
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> createdAtEqualTo(DateTime createdAt) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  createdAtEqualTo(DateTime createdAt) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'createdAt',
-        value: [createdAt],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'createdAt', value: [createdAt]),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> createdAtNotEqualTo(DateTime createdAt) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  createdAtNotEqualTo(DateTime createdAt) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'createdAt',
-              lower: [],
-              upper: [createdAt],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'createdAt',
-              lower: [createdAt],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'createdAt',
+                lower: [],
+                upper: [createdAt],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'createdAt',
+                lower: [createdAt],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'createdAt',
-              lower: [createdAt],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'createdAt',
-              lower: [],
-              upper: [createdAt],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'createdAt',
+                lower: [createdAt],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'createdAt',
+                lower: [],
+                upper: [createdAt],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> createdAtGreaterThan(
-    DateTime createdAt, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  createdAtGreaterThan(DateTime createdAt, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'createdAt',
-        lower: [createdAt],
-        includeLower: include,
-        upper: [],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'createdAt',
+          lower: [createdAt],
+          includeLower: include,
+          upper: [],
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> createdAtLessThan(
-    DateTime createdAt, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  createdAtLessThan(DateTime createdAt, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'createdAt',
-        lower: [],
-        upper: [createdAt],
-        includeUpper: include,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'createdAt',
+          lower: [],
+          upper: [createdAt],
+          includeUpper: include,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterWhereClause> createdAtBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterWhereClause
+  >
+  createdAtBetween(
     DateTime lowerCreatedAt,
     DateTime upperCreatedAt, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'createdAt',
-        lower: [lowerCreatedAt],
-        includeLower: includeLower,
-        upper: [upperCreatedAt],
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'createdAt',
+          lower: [lowerCreatedAt],
+          includeLower: includeLower,
+          upper: [upperCreatedAt],
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 }
 
-extension VocabularyCategoryModelQueryFilter on QueryBuilder<
-    VocabularyCategoryModel, VocabularyCategoryModel, QFilterCondition> {
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> backendIdEqualTo(int value) {
+extension VocabularyCategoryModelQueryFilter
+    on
+        QueryBuilder<
+          VocabularyCategoryModel,
+          VocabularyCategoryModel,
+          QFilterCondition
+        > {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  backendIdEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'backendId',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'backendId', value: value),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> backendIdGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  backendIdGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'backendId',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'backendId',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> backendIdLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  backendIdLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'backendId',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'backendId',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> backendIdBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  backendIdBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'backendId',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'backendId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> createdAtEqualTo(DateTime value) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  createdAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'createdAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'createdAt', value: value),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> createdAtGreaterThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  createdAtGreaterThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'createdAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'createdAt',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> createdAtLessThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  createdAtLessThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'createdAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'createdAt',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> createdAtBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  createdAtBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'createdAt',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'createdAt',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> idEqualTo(Id value) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'id', value: value),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> idGreaterThan(
-    Id value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  idGreaterThan(Id value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> idLessThan(
-    Id value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  idLessThan(Id value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> idBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  idBetween(
     Id lower,
     Id upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'id',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> isDeletedEqualTo(bool value) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  isDeletedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'isDeleted',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'isDeleted', value: value),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> isSyncedEqualTo(bool value) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  isSyncedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'isSynced',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'isSynced', value: value),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'name',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'name',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameGreaterThan(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'name',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'name',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameLessThan(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameLessThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'name',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'name',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -759,387 +916,451 @@ extension VocabularyCategoryModelQueryFilter on QueryBuilder<
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'name',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'name',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'name',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'name',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'name',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'name',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-          QAfterFilterCondition>
-      nameContains(String value, {bool caseSensitive = true}) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'name',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'name',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-          QAfterFilterCondition>
-      nameMatches(String pattern, {bool caseSensitive = true}) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'name',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'name',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameIsEmpty() {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'name',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'name', value: ''),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> nameIsNotEmpty() {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  nameIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'name',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'name', value: ''),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> updatedAtEqualTo(DateTime value) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  updatedAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'updatedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'updatedAt', value: value),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> updatedAtGreaterThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  updatedAtGreaterThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'updatedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'updatedAt',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> updatedAtLessThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  updatedAtLessThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'updatedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'updatedAt',
+          value: value,
+        ),
+      );
     });
   }
 
-  QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel,
-      QAfterFilterCondition> updatedAtBetween(
+  QueryBuilder<
+    VocabularyCategoryModel,
+    VocabularyCategoryModel,
+    QAfterFilterCondition
+  >
+  updatedAtBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'updatedAt',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'updatedAt',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 }
 
-extension VocabularyCategoryModelQueryObject on QueryBuilder<
-    VocabularyCategoryModel, VocabularyCategoryModel, QFilterCondition> {}
+extension VocabularyCategoryModelQueryObject
+    on
+        QueryBuilder<
+          VocabularyCategoryModel,
+          VocabularyCategoryModel,
+          QFilterCondition
+        > {}
 
-extension VocabularyCategoryModelQueryLinks on QueryBuilder<
-    VocabularyCategoryModel, VocabularyCategoryModel, QFilterCondition> {}
+extension VocabularyCategoryModelQueryLinks
+    on
+        QueryBuilder<
+          VocabularyCategoryModel,
+          VocabularyCategoryModel,
+          QFilterCondition
+        > {}
 
 extension VocabularyCategoryModelQuerySortBy
     on QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QSortBy> {
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByBackendId() {
+  sortByBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByBackendIdDesc() {
+  sortByBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByCreatedAt() {
+  sortByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByCreatedAtDesc() {
+  sortByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByIsDeleted() {
+  sortByIsDeleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByIsDeletedDesc() {
+  sortByIsDeletedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByIsSynced() {
+  sortByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByIsSyncedDesc() {
+  sortByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByName() {
+  sortByName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByNameDesc() {
+  sortByNameDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByUpdatedAt() {
+  sortByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      sortByUpdatedAtDesc() {
+  sortByUpdatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
 }
 
-extension VocabularyCategoryModelQuerySortThenBy on QueryBuilder<
-    VocabularyCategoryModel, VocabularyCategoryModel, QSortThenBy> {
+extension VocabularyCategoryModelQuerySortThenBy
+    on
+        QueryBuilder<
+          VocabularyCategoryModel,
+          VocabularyCategoryModel,
+          QSortThenBy
+        > {
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByBackendId() {
+  thenByBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByBackendIdDesc() {
+  thenByBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByCreatedAt() {
+  thenByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByCreatedAtDesc() {
+  thenByCreatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenById() {
+  thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByIdDesc() {
+  thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByIsDeleted() {
+  thenByIsDeleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByIsDeletedDesc() {
+  thenByIsDeletedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDeleted', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByIsSynced() {
+  thenByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByIsSyncedDesc() {
+  thenByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByName() {
+  thenByName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByNameDesc() {
+  thenByNameDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'name', Sort.desc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByUpdatedAt() {
+  thenByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.asc);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QAfterSortBy>
-      thenByUpdatedAtDesc() {
+  thenByUpdatedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'updatedAt', Sort.desc);
     });
   }
 }
 
-extension VocabularyCategoryModelQueryWhereDistinct on QueryBuilder<
-    VocabularyCategoryModel, VocabularyCategoryModel, QDistinct> {
+extension VocabularyCategoryModelQueryWhereDistinct
+    on
+        QueryBuilder<
+          VocabularyCategoryModel,
+          VocabularyCategoryModel,
+          QDistinct
+        > {
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QDistinct>
-      distinctByBackendId() {
+  distinctByBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'backendId');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QDistinct>
-      distinctByCreatedAt() {
+  distinctByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'createdAt');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QDistinct>
-      distinctByIsDeleted() {
+  distinctByIsDeleted() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isDeleted');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QDistinct>
-      distinctByIsSynced() {
+  distinctByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isSynced');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QDistinct>
-      distinctByName({bool caseSensitive = true}) {
+  distinctByName({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'name', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, VocabularyCategoryModel, QDistinct>
-      distinctByUpdatedAt() {
+  distinctByUpdatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'updatedAt');
     });
   }
 }
 
-extension VocabularyCategoryModelQueryProperty on QueryBuilder<
-    VocabularyCategoryModel, VocabularyCategoryModel, QQueryProperty> {
+extension VocabularyCategoryModelQueryProperty
+    on
+        QueryBuilder<
+          VocabularyCategoryModel,
+          VocabularyCategoryModel,
+          QQueryProperty
+        > {
   QueryBuilder<VocabularyCategoryModel, int, QQueryOperations> idProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'id');
@@ -1147,42 +1368,42 @@ extension VocabularyCategoryModelQueryProperty on QueryBuilder<
   }
 
   QueryBuilder<VocabularyCategoryModel, int, QQueryOperations>
-      backendIdProperty() {
+  backendIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'backendId');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, DateTime, QQueryOperations>
-      createdAtProperty() {
+  createdAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'createdAt');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, bool, QQueryOperations>
-      isDeletedProperty() {
+  isDeletedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isDeleted');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, bool, QQueryOperations>
-      isSyncedProperty() {
+  isSyncedProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isSynced');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, String, QQueryOperations>
-      nameProperty() {
+  nameProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'name');
     });
   }
 
   QueryBuilder<VocabularyCategoryModel, DateTime, QQueryOperations>
-      updatedAtProperty() {
+  updatedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'updatedAt');
     });

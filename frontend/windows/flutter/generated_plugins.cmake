@@ -7,7 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
   flutter_secure_storage_windows
   flutter_tts
-  isar_flutter_libs
+  isar_community_flutter_libs
   record_windows
   speech_to_text_windows
 )

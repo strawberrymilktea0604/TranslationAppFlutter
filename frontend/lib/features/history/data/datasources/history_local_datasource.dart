@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 
 import 'package:frontend/features/history/data/models/history_model.dart';
 

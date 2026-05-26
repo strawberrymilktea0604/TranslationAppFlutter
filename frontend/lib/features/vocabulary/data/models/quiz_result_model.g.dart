@@ -15,12 +15,13 @@ extension GetQuizResultModelCollection on Isar {
 
 const QuizResultModelSchema = CollectionSchema(
   name: r'QuizResultModel',
-  id: -2859712421507225088,
+  id: -2859712421507225249,
   properties: {
     r'answers': PropertySchema(
       id: 0,
       name: r'answers',
       type: IsarType.objectList,
+
       target: r'QuizAnswerItem',
     ),
     r'backendId': PropertySchema(
@@ -53,27 +54,16 @@ const QuizResultModelSchema = CollectionSchema(
       name: r'durationSeconds',
       type: IsarType.long,
     ),
-    r'isSynced': PropertySchema(
-      id: 7,
-      name: r'isSynced',
-      type: IsarType.bool,
-    ),
-    r'score': PropertySchema(
-      id: 8,
-      name: r'score',
-      type: IsarType.double,
-    ),
-    r'status': PropertySchema(
-      id: 9,
-      name: r'status',
-      type: IsarType.string,
-    ),
+    r'isSynced': PropertySchema(id: 7, name: r'isSynced', type: IsarType.bool),
+    r'score': PropertySchema(id: 8, name: r'score', type: IsarType.double),
+    r'status': PropertySchema(id: 9, name: r'status', type: IsarType.string),
     r'totalQuestions': PropertySchema(
       id: 10,
       name: r'totalQuestions',
       type: IsarType.long,
-    )
+    ),
   },
+
   estimateSize: _quizResultModelEstimateSize,
   serialize: _quizResultModelSerialize,
   deserialize: _quizResultModelDeserialize,
@@ -81,7 +71,7 @@ const QuizResultModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026880,
+      id: 8781752057772026410,
       name: r'backendId',
       unique: true,
       replace: true,
@@ -90,11 +80,11 @@ const QuizResultModelSchema = CollectionSchema(
           name: r'backendId',
           type: IndexType.hash,
           caseSensitive: true,
-        )
+        ),
       ],
     ),
     r'bankBackendId': IndexSchema(
-      id: 7496997594039063552,
+      id: 7496997594039063869,
       name: r'bankBackendId',
       unique: false,
       replace: false,
@@ -103,11 +93,11 @@ const QuizResultModelSchema = CollectionSchema(
           name: r'bankBackendId',
           type: IndexType.hash,
           caseSensitive: true,
-        )
+        ),
       ],
     ),
     r'completedAt': IndexSchema(
-      id: -3156591011457686528,
+      id: -3156591011457686752,
       name: r'completedAt',
       unique: false,
       replace: false,
@@ -116,16 +106,17 @@ const QuizResultModelSchema = CollectionSchema(
           name: r'completedAt',
           type: IndexType.value,
           caseSensitive: false,
-        )
+        ),
       ],
-    )
+    ),
   },
   links: {},
   embeddedSchemas: {r'QuizAnswerItem': QuizAnswerItemSchema},
+
   getId: _quizResultModelGetId,
   getLinks: _quizResultModelGetLinks,
   attach: _quizResultModelAttach,
-  version: '3.1.0+1',
+  version: '3.3.2',
 );
 
 int _quizResultModelEstimateSize(
@@ -139,8 +130,11 @@ int _quizResultModelEstimateSize(
     final offsets = allOffsets[QuizAnswerItem]!;
     for (var i = 0; i < object.answers.length; i++) {
       final value = object.answers[i];
-      bytesCount +=
-          QuizAnswerItemSchema.estimateSize(value, offsets, allOffsets);
+      bytesCount += QuizAnswerItemSchema.estimateSize(
+        value,
+        offsets,
+        allOffsets,
+      );
     }
   }
   bytesCount += 3 + object.backendId.length * 3;
@@ -181,7 +175,8 @@ QuizResultModel _quizResultModelDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = QuizResultModel(
-    answers: reader.readObjectList<QuizAnswerItem>(
+    answers:
+        reader.readObjectList<QuizAnswerItem>(
           offsets[0],
           QuizAnswerItemSchema.deserialize,
           allOffsets,
@@ -212,12 +207,13 @@ P _quizResultModelDeserializeProp<P>(
   switch (propertyId) {
     case 0:
       return (reader.readObjectList<QuizAnswerItem>(
-            offset,
-            QuizAnswerItemSchema.deserialize,
-            allOffsets,
-            QuizAnswerItem(),
-          ) ??
-          const []) as P;
+                offset,
+                QuizAnswerItemSchema.deserialize,
+                allOffsets,
+                QuizAnswerItem(),
+              ) ??
+              const [])
+          as P;
     case 1:
       return (reader.readString(offset)) as P;
     case 2:
@@ -252,7 +248,10 @@ List<IsarLinkBase<dynamic>> _quizResultModelGetLinks(QuizResultModel object) {
 }
 
 void _quizResultModelAttach(
-    IsarCollection<dynamic> col, Id id, QuizResultModel object) {
+  IsarCollection<dynamic> col,
+  Id id,
+  QuizResultModel object,
+) {
   object.id = id;
 }
 
@@ -274,7 +273,8 @@ extension QuizResultModelByIndex on IsarCollection<QuizResultModel> {
   }
 
   Future<List<QuizResultModel?>> getAllByBackendId(
-      List<String> backendIdValues) {
+    List<String> backendIdValues,
+  ) {
     final values = backendIdValues.map((e) => [e]).toList();
     return getAllByIndex(r'backendId', values);
   }
@@ -306,8 +306,10 @@ extension QuizResultModelByIndex on IsarCollection<QuizResultModel> {
     return putAllByIndex(r'backendId', objects);
   }
 
-  List<Id> putAllByBackendIdSync(List<QuizResultModel> objects,
-      {bool saveLinks = true}) {
+  List<Id> putAllByBackendIdSync(
+    List<QuizResultModel> objects, {
+    bool saveLinks = true,
+  }) {
     return putAllByIndexSync(r'backendId', objects, saveLinks: saveLinks);
   }
 }
@@ -332,17 +334,15 @@ extension QuizResultModelQueryWhereSort
 extension QuizResultModelQueryWhere
     on QueryBuilder<QuizResultModel, QuizResultModel, QWhereClause> {
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause> idEqualTo(
-      Id id) {
+    Id id,
+  ) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: id,
-        upper: id,
-      ));
+      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      idNotEqualTo(Id id) {
+  idNotEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -365,7 +365,7 @@ extension QuizResultModelQueryWhere
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      idGreaterThan(Id id, {bool include = false}) {
+  idGreaterThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -374,8 +374,9 @@ extension QuizResultModelQueryWhere
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause> idLessThan(
-      Id id,
-      {bool include = false}) {
+    Id id, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -390,195 +391,224 @@ extension QuizResultModelQueryWhere
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: lowerId,
-        includeLower: includeLower,
-        upper: upperId,
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IdWhereClause.between(
+          lower: lowerId,
+          includeLower: includeLower,
+          upper: upperId,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      backendIdEqualTo(String backendId) {
+  backendIdEqualTo(String backendId) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'backendId',
-        value: [backendId],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'backendId', value: [backendId]),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      backendIdNotEqualTo(String backendId) {
+  backendIdNotEqualTo(String backendId) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [],
-              upper: [backendId],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [backendId],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [],
+                upper: [backendId],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [backendId],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [backendId],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'backendId',
-              lower: [],
-              upper: [backendId],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [backendId],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'backendId',
+                lower: [],
+                upper: [backendId],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      bankBackendIdEqualTo(String bankBackendId) {
+  bankBackendIdEqualTo(String bankBackendId) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'bankBackendId',
-        value: [bankBackendId],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(
+          indexName: r'bankBackendId',
+          value: [bankBackendId],
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      bankBackendIdNotEqualTo(String bankBackendId) {
+  bankBackendIdNotEqualTo(String bankBackendId) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'bankBackendId',
-              lower: [],
-              upper: [bankBackendId],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'bankBackendId',
-              lower: [bankBackendId],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'bankBackendId',
+                lower: [],
+                upper: [bankBackendId],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'bankBackendId',
+                lower: [bankBackendId],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'bankBackendId',
-              lower: [bankBackendId],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'bankBackendId',
-              lower: [],
-              upper: [bankBackendId],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'bankBackendId',
+                lower: [bankBackendId],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'bankBackendId',
+                lower: [],
+                upper: [bankBackendId],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      completedAtEqualTo(DateTime completedAt) {
+  completedAtEqualTo(DateTime completedAt) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'completedAt',
-        value: [completedAt],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(
+          indexName: r'completedAt',
+          value: [completedAt],
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      completedAtNotEqualTo(DateTime completedAt) {
+  completedAtNotEqualTo(DateTime completedAt) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'completedAt',
-              lower: [],
-              upper: [completedAt],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'completedAt',
-              lower: [completedAt],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'completedAt',
+                lower: [],
+                upper: [completedAt],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'completedAt',
+                lower: [completedAt],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'completedAt',
-              lower: [completedAt],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'completedAt',
-              lower: [],
-              upper: [completedAt],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'completedAt',
+                lower: [completedAt],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'completedAt',
+                lower: [],
+                upper: [completedAt],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      completedAtGreaterThan(
-    DateTime completedAt, {
-    bool include = false,
-  }) {
+  completedAtGreaterThan(DateTime completedAt, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'completedAt',
-        lower: [completedAt],
-        includeLower: include,
-        upper: [],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'completedAt',
+          lower: [completedAt],
+          includeLower: include,
+          upper: [],
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      completedAtLessThan(
-    DateTime completedAt, {
-    bool include = false,
-  }) {
+  completedAtLessThan(DateTime completedAt, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'completedAt',
-        lower: [],
-        upper: [completedAt],
-        includeUpper: include,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'completedAt',
+          lower: [],
+          upper: [completedAt],
+          includeUpper: include,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterWhereClause>
-      completedAtBetween(
+  completedAtBetween(
     DateTime lowerCompletedAt,
     DateTime upperCompletedAt, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'completedAt',
-        lower: [lowerCompletedAt],
-        includeLower: includeLower,
-        upper: [upperCompletedAt],
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'completedAt',
+          lower: [lowerCompletedAt],
+          includeLower: includeLower,
+          upper: [upperCompletedAt],
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 }
@@ -586,78 +616,42 @@ extension QuizResultModelQueryWhere
 extension QuizResultModelQueryFilter
     on QueryBuilder<QuizResultModel, QuizResultModel, QFilterCondition> {
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      answersLengthEqualTo(int length) {
+  answersLengthEqualTo(int length) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'answers',
-        length,
-        true,
-        length,
-        true,
-      );
+      return query.listLength(r'answers', length, true, length, true);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      answersIsEmpty() {
+  answersIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'answers',
-        0,
-        true,
-        0,
-        true,
-      );
+      return query.listLength(r'answers', 0, true, 0, true);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      answersIsNotEmpty() {
+  answersIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'answers',
-        0,
-        false,
-        999999,
-        true,
-      );
+      return query.listLength(r'answers', 0, false, 999999, true);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      answersLengthLessThan(
-    int length, {
-    bool include = false,
-  }) {
+  answersLengthLessThan(int length, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'answers',
-        0,
-        true,
-        length,
-        include,
-      );
+      return query.listLength(r'answers', 0, true, length, include);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      answersLengthGreaterThan(
-    int length, {
-    bool include = false,
-  }) {
+  answersLengthGreaterThan(int length, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'answers',
-        length,
-        include,
-        999999,
-        true,
-      );
+      return query.listLength(r'answers', length, include, 999999, true);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      answersLengthBetween(
+  answersLengthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
@@ -675,53 +669,56 @@ extension QuizResultModelQueryFilter
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  backendIdEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'backendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'backendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'backendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdLessThan(
+  backendIdGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'backendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'backendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdBetween(
+  backendIdLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'backendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
+  backendIdBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -729,135 +726,140 @@ extension QuizResultModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'backendId',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'backendId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  backendIdStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'backendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'backendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  backendIdEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'backendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'backendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdContains(String value, {bool caseSensitive = true}) {
+  backendIdContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'backendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'backendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdMatches(String pattern, {bool caseSensitive = true}) {
+  backendIdMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'backendId',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'backendId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdIsEmpty() {
+  backendIdIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'backendId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'backendId', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      backendIdIsNotEmpty() {
+  backendIdIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'backendId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'backendId', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  bankBackendIdEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'bankBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'bankBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'bankBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdLessThan(
+  bankBackendIdGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'bankBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'bankBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdBetween(
+  bankBackendIdLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'bankBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
+  bankBackendIdBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -865,135 +867,140 @@ extension QuizResultModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'bankBackendId',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'bankBackendId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  bankBackendIdStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'bankBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'bankBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  bankBackendIdEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'bankBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'bankBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdContains(String value, {bool caseSensitive = true}) {
+  bankBackendIdContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'bankBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'bankBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdMatches(String pattern, {bool caseSensitive = true}) {
+  bankBackendIdMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'bankBackendId',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'bankBackendId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdIsEmpty() {
+  bankBackendIdIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'bankBackendId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'bankBackendId', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankBackendIdIsNotEmpty() {
+  bankBackendIdIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'bankBackendId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'bankBackendId', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  bankTitleEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'bankTitle',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'bankTitle',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'bankTitle',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleLessThan(
+  bankTitleGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'bankTitle',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'bankTitle',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleBetween(
+  bankTitleLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'bankTitle',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
+  bankTitleBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1001,369 +1008,372 @@ extension QuizResultModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'bankTitle',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'bankTitle',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  bankTitleStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'bankTitle',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'bankTitle',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  bankTitleEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'bankTitle',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'bankTitle',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleContains(String value, {bool caseSensitive = true}) {
+  bankTitleContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'bankTitle',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'bankTitle',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleMatches(String pattern, {bool caseSensitive = true}) {
+  bankTitleMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'bankTitle',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'bankTitle',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleIsEmpty() {
+  bankTitleIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'bankTitle',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'bankTitle', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      bankTitleIsNotEmpty() {
+  bankTitleIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'bankTitle',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'bankTitle', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      completedAtEqualTo(DateTime value) {
+  completedAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'completedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'completedAt', value: value),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      completedAtGreaterThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  completedAtGreaterThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'completedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'completedAt',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      completedAtLessThan(
-    DateTime value, {
-    bool include = false,
-  }) {
+  completedAtLessThan(DateTime value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'completedAt',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'completedAt',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      completedAtBetween(
+  completedAtBetween(
     DateTime lower,
     DateTime upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'completedAt',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'completedAt',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      correctAnswersEqualTo(int value) {
+  correctAnswersEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'correctAnswers',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'correctAnswers', value: value),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      correctAnswersGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  correctAnswersGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'correctAnswers',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'correctAnswers',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      correctAnswersLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  correctAnswersLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'correctAnswers',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'correctAnswers',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      correctAnswersBetween(
+  correctAnswersBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'correctAnswers',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'correctAnswers',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      durationSecondsEqualTo(int value) {
+  durationSecondsEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'durationSeconds',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'durationSeconds', value: value),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      durationSecondsGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  durationSecondsGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'durationSeconds',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'durationSeconds',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      durationSecondsLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  durationSecondsLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'durationSeconds',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'durationSeconds',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      durationSecondsBetween(
+  durationSecondsBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'durationSeconds',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'durationSeconds',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      idEqualTo(Id value) {
+  idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'id', value: value),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      idGreaterThan(
-    Id value, {
-    bool include = false,
-  }) {
+  idGreaterThan(Id value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      idLessThan(
-    Id value, {
-    bool include = false,
-  }) {
+  idLessThan(Id value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      idBetween(
+  idBetween(
     Id lower,
     Id upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'id',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      isSyncedEqualTo(bool value) {
+  isSyncedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'isSynced',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'isSynced', value: value),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      scoreEqualTo(
-    double value, {
-    double epsilon = Query.epsilon,
-  }) {
+  scoreEqualTo(double value, {double epsilon = Query.epsilon}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'score',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'score',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      scoreGreaterThan(
-    double value, {
-    bool include = false,
-    double epsilon = Query.epsilon,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'score',
-        value: value,
-        epsilon: epsilon,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      scoreLessThan(
+  scoreGreaterThan(
     double value, {
     bool include = false,
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'score',
-        value: value,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'score',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      scoreBetween(
+  scoreLessThan(
+    double value, {
+    bool include = false,
+    double epsilon = Query.epsilon,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'score',
+          value: value,
+
+          epsilon: epsilon,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
+  scoreBetween(
     double lower,
     double upper, {
     bool includeLower = true,
@@ -1371,65 +1381,71 @@ extension QuizResultModelQueryFilter
     double epsilon = Query.epsilon,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'score',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        epsilon: epsilon,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'score',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+
+          epsilon: epsilon,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  statusEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'status',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'status',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'status',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusLessThan(
+  statusGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'status',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'status',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusBetween(
+  statusLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'status',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
+  statusBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1437,140 +1453,141 @@ extension QuizResultModelQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'status',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'status',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  statusStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'status',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'status',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  statusEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'status',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'status',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusContains(String value, {bool caseSensitive = true}) {
+  statusContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'status',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'status',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusMatches(String pattern, {bool caseSensitive = true}) {
+  statusMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'status',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'status',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusIsEmpty() {
+  statusIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'status',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'status', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      statusIsNotEmpty() {
+  statusIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'status',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'status', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      totalQuestionsEqualTo(int value) {
+  totalQuestionsEqualTo(int value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'totalQuestions',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'totalQuestions', value: value),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      totalQuestionsGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  totalQuestionsGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'totalQuestions',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'totalQuestions',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      totalQuestionsLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  totalQuestionsLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'totalQuestions',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'totalQuestions',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      totalQuestionsBetween(
+  totalQuestionsBetween(
     int lower,
     int upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'totalQuestions',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'totalQuestions',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 }
@@ -1578,7 +1595,7 @@ extension QuizResultModelQueryFilter
 extension QuizResultModelQueryObject
     on QueryBuilder<QuizResultModel, QuizResultModel, QFilterCondition> {
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterFilterCondition>
-      answersElement(FilterQuery<QuizAnswerItem> q) {
+  answersElement(FilterQuery<QuizAnswerItem> q) {
     return QueryBuilder.apply(this, (query) {
       return query.object(q, r'answers');
     });
@@ -1591,98 +1608,98 @@ extension QuizResultModelQueryLinks
 extension QuizResultModelQuerySortBy
     on QueryBuilder<QuizResultModel, QuizResultModel, QSortBy> {
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByBackendId() {
+  sortByBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByBackendIdDesc() {
+  sortByBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByBankBackendId() {
+  sortByBankBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankBackendId', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByBankBackendIdDesc() {
+  sortByBankBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankBackendId', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByBankTitle() {
+  sortByBankTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankTitle', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByBankTitleDesc() {
+  sortByBankTitleDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankTitle', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByCompletedAt() {
+  sortByCompletedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'completedAt', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByCompletedAtDesc() {
+  sortByCompletedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'completedAt', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByCorrectAnswers() {
+  sortByCorrectAnswers() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'correctAnswers', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByCorrectAnswersDesc() {
+  sortByCorrectAnswersDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'correctAnswers', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByDurationSeconds() {
+  sortByDurationSeconds() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationSeconds', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByDurationSecondsDesc() {
+  sortByDurationSecondsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationSeconds', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByIsSynced() {
+  sortByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByIsSyncedDesc() {
+  sortByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.desc);
     });
@@ -1695,7 +1712,7 @@ extension QuizResultModelQuerySortBy
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByScoreDesc() {
+  sortByScoreDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'score', Sort.desc);
     });
@@ -1708,21 +1725,21 @@ extension QuizResultModelQuerySortBy
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByStatusDesc() {
+  sortByStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'status', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByTotalQuestions() {
+  sortByTotalQuestions() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalQuestions', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      sortByTotalQuestionsDesc() {
+  sortByTotalQuestionsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalQuestions', Sort.desc);
     });
@@ -1732,84 +1749,84 @@ extension QuizResultModelQuerySortBy
 extension QuizResultModelQuerySortThenBy
     on QueryBuilder<QuizResultModel, QuizResultModel, QSortThenBy> {
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByBackendId() {
+  thenByBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByBackendIdDesc() {
+  thenByBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'backendId', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByBankBackendId() {
+  thenByBankBackendId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankBackendId', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByBankBackendIdDesc() {
+  thenByBankBackendIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankBackendId', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByBankTitle() {
+  thenByBankTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankTitle', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByBankTitleDesc() {
+  thenByBankTitleDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'bankTitle', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByCompletedAt() {
+  thenByCompletedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'completedAt', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByCompletedAtDesc() {
+  thenByCompletedAtDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'completedAt', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByCorrectAnswers() {
+  thenByCorrectAnswers() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'correctAnswers', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByCorrectAnswersDesc() {
+  thenByCorrectAnswersDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'correctAnswers', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByDurationSeconds() {
+  thenByDurationSeconds() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationSeconds', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByDurationSecondsDesc() {
+  thenByDurationSecondsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'durationSeconds', Sort.desc);
     });
@@ -1828,14 +1845,14 @@ extension QuizResultModelQuerySortThenBy
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByIsSynced() {
+  thenByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByIsSyncedDesc() {
+  thenByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isSynced', Sort.desc);
     });
@@ -1848,7 +1865,7 @@ extension QuizResultModelQuerySortThenBy
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByScoreDesc() {
+  thenByScoreDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'score', Sort.desc);
     });
@@ -1861,21 +1878,21 @@ extension QuizResultModelQuerySortThenBy
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByStatusDesc() {
+  thenByStatusDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'status', Sort.desc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByTotalQuestions() {
+  thenByTotalQuestions() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalQuestions', Sort.asc);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QAfterSortBy>
-      thenByTotalQuestionsDesc() {
+  thenByTotalQuestionsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'totalQuestions', Sort.desc);
     });
@@ -1884,51 +1901,53 @@ extension QuizResultModelQuerySortThenBy
 
 extension QuizResultModelQueryWhereDistinct
     on QueryBuilder<QuizResultModel, QuizResultModel, QDistinct> {
-  QueryBuilder<QuizResultModel, QuizResultModel, QDistinct> distinctByBackendId(
-      {bool caseSensitive = true}) {
+  QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
+  distinctByBackendId({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'backendId', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
-      distinctByBankBackendId({bool caseSensitive = true}) {
+  distinctByBankBackendId({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'bankBackendId',
-          caseSensitive: caseSensitive);
+      return query.addDistinctBy(
+        r'bankBackendId',
+        caseSensitive: caseSensitive,
+      );
     });
   }
 
-  QueryBuilder<QuizResultModel, QuizResultModel, QDistinct> distinctByBankTitle(
-      {bool caseSensitive = true}) {
+  QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
+  distinctByBankTitle({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'bankTitle', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
-      distinctByCompletedAt() {
+  distinctByCompletedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'completedAt');
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
-      distinctByCorrectAnswers() {
+  distinctByCorrectAnswers() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'correctAnswers');
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
-      distinctByDurationSeconds() {
+  distinctByDurationSeconds() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'durationSeconds');
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
-      distinctByIsSynced() {
+  distinctByIsSynced() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isSynced');
     });
@@ -1940,15 +1959,16 @@ extension QuizResultModelQueryWhereDistinct
     });
   }
 
-  QueryBuilder<QuizResultModel, QuizResultModel, QDistinct> distinctByStatus(
-      {bool caseSensitive = true}) {
+  QueryBuilder<QuizResultModel, QuizResultModel, QDistinct> distinctByStatus({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'status', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<QuizResultModel, QuizResultModel, QDistinct>
-      distinctByTotalQuestions() {
+  distinctByTotalQuestions() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'totalQuestions');
     });
@@ -1964,7 +1984,7 @@ extension QuizResultModelQueryProperty
   }
 
   QueryBuilder<QuizResultModel, List<QuizAnswerItem>, QQueryOperations>
-      answersProperty() {
+  answersProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'answers');
     });
@@ -1977,7 +1997,7 @@ extension QuizResultModelQueryProperty
   }
 
   QueryBuilder<QuizResultModel, String, QQueryOperations>
-      bankBackendIdProperty() {
+  bankBackendIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'bankBackendId');
     });
@@ -1990,21 +2010,21 @@ extension QuizResultModelQueryProperty
   }
 
   QueryBuilder<QuizResultModel, DateTime, QQueryOperations>
-      completedAtProperty() {
+  completedAtProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'completedAt');
     });
   }
 
   QueryBuilder<QuizResultModel, int, QQueryOperations>
-      correctAnswersProperty() {
+  correctAnswersProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'correctAnswers');
     });
   }
 
   QueryBuilder<QuizResultModel, int, QQueryOperations>
-      durationSecondsProperty() {
+  durationSecondsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'durationSeconds');
     });
@@ -2029,7 +2049,7 @@ extension QuizResultModelQueryProperty
   }
 
   QueryBuilder<QuizResultModel, int, QQueryOperations>
-      totalQuestionsProperty() {
+  totalQuestionsProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'totalQuestions');
     });
@@ -2045,7 +2065,7 @@ extension QuizResultModelQueryProperty
 
 const QuizAnswerItemSchema = Schema(
   name: r'QuizAnswerItem',
-  id: 3525046097552820224,
+  id: 3525046097552820205,
   properties: {
     r'correctAnswer': PropertySchema(
       id: 0,
@@ -2066,8 +2086,9 @@ const QuizAnswerItemSchema = Schema(
       id: 3,
       name: r'selectedAnswer',
       type: IsarType.string,
-    )
+    ),
   },
+
   estimateSize: _quizAnswerItemEstimateSize,
   serialize: _quizAnswerItemSerialize,
   deserialize: _quizAnswerItemDeserialize,
@@ -2136,53 +2157,56 @@ P _quizAnswerItemDeserializeProp<P>(
 extension QuizAnswerItemQueryFilter
     on QueryBuilder<QuizAnswerItem, QuizAnswerItem, QFilterCondition> {
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  correctAnswerEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'correctAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'correctAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'correctAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerLessThan(
+  correctAnswerGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'correctAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'correctAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerBetween(
+  correctAnswerLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'correctAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
+  correctAnswerBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -2190,145 +2214,149 @@ extension QuizAnswerItemQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'correctAnswer',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'correctAnswer',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  correctAnswerStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'correctAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'correctAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  correctAnswerEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'correctAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'correctAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerContains(String value, {bool caseSensitive = true}) {
+  correctAnswerContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'correctAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'correctAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerMatches(String pattern, {bool caseSensitive = true}) {
+  correctAnswerMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'correctAnswer',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'correctAnswer',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerIsEmpty() {
+  correctAnswerIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'correctAnswer',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'correctAnswer', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      correctAnswerIsNotEmpty() {
+  correctAnswerIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'correctAnswer',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'correctAnswer', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      isCorrectEqualTo(bool value) {
+  isCorrectEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'isCorrect',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'isCorrect', value: value),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  questionBackendIdEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'questionBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'questionBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'questionBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdLessThan(
+  questionBackendIdGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'questionBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'questionBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdBetween(
+  questionBackendIdLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'questionBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
+  questionBackendIdBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -2336,135 +2364,140 @@ extension QuizAnswerItemQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'questionBackendId',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'questionBackendId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  questionBackendIdStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'questionBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'questionBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  questionBackendIdEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'questionBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'questionBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdContains(String value, {bool caseSensitive = true}) {
+  questionBackendIdContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'questionBackendId',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'questionBackendId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdMatches(String pattern, {bool caseSensitive = true}) {
+  questionBackendIdMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'questionBackendId',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'questionBackendId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdIsEmpty() {
+  questionBackendIdIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'questionBackendId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'questionBackendId', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      questionBackendIdIsNotEmpty() {
+  questionBackendIdIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'questionBackendId',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'questionBackendId', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  selectedAnswerEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'selectedAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'selectedAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'selectedAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerLessThan(
+  selectedAnswerGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'selectedAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'selectedAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerBetween(
+  selectedAnswerLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'selectedAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
+  selectedAnswerBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -2472,84 +2505,86 @@ extension QuizAnswerItemQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'selectedAnswer',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'selectedAnswer',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  selectedAnswerStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'selectedAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'selectedAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  selectedAnswerEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'selectedAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'selectedAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerContains(String value, {bool caseSensitive = true}) {
+  selectedAnswerContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'selectedAnswer',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'selectedAnswer',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerMatches(String pattern, {bool caseSensitive = true}) {
+  selectedAnswerMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'selectedAnswer',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'selectedAnswer',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerIsEmpty() {
+  selectedAnswerIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'selectedAnswer',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'selectedAnswer', value: ''),
+      );
     });
   }
 
   QueryBuilder<QuizAnswerItem, QuizAnswerItem, QAfterFilterCondition>
-      selectedAnswerIsNotEmpty() {
+  selectedAnswerIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'selectedAnswer',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'selectedAnswer', value: ''),
+      );
     });
   }
 }

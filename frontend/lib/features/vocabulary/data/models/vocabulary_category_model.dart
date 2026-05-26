@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import '../../domain/entities/vocabulary_category_entity.dart';
 
 part 'vocabulary_category_model.g.dart';

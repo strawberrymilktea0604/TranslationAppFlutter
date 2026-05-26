@@ -74,9 +74,9 @@ dependencies:
   # JSON serialization annotations
   json_annotation: ^4.9.0
 
-  # Isar Database
-  isar: ^3.1.0+1
-  isar_flutter_libs: ^3.1.0+1
+  # Isar Database (community fork — compatible with Dart 3.10+)
+  isar_community: ^3.3.2
+  isar_community_flutter_libs: ^3.3.2
   path_provider: ^2.1.2
 
   # Fonts
@@ -114,11 +114,11 @@ dev_dependencies:
   # JSON serialization code generator
   json_serializable: ^6.8.0
 
-  # Isar Code Generator
-  isar_generator: ^3.1.0+1
+  # Isar Code Generator (community fork)
+  isar_community_generator: ^3.3.2
 
   # Code generation runner
-  build_runner: ^2.4.0
+  build_runner: any
   flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
@@ -164,4 +164,5 @@ flutter:
 
 dependency_overrides:
   connectivity_plus: ^5.0.2
+  path_provider_foundation: 2.5.1
 
