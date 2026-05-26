@@ -22,47 +22,65 @@ class IsarDatabase {
 
   bool get isInitialized => _isar != null;
 
+  /// Schema list used for Isar.open — defined once to avoid duplication.
+  static const _schemas = [
+    UserModelSchema,
+    HistoryModelSchema,
+    VocabularyModelSchema,
+    VocabularyCategoryModelSchema,
+    QuestionBankModelSchema,
+    QuizResultModelSchema,
+  ];
+
   /// Initializes Isar. Must NOT be called on Flutter Web.
   Future<void> init() async {
     if (kIsWeb) return; // Isar 3.x does not support Web
 
     final dir = await getApplicationDocumentsDirectory();
-    
-    try {
-      _isar = await Isar.open([
-        UserModelSchema,
-        HistoryModelSchema,
-        VocabularyModelSchema,
-        VocabularyCategoryModelSchema,
-        QuestionBankModelSchema,
-        QuizResultModelSchema,
-      ], directory: dir.path);
-    } catch (e) {
-      debugPrint('Isar open failed: $e. Attempting to delete and recreate database...');
-      
-      try {
-        await Isar.getInstance()?.close(deleteFromDisk: true);
-      } catch (_) {}
 
-      // Delete old database files manually just in case
-      final dbFile = File('${dir.path}/default.isar');
-      final lockFile = File('${dir.path}/default.isar.lock');
-      if (await dbFile.exists()) {
-        await dbFile.delete();
+    try {
+      _isar = await Isar.open(
+        _schemas,
+        directory: dir.path,
+      );
+    } catch (e) {
+      debugPrint(
+        '[IsarDatabase] Isar.open failed: $e\n'
+        'Deleting corrupted database and retrying…',
+      );
+
+      // 1. Try to close any lingering Isar instance gracefully.
+      try {
+        final existing = Isar.getInstance();
+        if (existing != null && existing.isOpen) {
+          await existing.close(deleteFromDisk: true);
+        }
+      } catch (_) {
+        // Instance may not exist or may already be broken — ignore.
       }
-      if (await lockFile.exists()) {
-        await lockFile.delete();
+
+      // 2. Manually delete ALL Isar-related files to guarantee a clean slate.
+      final filesToDelete = [
+        File('${dir.path}/default.isar'),
+        File('${dir.path}/default.isar.lock'),
+        File('${dir.path}/default.isar.wal'),
+      ];
+      for (final f in filesToDelete) {
+        try {
+          if (await f.exists()) await f.delete();
+        } catch (deleteErr) {
+          debugPrint('[IsarDatabase] Could not delete ${f.path}: $deleteErr');
+        }
       }
-      
-      // Try opening again with a fallback name to avoid Isar registry lock
-      _isar = await Isar.open([
-        UserModelSchema,
-        HistoryModelSchema,
-        VocabularyModelSchema,
-        VocabularyCategoryModelSchema,
-        QuestionBankModelSchema,
-        QuizResultModelSchema,
-      ], directory: dir.path, name: 'translation_db_fallback');
+
+      // 3. Re-open with the **same default name** so the rest of the app
+      //    (injection_container, datasources) finds the correct instance.
+      _isar = await Isar.open(
+        _schemas,
+        directory: dir.path,
+      );
+
+      debugPrint('[IsarDatabase] Database recreated successfully.');
     }
   }
 }
