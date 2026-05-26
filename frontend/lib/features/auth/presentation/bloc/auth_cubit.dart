@@ -58,7 +58,17 @@ class AuthCubit extends Cubit<AuthState> {
 
     result.fold(
       (_) => emit(const AuthUnauthenticated()),
-      (user) => emit(AuthAuthenticated(user)),
+      (user) {
+        if (user.role == 'admin') {
+          _logoutUseCase(const NoParams());
+          emit(const AuthUnauthenticated());
+        } else if (user.status == 'locked') {
+          _logoutUseCase(const NoParams());
+          emit(const AuthUnauthenticated());
+        } else {
+          emit(AuthAuthenticated(user));
+        }
+      },
     );
   }
 
@@ -75,7 +85,17 @@ class AuthCubit extends Cubit<AuthState> {
 
     result.fold(
       (failure) => emit(AuthFailureState(failure.message)),
-      (user) => emit(AuthAuthenticated(user)),
+      (user) {
+        if (user.role == 'admin') {
+          _logoutUseCase(const NoParams());
+          emit(const AuthFailureState('Tài khoản admin không được phép đăng nhập trên ứng dụng này.'));
+        } else if (user.status == 'locked') {
+          _logoutUseCase(const NoParams());
+          emit(const AuthFailureState('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'));
+        } else {
+          emit(AuthAuthenticated(user));
+        }
+      },
     );
   }
 

@@ -6,6 +6,7 @@ class UserEntity extends Equatable {
   final String email;
   final String? name;
   final String role; // 'user' or 'admin'
+  final String status; // 'active' or 'locked'
   final DateTime createdAt;
 
   final String? avatarUrl;
@@ -16,9 +17,10 @@ class UserEntity extends Equatable {
     this.name,
     this.avatarUrl,
     this.role = 'user',
+    this.status = 'active',
     required this.createdAt,
   });
 
   @override
-  List<Object?> get props => [id, email, name, avatarUrl, role, createdAt];
+  List<Object?> get props => [id, email, name, avatarUrl, role, status, createdAt];
 }

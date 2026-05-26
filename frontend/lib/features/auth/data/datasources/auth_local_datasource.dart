@@ -26,6 +26,7 @@ abstract class AuthLocalDataSource {
     required String email,
     String? name,
     String? role,
+    String? status,
     String? avatarUrl,
   });
 
@@ -82,6 +83,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     required String email,
     String? name,
     String? role,
+    String? status,
     String? avatarUrl,
   }) async {
     try {
@@ -92,6 +94,9 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       }
       if (role != null) {
         await _secureStorage.write(key: SecureStorageKeys.userRole, value: role);
+      }
+      if (status != null) {
+        await _secureStorage.write(key: 'user_status', value: status);
       }
       if (avatarUrl != null) {
         await _secureStorage.write(key: 'user_avatar', value: avatarUrl);
@@ -111,9 +116,10 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     final email = await _secureStorage.read(SecureStorageKeys.userEmail);
     final name = await _secureStorage.read(SecureStorageKeys.userName);
     final role = await _secureStorage.read(SecureStorageKeys.userRole);
+    final status = await _secureStorage.read('user_status');
     final avatarUrl = await _secureStorage.read('user_avatar');
 
-    return {'userId': userId, 'email': email, 'name': name, 'role': role, 'avatarUrl': avatarUrl};
+    return {'userId': userId, 'email': email, 'name': name, 'role': role, 'status': status, 'avatarUrl': avatarUrl};
   }
 
   @override
@@ -130,6 +136,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       await _secureStorage.delete(SecureStorageKeys.userEmail);
       await _secureStorage.delete(SecureStorageKeys.userName);
       await _secureStorage.delete(SecureStorageKeys.userRole);
+      await _secureStorage.delete('user_status');
       await _secureStorage.delete('user_avatar');
     } catch (e) {
       throw CacheException(message: 'Failed to clear storage: ${e.toString()}');

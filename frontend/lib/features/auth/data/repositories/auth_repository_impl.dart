@@ -66,6 +66,7 @@ class AuthRepositoryImpl implements AuthRepository {
           email: email,
           name: name.isEmpty ? null : name,
           role: profileData['role'],
+          status: profileData['status'],
           avatarUrl: profileData['avatar_url'],
         );
         
@@ -75,6 +76,7 @@ class AuthRepositoryImpl implements AuthRepository {
             email: email,
             name: name.isEmpty ? null : name,
             role: profileData['role'] ?? 'user',
+            status: profileData['status'] ?? 'active',
             avatarUrl: profileData['avatar_url'],
             createdAt: DateTime.now(),
           ),
@@ -247,6 +249,7 @@ class AuthRepositoryImpl implements AuthRepository {
             email: profileData['email'] ?? '',
             name: name.isEmpty ? null : name,
             role: profileData['role'],
+            status: profileData['status'],
             avatarUrl: profileData['avatar_url'],
           );
         } catch (e) {
@@ -271,6 +274,7 @@ class AuthRepositoryImpl implements AuthRepository {
           email: userData['email'] ?? '',
           name: userData['name'],
           role: userData['role'] ?? 'user',
+          status: userData['status'] ?? 'active',
           avatarUrl: userData['avatarUrl'],
           createdAt: DateTime.now(),
         ),
@@ -399,6 +403,7 @@ class AuthRepositoryImpl implements AuthRepository {
           email: userData['email'] ?? '',
           name: userData['name'],
           role: userData['role'],
+          status: userData['status'],
           avatarUrl: avatarUrl,
         );
       }

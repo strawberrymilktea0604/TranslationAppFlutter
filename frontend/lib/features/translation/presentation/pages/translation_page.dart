@@ -22,6 +22,7 @@ import 'package:frontend/features/vocabulary/presentation/bloc/vocabulary_state.
 import 'package:frontend/features/vocabulary/presentation/pages/vocabulary_page.dart';
 import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 import 'package:frontend/features/learning/presentation/pages/learning_dashboard_page.dart';
+import 'package:frontend/features/conversation/presentation/pages/conversation_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 // ---------------------------------------------------------------------------
@@ -385,6 +386,10 @@ class _TranslationViewState extends State<_TranslationView>
                     icon: Icon(Icons.school_rounded),
                     label: 'Học tập',
                   ),
+                  NavigationDestination(
+                    icon: Icon(Icons.forum_rounded),
+                    label: 'Hội thoại',
+                  ),
                 ],
               )
             : null,
@@ -405,6 +410,8 @@ class _TranslationViewState extends State<_TranslationView>
       // Learning Dashboard — shows vocabulary progress + exam list.
       // The page creates its own BlocProvider internally.
       return const LearningDashboardPage(key: ValueKey('learning'));
+    } else if (_currentIndex == 4) {
+      return const ConversationPage(key: ValueKey('conversation'));
     }
     return _buildTranslationTab(context, cs, theme, isAuth, key: const ValueKey('translate'));
   }

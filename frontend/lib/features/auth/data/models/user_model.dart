@@ -14,6 +14,7 @@ class UserModel {
   String? name;
   String? avatarUrl;
   late String role;
+  late String status;
   late DateTime createdAt;
 
   // Constructor
@@ -23,6 +24,7 @@ class UserModel {
     this.name,
     this.avatarUrl,
     required this.role,
+    required this.status,
     required this.createdAt,
   });
 
@@ -37,6 +39,7 @@ class UserModel {
       name: name,
       avatarUrl: avatarUrl,
       role: role,
+      status: status,
       createdAt: createdAt,
     );
   }
@@ -49,6 +52,7 @@ class UserModel {
       name: entity.name,
       avatarUrl: entity.avatarUrl,
       role: entity.role,
+      status: entity.status,
       createdAt: entity.createdAt,
     );
   }
@@ -61,6 +65,7 @@ class UserModel {
       name: json['name'] as String?,
       avatarUrl: json['avatar_url'] as String?,
       role: json['role'] as String? ?? 'user',
+      status: json['status'] as String? ?? 'active',
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -72,6 +77,7 @@ class UserModel {
       'name': name,
       'avatar_url': avatarUrl,
       'role': role,
+      'status': status,
       'created_at': createdAt.toIso8601String(),
     };
   }
