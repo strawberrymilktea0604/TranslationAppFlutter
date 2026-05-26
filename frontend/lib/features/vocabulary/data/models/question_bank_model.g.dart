@@ -15,7 +15,7 @@ extension GetQuestionBankModelCollection on Isar {
 
 const QuestionBankModelSchema = CollectionSchema(
   name: r'QuestionBankModel',
-  id: -5597269249152036073,
+  id: -5597269249152035840,
   properties: {
     r'backendId': PropertySchema(
       id: 0,
@@ -70,7 +70,7 @@ const QuestionBankModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026410,
+      id: 8781752057772026880,
       name: r'backendId',
       unique: true,
       replace: true,
@@ -83,7 +83,7 @@ const QuestionBankModelSchema = CollectionSchema(
       ],
     ),
     r'createdAt': IndexSchema(
-      id: -3433535483987302584,
+      id: -3433535483987302400,
       name: r'createdAt',
       unique: false,
       replace: false,
@@ -1781,7 +1781,7 @@ extension QuestionBankModelQueryProperty
 
 const QuestionItemSchema = Schema(
   name: r'QuestionItem',
-  id: -8655055437920518966,
+  id: -8655055437920519168,
   properties: {
     r'choices': PropertySchema(
       id: 0,

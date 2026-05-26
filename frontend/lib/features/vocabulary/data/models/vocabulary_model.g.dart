@@ -15,7 +15,7 @@ extension GetVocabularyModelCollection on Isar {
 
 const VocabularyModelSchema = CollectionSchema(
   name: r'VocabularyModel',
-  id: -408305115005495918,
+  id: -408305115005495936,
   properties: {
     r'backendId': PropertySchema(
       id: 0,
@@ -99,7 +99,7 @@ const VocabularyModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026410,
+      id: 8781752057772026880,
       name: r'backendId',
       unique: true,
       replace: true,
@@ -112,7 +112,7 @@ const VocabularyModelSchema = CollectionSchema(
       ],
     ),
     r'category': IndexSchema(
-      id: -7560358558326323820,
+      id: -7560358558326324224,
       name: r'category',
       unique: false,
       replace: false,
@@ -125,7 +125,7 @@ const VocabularyModelSchema = CollectionSchema(
       ],
     ),
     r'createdAt': IndexSchema(
-      id: -3433535483987302584,
+      id: -3433535483987302400,
       name: r'createdAt',
       unique: false,
       replace: false,

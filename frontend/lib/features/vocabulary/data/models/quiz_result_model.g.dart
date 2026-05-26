@@ -15,7 +15,7 @@ extension GetQuizResultModelCollection on Isar {
 
 const QuizResultModelSchema = CollectionSchema(
   name: r'QuizResultModel',
-  id: -2859712421507225249,
+  id: -2859712421507225088,
   properties: {
     r'answers': PropertySchema(
       id: 0,
@@ -71,7 +71,7 @@ const QuizResultModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026410,
+      id: 8781752057772026880,
       name: r'backendId',
       unique: true,
       replace: true,
@@ -84,7 +84,7 @@ const QuizResultModelSchema = CollectionSchema(
       ],
     ),
     r'bankBackendId': IndexSchema(
-      id: 7496997594039063869,
+      id: 7496997594039063552,
       name: r'bankBackendId',
       unique: false,
       replace: false,
@@ -97,7 +97,7 @@ const QuizResultModelSchema = CollectionSchema(
       ],
     ),
     r'completedAt': IndexSchema(
-      id: -3156591011457686752,
+      id: -3156591011457686528,
       name: r'completedAt',
       unique: false,
       replace: false,
@@ -2065,7 +2065,7 @@ extension QuizResultModelQueryProperty
 
 const QuizAnswerItemSchema = Schema(
   name: r'QuizAnswerItem',
-  id: 3525046097552820205,
+  id: 3525046097552820224,
   properties: {
     r'correctAnswer': PropertySchema(
       id: 0,
