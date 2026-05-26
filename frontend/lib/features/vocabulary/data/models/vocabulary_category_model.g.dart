@@ -16,7 +16,7 @@ extension GetVocabularyCategoryModelCollection on Isar {
 
 const VocabularyCategoryModelSchema = CollectionSchema(
   name: r'VocabularyCategoryModel',
-  id: 2850616322253582336,
+  id: ((663710833 << 32) + 517665016),
   properties: {
     r'backendId': PropertySchema(
       id: 0,
@@ -49,7 +49,7 @@ const VocabularyCategoryModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026880,
+      id: ((2044660984 << 32) + 84847146),
       name: r'backendId',
       unique: true,
       replace: true,
@@ -62,7 +62,7 @@ const VocabularyCategoryModelSchema = CollectionSchema(
       ],
     ),
     r'createdAt': IndexSchema(
-      id: -3433535483987302400,
+      id: -((799432276 << 32) + 3200456888),
       name: r'createdAt',
       unique: false,
       replace: false,

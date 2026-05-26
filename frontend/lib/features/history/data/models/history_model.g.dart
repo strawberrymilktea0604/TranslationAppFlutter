@@ -15,7 +15,7 @@ extension GetHistoryModelCollection on Isar {
 
 const HistoryModelSchema = CollectionSchema(
   name: r'HistoryModel',
-  id: 5151902556644193280,
+  id: ((1199520788 << 32) + 1312044135),
   properties: {
     r'backendId': PropertySchema(
       id: 0,
@@ -67,7 +67,7 @@ const HistoryModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026880,
+      id: ((2044660984 << 32) + 84847146),
       name: r'backendId',
       unique: true,
       replace: true,
@@ -80,7 +80,7 @@ const HistoryModelSchema = CollectionSchema(
       ],
     ),
     r'createdAt': IndexSchema(
-      id: -3433535483987302400,
+      id: -((799432276 << 32) + 3200456888),
       name: r'createdAt',
       unique: false,
       replace: false,

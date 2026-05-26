@@ -15,7 +15,7 @@ extension GetUserModelCollection on Isar {
 
 const UserModelSchema = CollectionSchema(
   name: r'UserModel',
-  id: 7195426469378571264,
+  id: ((1675315776 << 32) + 985709418),
   properties: {
     r'avatarUrl': PropertySchema(
       id: 0,
@@ -44,7 +44,7 @@ const UserModelSchema = CollectionSchema(
   idName: r'id',
   indexes: {
     r'backendId': IndexSchema(
-      id: 8781752057772026880,
+      id: ((2044660984 << 32) + 84847146),
       name: r'backendId',
       unique: true,
       replace: true,
