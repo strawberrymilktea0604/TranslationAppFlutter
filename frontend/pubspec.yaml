@@ -104,12 +104,8 @@ dependencies:
   web_socket_channel: ^3.0.1
 
 dev_dependencies:
-  # flutter_test:
-  #   sdk: flutter
-
-  # flutter_lints: ^6.0.0
-  # bloc_test: ^10.0.0
-  # mocktail: ^1.0.4
+  mockito: ^5.4.4
+  bloc_test: ^10.0.0
 
   # JSON serialization code generator
   json_serializable: ^6.8.0
