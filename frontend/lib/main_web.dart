@@ -69,7 +69,7 @@ class AdminApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthCubit>(
-          create: (_) => sl<AuthCubit>()..checkAuthStatus(),
+          create: (_) => sl<AuthCubit>()..checkAuthStatus(isAdminApp: true),
         ),
         BlocProvider<NetworkCubit>(create: (_) => sl<NetworkCubit>()),
         BlocProvider<TtsCubit>(create: (_) => sl<TtsCubit>()),

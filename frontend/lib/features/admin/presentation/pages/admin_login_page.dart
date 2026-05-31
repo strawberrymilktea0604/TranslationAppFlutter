@@ -55,6 +55,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
       context.read<AuthCubit>().login(
             email: _emailCtrl.text.trim(),
             password: _passwordCtrl.text,
+            isAdminApp: true,
           );
     }
   }

@@ -51,7 +51,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// Reads tokens from flutter_secure_storage and attempts
   /// a silent refresh if the access token is expired.
   /// Emits [AuthAuthenticated] if valid, [AuthUnauthenticated] otherwise.
-  Future<void> checkAuthStatus() async {
+  Future<void> checkAuthStatus({bool isAdminApp = false}) async {
     emit(const AuthInProgress());
 
     final result = await _getCurrentUserUseCase(const NoParams());
@@ -59,10 +59,13 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (_) => emit(const AuthUnauthenticated()),
       (user) {
-        if (user.role == 'admin') {
+        if (user.status == 'locked') {
           _logoutUseCase(const NoParams());
           emit(const AuthUnauthenticated());
-        } else if (user.status == 'locked') {
+        } else if (user.role == 'admin' && !isAdminApp) {
+          _logoutUseCase(const NoParams());
+          emit(const AuthUnauthenticated());
+        } else if (user.role != 'admin' && isAdminApp) {
           _logoutUseCase(const NoParams());
           emit(const AuthUnauthenticated());
         } else {
@@ -76,7 +79,7 @@ class AuthCubit extends Cubit<AuthState> {
   ///
   /// Calls the BE login API, stores tokens in flutter_secure_storage,
   /// and emits [AuthAuthenticated] on success.
-  Future<void> login({required String email, required String password}) async {
+  Future<void> login({required String email, required String password, bool isAdminApp = false}) async {
     emit(const AuthInProgress());
 
     final result = await _loginUseCase(
@@ -86,12 +89,15 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (failure) => emit(AuthFailureState(failure.message)),
       (user) {
-        if (user.role == 'admin') {
-          _logoutUseCase(const NoParams());
-          emit(const AuthFailureState('Tài khoản admin không được phép đăng nhập trên ứng dụng này.'));
-        } else if (user.status == 'locked') {
+        if (user.status == 'locked') {
           _logoutUseCase(const NoParams());
           emit(const AuthFailureState('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'));
+        } else if (user.role == 'admin' && !isAdminApp) {
+          _logoutUseCase(const NoParams());
+          emit(const AuthFailureState('Tài khoản admin không được phép đăng nhập trên ứng dụng này.'));
+        } else if (user.role != 'admin' && isAdminApp) {
+          _logoutUseCase(const NoParams());
+          emit(const AuthFailureState('Chỉ có admin mới được phép đăng nhập vào dashboard.'));
         } else {
           emit(AuthAuthenticated(user));
         }
