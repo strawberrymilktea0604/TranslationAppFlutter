@@ -3,18 +3,68 @@ Test cases for Translation Caching Implementation
 Tests the complete cache flow: Redis → API → Database
 """
 import pytest
+import pytest_asyncio
 import asyncio
 from unittest.mock import patch
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.core.redis_client import (
+    close_redis,
+    get_redis_client,
     get_cached_translation,
     set_cached_translation,
     _generate_cache_key
 )
+from app.models.base import Base
+from app.models.translation import Translation
+from app.models.user import User
 from app.schemas.translation import TranslationRequest
 from app.services.translation_service import TranslationService
 from app.repositories.translation_repository import TranslationRepository
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_redis_client():
+    """Do not reuse an asyncio Redis client across pytest event loops."""
+    await close_redis()
+    client = await get_redis_client()
+    keys = await client.keys("translation:*")
+    if keys:
+        await client.delete(*keys)
+    yield
+    await close_redis()
+
+
+@pytest_asyncio.fixture
+async def db():
+    """Create the minimum schema used by translation repository tests."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[User.__table__, Translation.__table__],
+        )
+
+    async_session = sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with async_session() as session:
+        session.add(
+            User(
+                id=1,
+                email="translation-cache@example.com",
+                password_hash="test-password-hash",
+            )
+        )
+        await session.commit()
+        yield session
+
+    await engine.dispose()
 
 
 class TestCacheKeyGeneration:

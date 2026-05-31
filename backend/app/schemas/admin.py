@@ -51,6 +51,15 @@ class BanUserResponse(BaseModel):
     revoked_tokens_count: int
 
 
+class AdminAnalyticsSummaryResponse(BaseModel):
+    """All-time metrics for the initial admin dashboard."""
+
+    total_users: int
+    total_quiz_attempts: int
+    total_ai_requests: int
+    average_quiz_score: float
+
+
 # ─────────────────────────────────────────────
 # Question-bank schemas
 # ─────────────────────────────────────────────

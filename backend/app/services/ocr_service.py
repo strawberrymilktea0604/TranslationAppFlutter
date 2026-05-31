@@ -111,6 +111,11 @@ class OCRService:
                     language=language,
                     preprocess=preprocess,
                 )
+                if language:
+                    result["language"] = OCRService.SUPPORTED_LANGUAGES.get(
+                        language,
+                        language,
+                    )
                 result["ocr_engine"] = "paddleocr"
                 return result
 

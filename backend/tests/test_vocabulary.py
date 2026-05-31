@@ -14,7 +14,7 @@ from app.main import app
 from app.core.database import get_db
 from app.models.base import Base
 from app.models.user import User
-from app.models.translation import Translation, Vocabulary
+from app.models.translation import Translation, Vocabulary, VocabularyCategory
 from app.core.security import hash_password, create_access_token
 
 
@@ -35,7 +35,12 @@ async def test_db():
     async with engine.begin() as conn:
         await conn.run_sync(
             Base.metadata.create_all,
-            tables=[User.__table__, Translation.__table__, Vocabulary.__table__],
+            tables=[
+                User.__table__,
+                Translation.__table__,
+                VocabularyCategory.__table__,
+                Vocabulary.__table__,
+            ],
         )
 
     async_session = sessionmaker(

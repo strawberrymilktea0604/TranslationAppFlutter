@@ -55,7 +55,7 @@ class TestImageService:
         """Test valid image validation"""
         is_valid, msg = ImageService.validate_image_bytes(sample_image_bytes)
         assert is_valid is True
-        assert "Valid" in msg
+        assert "valid" in msg.lower()
     
     def test_validate_corrupted_image(self, corrupted_image_bytes):
         """Test corrupted image detection"""

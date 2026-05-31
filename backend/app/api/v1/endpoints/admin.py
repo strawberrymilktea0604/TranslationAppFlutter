@@ -17,9 +17,11 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import DBSession, get_admin_user
 from app.core.redis_client import set_revoked_token
-from app.models.learning import Question, QuestionBank
+from app.models.learning import Question, QuestionBank, UserQuiz
+from app.models.system import ApiMetric
 from app.models.user import User, UserToken
 from app.schemas.admin import (
+    AdminAnalyticsSummaryResponse,
     AdminBankListResponse,
     AdminBankSummary,
     AdminUserListResponse,
@@ -31,6 +33,43 @@ from app.schemas.learning import QuestionAdminSchema, QuestionBankAdminDetail
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get(
+    "/analytics/summary",
+    response_model=AdminAnalyticsSummaryResponse,
+    summary="[Admin] Get all-time analytics summary",
+)
+async def admin_get_analytics_summary(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+):
+    """Return the initial all-time metrics for the admin dashboard."""
+    total_users = (
+        await db.execute(
+            select(func.count(User.id)).where(User.is_deleted.is_(False))
+        )
+    ).scalar() or 0
+    total_quiz_attempts = (
+        await db.execute(select(func.count(UserQuiz.id)))
+    ).scalar() or 0
+    total_ai_requests = (
+        await db.execute(
+            select(func.count(ApiMetric.id)).where(ApiMetric.is_ai_request.is_(True))
+        )
+    ).scalar() or 0
+    average_quiz_score = (
+        await db.execute(
+            select(func.avg(UserQuiz.score)).where(UserQuiz.score.is_not(None))
+        )
+    ).scalar()
+
+    return AdminAnalyticsSummaryResponse(
+        total_users=total_users,
+        total_quiz_attempts=total_quiz_attempts,
+        total_ai_requests=total_ai_requests,
+        average_quiz_score=round(float(average_quiz_score or 0.0), 2),
+    )
 
 
 # ─────────────────────────────────────────────────────────────
