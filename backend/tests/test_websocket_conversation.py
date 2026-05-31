@@ -366,34 +366,42 @@ class TestSessionLifecycle:
         assert error["event"] == "error"
         assert error["code"] == "SESSION_ALREADY_ACTIVE"
 
-    def test_session_start_persist_failure_returns_error(self):
+    @pytest.mark.asyncio
+    async def test_session_start_persist_failure_returns_error(self):
+        from app.api.v1.endpoints.websocket import websocket_conversation
         from app.services.conversation_session_manager import conversation_manager
 
         token = _make_token()
         user = _make_user()
-        client = TestClient(app)
         baseline_count = conversation_manager.active_session_count()
 
-        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
-             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
-             patch(
-                 _PATCH_CREATE_CONVERSATION_SESSION,
-                 new=AsyncMock(side_effect=RuntimeError("db unavailable")),
-             ):
-            with client.websocket_connect(
-                f"/api/v1/ws/conversation?token={token}"
-            ) as ws:
-                ws.send_json({
-                    "event": "session_start",
-                    "source_language": "vi",
-                    "target_language": "en",
-                    "speaker": "SPEAKER_A",
-                })
-                error = ws.receive_json()
+        websocket = AsyncMock()
+        websocket.receive = AsyncMock(side_effect=[
+            {
+                "type": "websocket.receive",
+                "text": (
+                    '{"event": "session_start", "source_language": "vi", '
+                    '"target_language": "en", "speaker": "SPEAKER_A"}'
+                ),
+            },
+            {"type": "websocket.disconnect"},
+        ])
 
-        assert error["event"] == "error"
-        assert error["code"] == "SESSION_PERSIST_FAILED"
+        with patch(
+            "app.api.v1.endpoints.websocket._authenticate_ws",
+            new=AsyncMock(return_value=user),
+        ), patch(
+            _PATCH_CREATE_CONVERSATION_SESSION,
+            new=AsyncMock(side_effect=RuntimeError("db unavailable")),
+        ):
+            await websocket_conversation(websocket, token)
+
         assert conversation_manager.active_session_count() == baseline_count
+        websocket.send_json.assert_called_with({
+            "event": "error",
+            "code": "SESSION_PERSIST_FAILED",
+            "message": "Could not create a persisted conversation session.",
+        })
 
 
 # ---------------------------------------------------------------------------
