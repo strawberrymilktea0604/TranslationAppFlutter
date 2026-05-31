@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '.')
 try:
-    from app.schemas.admin import QuestionBankCreate, QuestionBankUpdate, QuestionBankToggleResponse
+    from app.schemas.admin import QuestionBankCreate, QuestionBankUpdate, QuestionBankToggleResponse  # noqa: F401
     print('✅ Schemas OK: QuestionBankCreate, QuestionBankUpdate, QuestionBankToggleResponse')
     from app.api.v1.endpoints.admin import router
     routes = [r.path for r in router.routes]
