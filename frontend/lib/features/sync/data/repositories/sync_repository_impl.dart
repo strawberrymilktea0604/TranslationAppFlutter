@@ -9,24 +9,29 @@ import '../../../vocabulary/data/datasources/vocabulary_local_datasource.dart';
 import '../../../vocabulary/data/datasources/vocabulary_remote_datasource.dart';
 import '../../../vocabulary/data/models/vocabulary_model.dart';
 import '../../domain/entities/sync_entity.dart';
+import '../../domain/entities/sync_push_entity.dart';
 import '../../domain/repositories/sync_repository.dart';
+import '../datasources/sync_local_datasource.dart';
 import '../datasources/sync_remote_datasource.dart';
 import '../models/sync_model.dart';
+import '../models/sync_push_model.dart';
 
 /// Offline-first sync implementation with Exponential Backoff.
 ///
-/// Flow (§5.2, §5.3):
-/// 1. Query Isar for all records where [isSynced] = false.
-/// 2. If no unsynced records → return early (nothing to do).
-/// 3. Build a batch request and POST to `/api/v1/sync/vocabulary`.
-/// 4. On success → mark synced entries as [isSynced] = true in Isar.
-/// 5. On 401 → attempt token refresh, then retry.
-/// 6. On other failure → retry with Exponential Backoff: 5s, 10s, 30s.
+/// Supports two sync modes:
+/// 1. **Legacy** [syncVocabulary]: uses `POST /api/v1/sync/vocabulary`.
+/// 2. **Modern** [fullSync]: uses `POST /api/v1/sync/push` +
+///    `GET /api/v1/sync/pull` with cursor-based pagination.
+///
+/// Retry behaviour (§5.3):
+/// - Exponential Backoff: 5s → 10s → 30s.
+/// - Token expired → stop sync (user must re-authenticate).
 class SyncRepositoryImpl implements SyncRepository {
   final SyncRemoteDataSource _remoteDataSource;
   final VocabularyLocalDataSource _localDataSource;
   final VocabularyRemoteDataSource _vocabularyRemoteDataSource;
   final AuthLocalDataSource _authLocalDataSource;
+  final SyncLocalDataSource _syncLocalDataSource;
 
   /// Exponential backoff delays in seconds (§5.3).
   static const List<int> _retryDelays = [5, 10, 30];
@@ -36,10 +41,16 @@ class SyncRepositoryImpl implements SyncRepository {
     required VocabularyLocalDataSource localDataSource,
     required VocabularyRemoteDataSource vocabularyRemoteDataSource,
     required AuthLocalDataSource authLocalDataSource,
+    required SyncLocalDataSource syncLocalDataSource,
   })  : _remoteDataSource = remoteDataSource,
         _localDataSource = localDataSource,
         _vocabularyRemoteDataSource = vocabularyRemoteDataSource,
-        _authLocalDataSource = authLocalDataSource;
+        _authLocalDataSource = authLocalDataSource,
+        _syncLocalDataSource = syncLocalDataSource;
+
+  // ==================================================================
+  //  Legacy sync (POST /api/v1/sync/vocabulary)
+  // ==================================================================
 
   @override
   Future<Either<Failure, SyncResponseEntity>> syncVocabulary() async {
@@ -86,7 +97,6 @@ class SyncRepositoryImpl implements SyncRepository {
         final idMap = <int, String>{};
         for (final result in response.results) {
           if (result.status == 'created' || result.status == 'updated') {
-            // Find the local model by clientId (backendId).
             final localModel = unsyncedModels.where(
               (m) => m.backendId == result.clientId,
             );
@@ -107,7 +117,8 @@ class SyncRepositoryImpl implements SyncRepository {
         final serverIds = <String>{};
 
         while (hasNext) {
-          final pageData = await _vocabularyRemoteDataSource.getVocabularyList(
+          final pageData =
+              await _vocabularyRemoteDataSource.getVocabularyList(
             page: page,
             accessToken: token,
           );
@@ -126,21 +137,18 @@ class SyncRepositoryImpl implements SyncRepository {
 
         // Upsert all server records into Isar
         await _localDataSource.saveAll(serverVocabs);
-        
-        // Delete any local records that are not present in the server's list.
-        // This gracefully handles cases where an admin deletes records from pgAdmin.
-        // If serverIds is empty, this will effectively clear all local synced records.
+
+        // Delete any local records that are not present on the server.
         await _localDataSource.deleteNotPresent(serverIds.toList());
 
         developer.log(
-          'Sync completed: ${response.syncedCount} items pushed, ${serverIds.length} items pulled.',
+          'Sync completed: ${response.syncedCount} items pushed, '
+          '${serverIds.length} items pulled.',
           name: 'SyncRepository',
         );
 
         return Right(response.toEntity());
       } on AuthException {
-        // 5. Token expired — stop sync. User must re-authenticate.
-        //    Per §5.3: "Nếu Refresh Token cũng thất bại → dừng toàn bộ sync"
         developer.log(
           'Auth expired during sync — stopping.',
           name: 'SyncRepository',
@@ -150,7 +158,6 @@ class SyncRepositoryImpl implements SyncRepository {
           AuthFailure('Session expired. Please log in again to sync.'),
         );
       } on ServerException catch (e) {
-        // 6. Server error — retry with backoff.
         if (attempt < _retryDelays.length) {
           final delay = _retryDelays[attempt];
           developer.log(
@@ -179,7 +186,261 @@ class SyncRepositoryImpl implements SyncRepository {
       }
     }
 
-    // Should not reach here, but satisfy the compiler.
     return const Left(ServerFailure('Sync failed unexpectedly.'));
+  }
+
+  // ==================================================================
+  //  Modern push/pull sync (POST /sync/push + GET /sync/pull)
+  // ==================================================================
+
+  @override
+  Future<Either<Failure, SyncPushResponseEntity>> fullSync() async {
+    // ─── Phase 1: PUSH — send local changes to server ───
+
+    final unsyncedModels = await _localDataSource.getUnsynced();
+
+    SyncPushResponseModel? pushResponse;
+
+    if (unsyncedModels.isNotEmpty) {
+      developer.log(
+        'Full sync: pushing ${unsyncedModels.length} unsynced items…',
+        name: 'SyncRepository',
+      );
+
+      final pushItems = unsyncedModels
+          .map(SyncPushItemModel.fromVocabularyModel)
+          .toList();
+      final pushRequest = SyncPushRequestModel(items: pushItems);
+
+      // Attempt push with exponential backoff.
+      for (var attempt = 0; attempt <= _retryDelays.length; attempt++) {
+        try {
+          final token = await _getTokenOrFail();
+          if (token == null) {
+            return const Left(
+              AuthFailure('Not authenticated — sync requires login.'),
+            );
+          }
+
+          pushResponse = await _remoteDataSource.pushChanges(
+            request: pushRequest,
+            accessToken: token,
+          );
+
+          // Process push results.
+          await _processPushResults(pushResponse, unsyncedModels);
+
+          developer.log(
+            'Push completed: ${pushResponse.succeededCount} succeeded, '
+            '${pushResponse.failedCount} failed.',
+            name: 'SyncRepository',
+          );
+          break; // Push succeeded, exit retry loop.
+        } on AuthException {
+          developer.log(
+            'Auth expired during push — stopping full sync.',
+            name: 'SyncRepository',
+            level: 900,
+          );
+          return const Left(
+            AuthFailure(
+              'Session expired. Please log in again to sync.',
+            ),
+          );
+        } on ServerException catch (e) {
+          if (attempt < _retryDelays.length) {
+            final delay = _retryDelays[attempt];
+            developer.log(
+              'Push attempt ${attempt + 1} failed: ${e.message}. '
+              'Retrying in ${delay}s…',
+              name: 'SyncRepository',
+              level: 800,
+            );
+            await Future<void>.delayed(Duration(seconds: delay));
+          } else {
+            developer.log(
+              'Push failed after ${_retryDelays.length + 1} attempts.',
+              name: 'SyncRepository',
+              level: 1000,
+            );
+            return Left(
+              ServerFailure(
+                'Push sync failed after retries: ${e.message}',
+                statusCode: e.statusCode,
+              ),
+            );
+          }
+        } on CacheException catch (e) {
+          return Left(CacheFailure(e.message));
+        }
+      }
+    } else {
+      developer.log(
+        'Full sync: no local changes to push.',
+        name: 'SyncRepository',
+      );
+    }
+
+    // ─── Phase 2: PULL — fetch server changes ───
+
+    try {
+      await _pullServerChanges();
+    } on AuthException {
+      developer.log(
+        'Auth expired during pull — stopping.',
+        name: 'SyncRepository',
+        level: 900,
+      );
+      return const Left(
+        AuthFailure('Session expired. Please log in again to sync.'),
+      );
+    } on ServerException catch (e) {
+      // Pull failure is non-fatal if push succeeded.
+      developer.log(
+        'Pull phase failed: ${e.message}. Push was successful.',
+        name: 'SyncRepository',
+        level: 800,
+      );
+    } on CacheException catch (e) {
+      return Left(CacheFailure(e.message));
+    }
+
+    // Build final result.
+    final result = pushResponse?.toEntity() ??
+        const SyncPushResponseEntity(
+          succeededCount: 0,
+          failedCount: 0,
+          results: [],
+        );
+
+    developer.log(
+      'Full sync completed: pushed=${result.succeededCount}, '
+      'failed=${result.failedCount}.',
+      name: 'SyncRepository',
+    );
+
+    return Right(result);
+  }
+
+  // ------------------------------------------------------------------
+  //  Private helpers
+  // ------------------------------------------------------------------
+
+  /// Returns the access token or null if not authenticated.
+  Future<String?> _getTokenOrFail() async {
+    return await _authLocalDataSource.getAccessToken();
+  }
+
+  /// Process push results: mark synced items, update backendId.
+  Future<void> _processPushResults(
+    SyncPushResponseModel response,
+    List<VocabularyModel> unsyncedModels,
+  ) async {
+    final idMap = <int, String>{};
+
+    for (final result in response.results) {
+      if (result.status == 'created' || result.status == 'updated') {
+        final localModel = unsyncedModels.where(
+          (m) => m.backendId == result.clientId,
+        );
+        if (localModel.isNotEmpty && result.serverId != null) {
+          idMap[localModel.first.id] = result.serverId.toString();
+        }
+      }
+    }
+
+    if (idMap.isNotEmpty) {
+      await _localDataSource.markSyncedAndUpdateId(idMap);
+    }
+  }
+
+  /// Pulls all pages of server changes via cursor-based pagination.
+  ///
+  /// Upserts pulled flashcard items into local Isar and persists
+  /// the cursor for next sync.
+  Future<void> _pullServerChanges() async {
+    final token = await _getTokenOrFail();
+    if (token == null) {
+      throw const AuthException(message: 'Not authenticated for pull.');
+    }
+
+    var cursor = await _syncLocalDataSource.getSyncCursor();
+    var totalPulled = 0;
+
+    // Page through all available changes.
+    bool hasMore = true;
+    while (hasMore) {
+      final pullResponse = await _remoteDataSource.pullChanges(
+        cursor: cursor,
+        limit: 100,
+        accessToken: token,
+      );
+
+      // Process pulled items by resource type.
+      final vocabModels = <VocabularyModel>[];
+
+      for (final item in pullResponse.items) {
+        if (item.resource == 'flashcard') {
+          try {
+            vocabModels.add(
+              _flashcardPayloadToVocabularyModel(item.payload),
+            );
+          } catch (e) {
+            developer.log(
+              'Skipping malformed flashcard pull item: $e',
+              name: 'SyncRepository',
+              level: 800,
+            );
+          }
+        }
+        // quiz_attempt items can be handled in a future iteration.
+      }
+
+      // Upsert pulled vocabularies into Isar.
+      if (vocabModels.isNotEmpty) {
+        await _localDataSource.saveAll(vocabModels);
+      }
+
+      totalPulled += pullResponse.items.length;
+
+      // Persist cursor after each page so progress is saved
+      // even if the app is killed mid-sync.
+      cursor = pullResponse.nextCursor;
+      await _syncLocalDataSource.saveSyncCursor(cursor);
+
+      hasMore = pullResponse.hasMore;
+    }
+
+    developer.log(
+      'Pull completed: $totalPulled items received.',
+      name: 'SyncRepository',
+    );
+  }
+
+  /// Converts a flashcard pull payload to a [VocabularyModel].
+  ///
+  /// The payload structure matches the backend's
+  /// `_flashcard_payload()` method in sync_service.py.
+  VocabularyModel _flashcardPayloadToVocabularyModel(
+    Map<String, dynamic> payload,
+  ) {
+    return VocabularyModel(
+      backendId: payload['id'].toString(),
+      word: payload['word'] as String? ?? '',
+      translation: payload['translation'] as String? ?? '',
+      sourceLanguage: payload['source_language'] as String,
+      targetLanguage: payload['target_language'] as String,
+      category: payload['category'] as String? ?? 'Chưa phân loại',
+      categoryId: payload['category_id'] as int?,
+      translationId: payload['translation_id'] as int?,
+      masteryLevel: payload['mastery_level'] as int? ?? 0,
+      lastTestedAt: payload['last_tested_at'] != null
+          ? DateTime.parse(payload['last_tested_at'] as String)
+          : null,
+      isDeleted: payload['is_deleted'] as bool? ?? false,
+      createdAt: DateTime.parse(payload['created_at'] as String),
+      updatedAt: DateTime.parse(payload['updated_at'] as String),
+      isSynced: true, // Data pulled from server is synced.
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/features/admin/presentation/layout/admin_layout.dart';
 import 'package:frontend/services/admin_users_service.dart';
@@ -101,7 +102,6 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     } catch (e) {
       _handleError(e);
     }
-  }
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/admin/presentation/layout/admin_layout.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
@@ -6,7 +7,6 @@ import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/services/admin_question_bank_service.dart';
-import 'package:frontend/core/error/api_error_handler.dart';
 
 /// Admin Question Bank Management Page
 /// Full CRUD for question banks: list, create, edit, toggle active, delete
@@ -238,7 +238,6 @@ class _AdminQuestionBankPageState extends State<AdminQuestionBankPage> {
         }
       });
     }
-  }
   }
 
   @override
@@ -574,7 +573,7 @@ class _AdminQuestionBankPageState extends State<AdminQuestionBankPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _service.banks.length,
-                separatorBuilder: (_, __) => Divider(
+                separatorBuilder: (context, index) => Divider(
                   height: 1,
                   color: colorScheme.outlineVariant,
                 ),

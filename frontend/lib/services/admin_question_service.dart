@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:frontend/core/config/api_config.dart';
-import 'package:frontend/core/services/local_data_source.dart';
-import 'package:frontend/core/services/service_locator.dart';
 import 'package:frontend/core/error/api_error_handler.dart';
 
 /// Model for a question in admin context
@@ -126,6 +123,8 @@ class AdminQuestionService with ChangeNotifier {
   int get totalCount => _totalCount;
   int get currentPage => _currentPage;
   int get totalPages => _totalPages;
+  bool get hasNext => _currentPage < _totalPages;
+  bool get hasPrev => _currentPage > 1;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -243,9 +242,9 @@ class AdminQuestionService with ChangeNotifier {
     _setError(null);
     try {
       final body = jsonEncode({
-        if (content != null) 'content': content,
-        if (choices != null) 'choices': choices,
-        if (correctAnswer != null) 'correct_answer': correctAnswer,
+        'content': ?content,
+        'choices': ?choices,
+        'correct_answer': ?correctAnswer,
       });
 
       final response = await client.put(

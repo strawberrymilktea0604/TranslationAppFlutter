@@ -7,6 +7,7 @@ import '../../../../core/network/bloc/network_cubit.dart';
 import '../../../../core/network/services/realtime_sync_service.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../../../features/auth/data/datasources/auth_local_datasource.dart';
+import '../../domain/usecases/full_sync_usecase.dart';
 import '../../domain/usecases/sync_data_usecase.dart';
 import 'sync_state.dart';
 import '../../../../injection_container.dart';
@@ -16,8 +17,9 @@ import '../../../../injection_container.dart';
 /// This Cubit listens to [NetworkCubit] via a [StreamSubscription].
 /// When the network transitions to [NetworkStatus.online]:
 ///   1. Gathers all Isar records with `isSynced = false`.
-///   2. Sends them as a batch to `POST /api/v1/sync/vocabulary`.
-///   3. Marks them as `isSynced = true` when the BE confirms success.
+///   2. Pushes them via `POST /api/v1/sync/push`.
+///   3. Pulls server changes via `GET /api/v1/sync/pull`.
+///   4. Upserts pulled items into local Isar.
 ///
 /// Additionally, it opens a WebSocket connection ([RealtimeSyncService])
 /// so the server can push `sync_completed` events in real time.
@@ -30,6 +32,7 @@ import '../../../../injection_container.dart';
 /// - Token expired → stop sync (user must re-authenticate).
 class SyncCubit extends Cubit<SyncState> {
   final SyncDataUseCase _syncDataUseCase;
+  final FullSyncUseCase _fullSyncUseCase;
   final NetworkCubit _networkCubit;
   final RealtimeSyncService _realtimeSyncService;
 
@@ -46,9 +49,11 @@ class SyncCubit extends Cubit<SyncState> {
 
   SyncCubit({
     required SyncDataUseCase syncDataUseCase,
+    required FullSyncUseCase fullSyncUseCase,
     required NetworkCubit networkCubit,
     required RealtimeSyncService realtimeSyncService,
   })  : _syncDataUseCase = syncDataUseCase,
+        _fullSyncUseCase = fullSyncUseCase,
         _networkCubit = networkCubit,
         _realtimeSyncService = realtimeSyncService,
         super(const SyncIdle()) {
@@ -63,7 +68,7 @@ class SyncCubit extends Cubit<SyncState> {
   void _startListening() {
     // If already online at creation time, trigger an initial sync.
     if (_networkCubit.state == NetworkStatus.online) {
-      _triggerSync();
+      _triggerFullSync();
     }
 
     _networkSubscription = _networkCubit.stream.listen((status) {
@@ -72,7 +77,7 @@ class SyncCubit extends Cubit<SyncState> {
           'Network came online — triggering background sync.',
           name: 'SyncCubit',
         );
-        _triggerSync();
+        _triggerFullSync();
         // Re-connect WebSocket if it dropped while offline.
         _connectWebSocket();
       }
@@ -102,7 +107,10 @@ class SyncCubit extends Cubit<SyncState> {
           // Emit a transient SyncSuccess so the VocabularyPage listener
           // can reload both tabs, then immediately return to idle.
           if (!isClosed) {
-            emit(SyncSuccess(syncedCount: event.syncedCount, results: const []));
+            emit(SyncSuccess(
+              syncedCount: event.syncedCount,
+              results: const [],
+            ));
             emit(const SyncIdle());
           }
         },
@@ -123,31 +131,40 @@ class SyncCubit extends Cubit<SyncState> {
   //  Public API
   // ------------------------------------------------------------------
 
-  /// Manually triggers a sync cycle (e.g., after a vocabulary save).
+  /// Manually triggers a full sync cycle (push + pull).
   ///
   /// If a sync is already in progress the call is silently ignored.
   void requestSync() {
     if (_networkCubit.state == NetworkStatus.online) {
-      _triggerSync();
+      _triggerFullSync();
+    }
+  }
+
+  /// Triggers a legacy vocabulary-only sync cycle.
+  ///
+  /// Kept for backward compatibility with existing callers.
+  void requestLegacySync() {
+    if (_networkCubit.state == NetworkStatus.online) {
+      _triggerLegacySync();
     }
   }
 
   // ------------------------------------------------------------------
-  //  Core sync logic
+  //  Core sync logic — Modern push/pull
   // ------------------------------------------------------------------
 
-  Future<void> _triggerSync() async {
+  Future<void> _triggerFullSync() async {
     if (_isSyncing) return;
     _isSyncing = true;
 
-    emit(const SyncSyncing());
+    emit(const SyncSyncing(phase: 'Đang đồng bộ…'));
 
-    final result = await _syncDataUseCase(const NoParams());
+    final result = await _fullSyncUseCase(const NoParams());
 
     result.fold(
       (failure) {
         developer.log(
-          'Background sync failed: ${failure.message}',
+          'Full sync failed: ${failure.message}',
           name: 'SyncCubit',
           level: 900,
         );
@@ -155,7 +172,49 @@ class SyncCubit extends Cubit<SyncState> {
       },
       (response) {
         developer.log(
-          'Background sync succeeded: ${response.syncedCount} items.',
+          'Full sync succeeded: ${response.succeededCount} pushed.',
+          name: 'SyncCubit',
+        );
+        if (!isClosed) {
+          emit(SyncSuccess(
+            syncedCount: response.succeededCount,
+            results: const [],
+            pushResponse: response,
+          ));
+        }
+      },
+    );
+
+    // Reset to idle after emitting the result so
+    // the next network event can trigger a new cycle.
+    if (!isClosed) emit(const SyncIdle());
+    _isSyncing = false;
+  }
+
+  // ------------------------------------------------------------------
+  //  Core sync logic — Legacy vocabulary-only
+  // ------------------------------------------------------------------
+
+  Future<void> _triggerLegacySync() async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+
+    emit(const SyncSyncing(phase: 'Đang đồng bộ từ vựng…'));
+
+    final result = await _syncDataUseCase(const NoParams());
+
+    result.fold(
+      (failure) {
+        developer.log(
+          'Legacy sync failed: ${failure.message}',
+          name: 'SyncCubit',
+          level: 900,
+        );
+        if (!isClosed) emit(SyncFailure(failure.message));
+      },
+      (response) {
+        developer.log(
+          'Legacy sync succeeded: ${response.syncedCount} items.',
           name: 'SyncCubit',
         );
         if (!isClosed) {
@@ -167,8 +226,6 @@ class SyncCubit extends Cubit<SyncState> {
       },
     );
 
-    // Reset to idle after emitting the result so
-    // the next network event can trigger a new cycle.
     if (!isClosed) emit(const SyncIdle());
     _isSyncing = false;
   }

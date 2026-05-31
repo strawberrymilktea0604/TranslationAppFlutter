@@ -329,6 +329,7 @@ Future<void> initDependenciesWeb() async {
     () => SyncRepositoryImpl(
       remoteDataSource: sl(),
       localDataSource: sl(),
+      syncLocalDataSource: sl(),
       vocabularyRemoteDataSource: sl(),
       authLocalDataSource: sl(),
     ),
@@ -336,6 +337,7 @@ Future<void> initDependenciesWeb() async {
   sl.registerLazySingleton(() => SyncDataUseCase(sl()));
   sl.registerLazySingleton(() => SyncCubit(
         syncDataUseCase: sl(),
+        fullSyncUseCase: sl(),
         networkCubit: sl(),
         realtimeSyncService: sl(),
       ));
