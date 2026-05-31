@@ -34,7 +34,7 @@ from app.schemas.sync import (  # noqa: E402
     SyncVocabularyResponse,
     SyncVocabularyResultItem,
 )
-from app.services.sync_service import (
+from app.services.sync_service import (  # noqa: E402
     SyncCursorError,
     SyncItemError,
     SyncService,
@@ -42,7 +42,7 @@ from app.services.sync_service import (
     _validate_client_timestamp,
     _MIN_VALID_TIMESTAMP,
     _MAX_FUTURE_DRIFT_SECONDS,
-)  # noqa: E402
+)
 
 
 NOW = datetime(2026, 5, 31, 10, 0, tzinfo=timezone.utc)
