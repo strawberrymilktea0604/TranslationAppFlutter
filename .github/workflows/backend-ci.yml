@@ -66,6 +66,29 @@ jobs:
     name: Unit Tests (Docker)
     runs-on: ubuntu-latest
     needs: lint
+    services:
+      test-db:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: translation_app_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      test-redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -95,7 +118,7 @@ jobs:
 
       - name: Run unit tests
         run: |
-          docker run --rm \
+          docker run --rm --network host \
             --env DATABASE_URL="postgresql+asyncpg://postgres:test_password@localhost:5433/translation_app_test" \
             --env REDIS_URL="redis://localhost:6379" \
             --env SECRET_KEY="test-secret-key-for-ci-1234567890" \
@@ -132,27 +155,19 @@ jobs:
         run: |
           docker compose --version
 
-      - name: Start test services
+      - name: Start Integration Test Environment
         run: |
           docker compose -f docker-compose.test.yml up -d test-db test-redis
-          echo "Waiting for services to be healthy..."
-          for i in {1..30}; do
-            if docker compose -f docker-compose.test.yml exec -T test-db pg_isready -U postgres && \
-               docker compose -f docker-compose.test.yml exec -T test-redis redis-cli ping; then
-              echo "Services are healthy"
-              break
-            fi
-            echo "Waiting for services... ($i/30)"
-            sleep 2
-          done
+          echo "Waiting for database and redis to be healthy..."
+          docker compose -f docker-compose.test.yml ps
 
       - name: Build test image
         run: |
           docker compose -f docker-compose.test.yml build backend-tests
 
-      - name: Run unit tests
+      - name: Run Integration Tests
         run: |
-          docker compose -f docker-compose.test.yml run --rm backend-tests pytest tests/ -v --cov=app --cov-report=html:/app/coverage --cov-report=term-missing --timeout=300
+          docker compose -f docker-compose.test.yml up --exit-code-from backend-tests backend-tests
 
       - name: Upload coverage reports
         if: always()
