@@ -16,68 +16,33 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import DBSession, get_admin_user
-from app.core.redis_client import set_revoked_token
-from app.models.learning import Question, QuestionBank, UserQuiz
-from app.models.system import ApiMetric
+from app.core.redis_client import invalidate_question_bank_cache, set_revoked_token
+from app.models.learning import Question, QuestionBank
 from app.models.user import User, UserToken
+from app.repositories.question_bank_repository import QuestionBankRepository
 from app.schemas.admin import (
-    AdminAnalyticsSummaryResponse,
     AdminBankListResponse,
     AdminBankSummary,
+    AdminQuestionListResponse,
+    AdminQuestionSummary,
     AdminUserListResponse,
     AdminUserRead,
     BanUserResponse,
-    QuestionBankCreate,
-    QuestionBankUpdate,
-    QuestionBankToggleResponse,
-    QuestionCreate,
-    QuestionUpdate,
-    AdminQuestionSummary,
-    AdminQuestionListResponse,
+    QuestionBankCreateRequest,
+    QuestionBankDeleteResponse,
+    QuestionBankResponse,
+    QuestionBankUpdateRequest,
+    QuestionCreateRequest,
+    QuestionDeleteResponse,
+    QuestionResponse,
     QuestionToggleResponse,
+    QuestionUpdateRequest,
 )
 from app.schemas.learning import QuestionAdminSchema, QuestionBankAdminDetail
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-
-@router.get(
-    "/analytics/summary",
-    response_model=AdminAnalyticsSummaryResponse,
-    summary="[Admin] Get all-time analytics summary",
-)
-async def admin_get_analytics_summary(
-    db: DBSession,
-    _admin: Annotated[User, Depends(get_admin_user)],
-):
-    """Return the initial all-time metrics for the admin dashboard."""
-    total_users = (
-        await db.execute(
-            select(func.count(User.id)).where(User.is_deleted.is_(False))
-        )
-    ).scalar() or 0
-    total_quiz_attempts = (
-        await db.execute(select(func.count(UserQuiz.id)))
-    ).scalar() or 0
-    total_ai_requests = (
-        await db.execute(
-            select(func.count(ApiMetric.id)).where(ApiMetric.is_ai_request.is_(True))
-        )
-    ).scalar() or 0
-    average_quiz_score = (
-        await db.execute(
-            select(func.avg(UserQuiz.score)).where(UserQuiz.score.is_not(None))
-        )
-    ).scalar()
-
-    return AdminAnalyticsSummaryResponse(
-        total_users=total_users,
-        total_quiz_attempts=total_quiz_attempts,
-        total_ai_requests=total_ai_requests,
-        average_quiz_score=round(float(average_quiz_score or 0.0), 2),
-    )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -386,170 +351,127 @@ async def admin_get_question_bank(
 
 @router.post(
     "/question-banks",
-    response_model=AdminBankSummary,
-    status_code=201,
+    response_model=QuestionBankResponse,
+    status_code=status.HTTP_201_CREATED,
     summary="[Admin] Create question bank",
 )
 async def admin_create_question_bank(
-    payload: QuestionBankCreate,
+    payload: QuestionBankCreateRequest,
     db: DBSession,
     _admin: Annotated[User, Depends(get_admin_user)],
 ):
-    """Create a new question bank."""
-    bank = QuestionBank(
-        title=payload.title,
-        description=payload.description,
-        duration_minutes=payload.duration_minutes,
-    )
-    db.add(bank)
-    await db.commit()
-    await db.refresh(bank)
+    """
+    Create a new question bank.
+
+    - **title**: Required, 1–255 characters.
+    - **description**: Optional free-text description.
+    - **duration_minutes**: Optional time limit (≥1); omit for no limit.
+
+    Returns the created bank. Redis cache is invalidated automatically.
+    """
+    bank = await QuestionBankRepository.create_bank(db, payload)
 
     logger.info("Admin %s created question bank %s.", _admin.id, bank.id)
+    await invalidate_question_bank_cache(bank.id)
 
-    return AdminBankSummary(
-        id=bank.id,
-        title=bank.title,
-        description=bank.description,
-        duration_minutes=bank.duration_minutes,
-        is_deleted=bank.is_deleted,
-        question_count=0,
-        created_at=bank.created_at,
-        updated_at=bank.updated_at,
-    )
+    return QuestionBankResponse.model_validate(bank)
 
 
 # ─────────────────────────────────────────────────────────────
-# PUT /admin/question-banks/{bank_id}  — Update
+# PATCH /admin/question-banks/{bank_id}  — Partial update
 # ─────────────────────────────────────────────────────────────
 
-@router.put(
+@router.patch(
     "/question-banks/{bank_id}",
-    response_model=AdminBankSummary,
+    response_model=QuestionBankResponse,
     summary="[Admin] Update question bank",
 )
 async def admin_update_question_bank(
     bank_id: int,
-    payload: QuestionBankUpdate,
+    payload: QuestionBankUpdateRequest,
     db: DBSession,
     _admin: Annotated[User, Depends(get_admin_user)],
 ):
-    """Update an existing question bank's metadata."""
-    result = await db.execute(
-        select(QuestionBank).where(QuestionBank.id == bank_id)
-    )
-    bank = result.scalar_one_or_none()
+    """
+    Partially update an existing question bank (PATCH semantics).
 
+    Only the fields provided in the request body are updated; omitted
+    fields are left unchanged.
+
+    - Returns **404** if the bank does not exist or is soft-deleted.
+
+    Redis cache is invalidated after a successful update.
+    """
+    bank = await QuestionBankRepository.get_bank(db, bank_id)
     if bank is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Question bank not found.",
         )
 
-    if payload.title is not None:
-        bank.title = payload.title
-    if payload.description is not None:
-        bank.description = payload.description
-    if payload.duration_minutes is not None:
-        bank.duration_minutes = payload.duration_minutes
-
-    await db.commit()
-    await db.refresh(bank)
-
-    # Re-compute question count
-    q_count_result = await db.execute(
-        select(func.count(Question.id)).where(
-            Question.bank_id == bank_id,
-            Question.is_deleted.is_(False),
-        )
-    )
-    question_count: int = q_count_result.scalar() or 0
+    bank = await QuestionBankRepository.update_bank(db, bank, payload)
 
     logger.info("Admin %s updated question bank %s.", _admin.id, bank.id)
+    await invalidate_question_bank_cache(bank.id)
 
-    return AdminBankSummary(
-        id=bank.id,
-        title=bank.title,
-        description=bank.description,
-        duration_minutes=bank.duration_minutes,
-        is_deleted=bank.is_deleted,
-        question_count=question_count,
-        created_at=bank.created_at,
-        updated_at=bank.updated_at,
-    )
+    return QuestionBankResponse.model_validate(bank)
 
 
 # ─────────────────────────────────────────────────────────────
-# PATCH /admin/question-banks/{bank_id}/toggle  — Toggle active
-# ─────────────────────────────────────────────────────────────
-
-@router.patch(
-    "/question-banks/{bank_id}/toggle",
-    response_model=QuestionBankToggleResponse,
-    summary="[Admin] Toggle question bank active/inactive",
-)
-async def admin_toggle_question_bank(
-    bank_id: int,
-    db: DBSession,
-    _admin: Annotated[User, Depends(get_admin_user)],
-):
-    """Toggle a question bank between active (is_deleted=False) and inactive (is_deleted=True)."""
-    result = await db.execute(
-        select(QuestionBank).where(QuestionBank.id == bank_id)
-    )
-    bank = result.scalar_one_or_none()
-
-    if bank is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Question bank not found.",
-        )
-
-    bank.is_deleted = not bank.is_deleted
-    await db.commit()
-    await db.refresh(bank)
-
-    action = "deactivated" if bank.is_deleted else "activated"
-    logger.info("Admin %s %s question bank %s.", _admin.id, action, bank.id)
-
-    return QuestionBankToggleResponse(
-        id=bank.id,
-        title=bank.title,
-        is_deleted=bank.is_deleted,
-        message=f"Question bank '{bank.title}' has been {action}.",
-    )
-
-
-# ─────────────────────────────────────────────────────────────
-# DELETE /admin/question-banks/{bank_id}  — Soft delete
+# DELETE /admin/question-banks/{bank_id}  — Delete / disable
 # ─────────────────────────────────────────────────────────────
 
 @router.delete(
     "/question-banks/{bank_id}",
-    status_code=204,
-    summary="[Admin] Soft-delete question bank",
+    response_model=QuestionBankDeleteResponse,
+    summary="[Admin] Delete or disable a question bank",
 )
 async def admin_delete_question_bank(
     bank_id: int,
     db: DBSession,
     _admin: Annotated[User, Depends(get_admin_user)],
+    permanent: bool = Query(
+        False,
+        description=(
+            "If true, permanently removes the row from the database. "
+            "Default is soft-delete (sets is_deleted=True)."
+        ),
+    ),
 ):
-    """Permanently soft-delete a question bank (sets is_deleted=True, cannot be reversed via API)."""
-    result = await db.execute(
-        select(QuestionBank).where(QuestionBank.id == bank_id)
-    )
-    bank = result.scalar_one_or_none()
+    """
+    Soft-delete (disable) or permanently delete a question bank.
 
+    - **permanent=false** (default): Sets ``is_deleted=True``; the bank
+      is hidden from all user-facing endpoints but remains in the database.
+      The bank can be restored by toggling it back via a PATCH.
+    - **permanent=true**: Irreversibly removes the row and all its questions
+      via the DB cascade.
+
+    - Returns **404** if the bank does not exist (or is already soft-deleted
+      when ``permanent=false``).
+
+    Redis cache is invalidated after a successful deletion.
+    """
+    bank = await QuestionBankRepository.get_bank(
+        db, bank_id, include_deleted=permanent
+    )
     if bank is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Question bank not found.",
         )
 
-    bank.is_deleted = True
-    await db.commit()
+    await QuestionBankRepository.delete_bank(db, bank, permanent=permanent)
 
-    logger.info("Admin %s deleted question bank %s.", _admin.id, bank_id)
+    action = "permanently deleted" if permanent else "disabled (soft-deleted)"
+    logger.info("Admin %s %s question bank %s.", _admin.id, action, bank_id)
+    await invalidate_question_bank_cache(bank_id)
+
+    return QuestionBankDeleteResponse(
+        id=bank_id,
+        permanent=permanent,
+        message=f"Question bank {bank_id} has been {action}.",
+    )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -570,11 +492,8 @@ async def admin_list_questions(
     include_deleted: bool = Query(False, description="Include soft-deleted questions"),
 ):
     """Return a paginated list of questions in a question bank."""
-    # Verify bank exists
-    result = await db.execute(
-        select(QuestionBank).where(QuestionBank.id == bank_id)
-    )
-    bank = result.scalar_one_or_none()
+    # Verify bank exists (any state)
+    bank = await QuestionBankRepository.get_bank(db, bank_id, include_deleted=True)
     if bank is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -598,12 +517,7 @@ async def admin_list_questions(
 
     return AdminQuestionListResponse(
         items=items,
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=math.ceil(total / page_size) if total else 0,
-        has_next=page < math.ceil(total / page_size) if total else False,
-        has_prev=page > 1,
+        **_paginate(total, page, page_size),
     )
 
 
@@ -613,93 +527,197 @@ async def admin_list_questions(
 
 @router.post(
     "/question-banks/{bank_id}/questions",
-    response_model=AdminQuestionSummary,
-    status_code=201,
-    summary="[Admin] Create question in a bank",
+    response_model=QuestionResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="[Admin] Add a question to a bank",
 )
 async def admin_create_question(
     bank_id: int,
-    payload: QuestionCreate,
+    payload: QuestionCreateRequest,
     db: DBSession,
     _admin: Annotated[User, Depends(get_admin_user)],
 ):
-    """Create a new question in the specified question bank."""
-    # Verify bank exists
-    result = await db.execute(
-        select(QuestionBank).where(QuestionBank.id == bank_id)
-    )
-    bank = result.scalar_one_or_none()
+    """
+    Add a new question to the specified question bank.
+
+    - **content**: Question text (required).
+    - **choices**: Answer choices — typically a list of strings or an object
+      mapping option keys to labels (stored as JSONB).
+    - **correct_answer**: The value that matches the correct choice.
+
+    - Returns **404** if the bank does not exist or is soft-deleted.
+
+    Redis cache is invalidated after the question is created.
+    """
+    # Verify bank is active
+    bank = await QuestionBankRepository.get_bank(db, bank_id)
     if bank is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Question bank not found.",
         )
 
-    question = Question(
-        bank_id=bank_id,
-        content=payload.content,
-        choices=payload.choices,
-        correct_answer=payload.correct_answer,
-    )
-    db.add(question)
-    await db.commit()
-    await db.refresh(question)
+    question = await QuestionBankRepository.create_question(db, bank_id, payload)
 
     logger.info(
-        "Admin %s created question %s in bank %s.",
+        "Admin %s added question %s to bank %s.",
         _admin.id,
         question.id,
         bank_id,
     )
+    await invalidate_question_bank_cache(bank_id)
 
-    return AdminQuestionSummary.model_validate(question)
+    return QuestionResponse.model_validate(question)
 
 
 # ─────────────────────────────────────────────────────────────
-# PUT /admin/questions/{question_id}  — Update
+# PATCH /admin/questions/{question_id}  — Partial update
 # ─────────────────────────────────────────────────────────────
 
-@router.put(
+@router.patch(
     "/questions/{question_id}",
-    response_model=AdminQuestionSummary,
-    summary="[Admin] Update question",
+    response_model=QuestionResponse,
+    summary="[Admin] Update a question",
 )
 async def admin_update_question(
     question_id: int,
-    payload: QuestionUpdate,
+    payload: QuestionUpdateRequest,
     db: DBSession,
     _admin: Annotated[User, Depends(get_admin_user)],
 ):
-    """Update an existing question's content, choices, or correct answer."""
-    result = await db.execute(
-        select(Question).where(Question.id == question_id)
-    )
-    question = result.scalar_one_or_none()
+    """
+    Partially update a question (PATCH semantics).
 
+    Only the fields provided in the request body are updated; omitted
+    fields are left unchanged.
+
+    - Returns **404** if the question does not exist or is soft-deleted.
+
+    Redis cache for the parent bank is invalidated after a successful update.
+    """
+    question = await QuestionBankRepository.get_question(db, question_id)
     if question is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Question not found.",
         )
 
-    if payload.content is not None:
-        question.content = payload.content
-    if payload.choices is not None:
-        question.choices = payload.choices
-    if payload.correct_answer is not None:
-        question.correct_answer = payload.correct_answer
-
-    await db.commit()
-    await db.refresh(question)
+    question = await QuestionBankRepository.update_question(db, question, payload)
 
     logger.info(
-        "Admin %s updated question %s in bank %s.",
+        "Admin %s updated question %s (bank %s).",
         _admin.id,
         question.id,
         question.bank_id,
     )
+    await invalidate_question_bank_cache(question.bank_id)
 
-    return AdminQuestionSummary.model_validate(question)
+    return QuestionResponse.model_validate(question)
+
+
+# ─────────────────────────────────────────────────────────────
+# DELETE /admin/questions/{question_id}  — Delete / disable
+# ─────────────────────────────────────────────────────────────
+
+@router.delete(
+    "/questions/{question_id}",
+    response_model=QuestionDeleteResponse,
+    summary="[Admin] Delete or disable a question",
+)
+async def admin_delete_question(
+    question_id: int,
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+    permanent: bool = Query(
+        False,
+        description=(
+            "If true, permanently removes the row from the database. "
+            "Default is soft-delete (sets is_deleted=True)."
+        ),
+    ),
+):
+    """
+    Soft-delete (disable) or permanently delete a question.
+
+    - **permanent=false** (default): Sets ``is_deleted=True``; the question
+      is excluded from quizzes but remains in the database.
+    - **permanent=true**: Irreversibly removes the row.
+
+    - Returns **404** if the question does not exist (or is already
+      soft-deleted when ``permanent=false``).
+
+    Redis cache for the parent bank is invalidated after a successful deletion.
+    """
+    question = await QuestionBankRepository.get_question(
+        db, question_id, include_deleted=permanent
+    )
+    if question is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question not found.",
+        )
+
+    bank_id = question.bank_id
+    await QuestionBankRepository.delete_question(db, question, permanent=permanent)
+
+    action = "permanently deleted" if permanent else "disabled (soft-deleted)"
+    logger.info(
+        "Admin %s %s question %s (bank %s).",
+        _admin.id,
+        action,
+        question_id,
+        bank_id,
+    )
+    await invalidate_question_bank_cache(bank_id)
+
+    return QuestionDeleteResponse(
+        id=question_id,
+        permanent=permanent,
+        message=f"Question {question_id} has been {action}.",
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# PATCH /admin/question-banks/{bank_id}/toggle  — Toggle active
+# ─────────────────────────────────────────────────────────────
+
+@router.patch(
+    "/question-banks/{bank_id}/toggle",
+    response_model=QuestionBankResponse,
+    summary="[Admin] Toggle question bank active/inactive",
+)
+async def admin_toggle_question_bank(
+    bank_id: int,
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+):
+    """
+    Toggle a question bank between active (``is_deleted=False``) and
+    inactive (``is_deleted=True``).
+
+    This is a convenience endpoint for restoring a soft-deleted bank or
+    quickly disabling an active one without permanently removing it.
+
+    - Returns **404** if the bank does not exist in any state.
+
+    Redis cache is invalidated after the toggle.
+    """
+    bank = await QuestionBankRepository.get_bank(db, bank_id, include_deleted=True)
+    if bank is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Question bank not found.",
+        )
+
+    bank.is_deleted = not bank.is_deleted
+    await db.commit()
+    await db.refresh(bank)
+
+    action = "deactivated" if bank.is_deleted else "activated"
+    logger.info("Admin %s %s question bank %s.", _admin.id, action, bank.id)
+    await invalidate_question_bank_cache(bank.id)
+
+    return QuestionBankResponse.model_validate(bank)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -708,7 +726,7 @@ async def admin_update_question(
 
 @router.patch(
     "/questions/{question_id}/toggle",
-    response_model=QuestionToggleResponse,
+    response_model=QuestionResponse,
     summary="[Admin] Toggle question active/inactive",
 )
 async def admin_toggle_question(
@@ -716,12 +734,19 @@ async def admin_toggle_question(
     db: DBSession,
     _admin: Annotated[User, Depends(get_admin_user)],
 ):
-    """Toggle a question between active (is_deleted=False) and inactive (is_deleted=True)."""
-    result = await db.execute(
-        select(Question).where(Question.id == question_id)
-    )
-    question = result.scalar_one_or_none()
+    """
+    Toggle a question between active (``is_deleted=False``) and
+    inactive (``is_deleted=True``).
 
+    Useful for restoring a soft-deleted question without creating a new one.
+
+    - Returns **404** if the question does not exist in any state.
+
+    Redis cache for the parent bank is invalidated after the toggle.
+    """
+    question = await QuestionBankRepository.get_question(
+        db, question_id, include_deleted=True
+    )
     if question is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -734,53 +759,12 @@ async def admin_toggle_question(
 
     action = "deactivated" if question.is_deleted else "activated"
     logger.info(
-        "Admin %s %s question %s in bank %s.",
+        "Admin %s %s question %s (bank %s).",
         _admin.id,
         action,
         question.id,
         question.bank_id,
     )
+    await invalidate_question_bank_cache(question.bank_id)
 
-    return QuestionToggleResponse(
-        id=question.id,
-        bank_id=question.bank_id,
-        is_deleted=question.is_deleted,
-        message=f"Question has been {action}.",
-    )
-
-
-# ─────────────────────────────────────────────────────────────
-# DELETE /admin/questions/{question_id}  — Soft delete
-# ─────────────────────────────────────────────────────────────
-
-@router.delete(
-    "/questions/{question_id}",
-    status_code=204,
-    summary="[Admin] Soft-delete question",
-)
-async def admin_delete_question(
-    question_id: int,
-    db: DBSession,
-    _admin: Annotated[User, Depends(get_admin_user)],
-):
-    """Permanently soft-delete a question (sets is_deleted=True, cannot be reversed via API)."""
-    result = await db.execute(
-        select(Question).where(Question.id == question_id)
-    )
-    question = result.scalar_one_or_none()
-
-    if question is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Question not found.",
-        )
-
-    question.is_deleted = True
-    await db.commit()
-
-    logger.info(
-        "Admin %s deleted question %s in bank %s.",
-        _admin.id,
-        question_id,
-        question.bank_id,
-    )
+    return QuestionResponse.model_validate(question)

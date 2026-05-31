@@ -280,3 +280,58 @@ async def get_cache_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to get cache stats: {e}")
         return {}
+
+
+# ==================== QUESTION BANK CACHE ====================
+
+async def invalidate_question_bank_cache(bank_id: Optional[int] = None) -> int:
+    """
+    Invalidate Redis cache entries related to question banks.
+
+    Called after any admin mutation (create / update / delete) on a
+    QuestionBank or its Questions so that the learning endpoints serve
+    fresh data on the next request.
+
+    Clears two key namespaces:
+    - ``api_response:*question*``  — cached responses from learning endpoints
+    - ``static:question_bank*``    — any static-prefixed bank cache
+
+    Args:
+        bank_id: When provided, also clears bank-specific keys such as
+                 ``static:question_bank:{bank_id}*``.  When None, only
+                 the broad pattern is cleared.
+
+    Returns:
+        Total number of Redis keys deleted (0 if Redis is unavailable).
+    """
+    try:
+        client = await get_redis_client()
+        patterns = [
+            "api_response:*question*",
+            "static:question_bank*",
+        ]
+        if bank_id is not None:
+            patterns.append(f"static:question_bank:{bank_id}*")
+
+        deleted = 0
+        for pattern in patterns:
+            keys = await client.keys(pattern)
+            if keys:
+                deleted += await client.delete(*keys)
+
+        if deleted:
+            logger.info(
+                "🗑️  Invalidated %d question-bank cache key(s) (bank_id=%s)",
+                deleted,
+                bank_id,
+            )
+        return deleted
+    except Exception as exc:
+        logger.warning(
+            "Redis question-bank cache invalidation failed (bank_id=%s): %s. "
+            "Continuing without cache flush.",
+            bank_id,
+            exc,
+        )
+        return 0
+
