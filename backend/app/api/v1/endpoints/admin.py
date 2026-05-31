@@ -17,10 +17,12 @@ from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import DBSession, get_admin_user
 from app.core.redis_client import invalidate_question_bank_cache, set_revoked_token
-from app.models.learning import Question, QuestionBank
+from app.models.learning import Question, QuestionBank, UserQuiz
+from app.models.system import ApiMetric
 from app.models.user import User, UserToken
 from app.repositories.question_bank_repository import QuestionBankRepository
 from app.schemas.admin import (
+    AdminAnalyticsSummaryResponse,
     AdminBankListResponse,
     AdminBankSummary,
     AdminQuestionListResponse,
@@ -61,8 +63,41 @@ def _paginate(total: int, page: int, page_size: int) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────
-# GET /admin/users
+# GET /admin/analytics/summary
 # ─────────────────────────────────────────────────────────────
+
+@router.get(
+    "/analytics/summary",
+    response_model=AdminAnalyticsSummaryResponse,
+    summary="[Admin] Dashboard analytics summary",
+)
+async def admin_analytics_summary(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+):
+    """Return all-time aggregate metrics for the admin dashboard."""
+    total_users = (await db.execute(select(func.count(User.id)))).scalar() or 0
+    total_quiz_attempts = (
+        await db.execute(select(func.count(UserQuiz.id)))
+    ).scalar() or 0
+    total_ai_requests = (
+        await db.execute(
+            select(func.count(ApiMetric.id)).where(ApiMetric.is_ai_request.is_(True))
+        )
+    ).scalar() or 0
+    average_quiz_score = (
+        await db.execute(select(func.avg(UserQuiz.score)))
+    ).scalar() or 0.0
+
+    return AdminAnalyticsSummaryResponse(
+        total_users=total_users,
+        total_quiz_attempts=total_quiz_attempts,
+        total_ai_requests=total_ai_requests,
+        average_quiz_score=round(float(average_quiz_score), 2),
+    )
+
+
+# GET /admin/users
 
 @router.get("/users", response_model=AdminUserListResponse, summary="[Admin] List users")
 async def admin_list_users(

@@ -10,7 +10,7 @@ Tests complete workflows including:
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.e2e
@@ -35,44 +35,37 @@ class TestAuthenticationFlow:
     """E2E tests for authentication workflows."""
 
     def test_register_user_flow(self, client: TestClient):
-        """
-        Test complete user registration flow.
-        
-        This is a placeholder test. Implement based on your actual
-        registration endpoint and requirements.
-        """
-        # Example: Register a new user
+        """Register a user and receive usable authentication tokens."""
         user_data = {
             "email": "e2e-test@example.com",
             "password": "Test@123",
             "first_name": "E2E",
             "last_name": "Test",
         }
-        
-        # Adjust endpoint based on your API
-        response = client.post("/api/v1/auth/register", json=user_data)
-        
-        # This assertion may need to be adjusted based on your actual API
-        assert response.status_code in [200, 201, 422]  # 422 if user already exists
 
-    def test_login_flow(self, client: TestClient):
-        """
-        Test complete user login flow.
-        
-        This is a placeholder test. Implement based on your actual
-        login endpoint and requirements.
-        """
-        # Example: Login with credentials
+        response = client.post("/api/v1/auth/register", json=user_data)
+        data = response.json()
+
+        assert response.status_code == 200
+        assert data["token_type"] == "bearer"
+        assert data["access_token"]
+        assert data["refresh_token"]
+
+    def test_login_flow(self, client: TestClient, test_user):
+        """Log in as a seeded user and receive authentication tokens."""
         login_data = {
             "username": "test@example.com",
             "password": "password",
         }
-        
-        # Adjust endpoint based on your API
+
         response = client.post("/api/v1/auth/login", data=login_data)
-        
-        # This assertion may need to be adjusted based on your actual API
-        assert response.status_code in [200, 401, 422]
+        data = response.json()
+
+        assert test_user.email == login_data["username"]
+        assert response.status_code == 200
+        assert data["token_type"] == "bearer"
+        assert data["access_token"]
+        assert data["refresh_token"]
 
 
 @pytest.mark.e2e
@@ -80,35 +73,33 @@ class TestTranslationWorkflow:
     """E2E tests for translation workflows."""
 
     def test_get_translation_endpoints_exist(self, client: TestClient):
-        """Test that translation-related endpoints are accessible."""
-        # Test that common translation endpoints exist
-        # Adjust these based on your actual API structure
-        
-        # Example: Check if translation endpoint exists
-        response = client.get("/api/v1/translations/", headers={})
-        
-        # Should be 401 (unauthorized), 200 (authorized), or 404 (not found)
-        # Rather than failing, this just checks the endpoint responds
-        assert response.status_code in [200, 401, 404]
+        """Protected translation history rejects unauthenticated callers."""
+        response = client.get("/api/v1/translations/history")
 
-    def test_translation_history_workflow(self, client: TestClient, test_factory, db_session: Session, auth_headers: dict):
-        """
-        Test complete translation history workflow.
-        
-        This is a placeholder test. Implement based on your actual
-        translation history endpoints and requirements.
-        """
-        # Example: Create a test user and translation history
-        # user = test_factory.create_test_user(db_session)
-        # history = test_factory.create_test_translation_history(db_session, user.id)
-        
-        # Example: Fetch translation history
-        # response = client.get(f"/api/v1/translations/history/", headers=auth_headers)
-        
-        # assert response.status_code == 200
-        # assert isinstance(response.json(), list)
-        
-        pass  # Placeholder for actual implementation
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_translation_history_workflow(
+        self,
+        client: TestClient,
+        test_factory,
+        db_session: AsyncSession,
+        test_user,
+        auth_headers: dict,
+    ):
+        """Persist a translation and retrieve it through the history API."""
+        history = await test_factory.create_test_translation(
+            db_session,
+            user_id=test_user.id,
+        )
+
+        response = client.get("/api/v1/translations/history", headers=auth_headers)
+        data = response.json()
+
+        assert response.status_code == 200
+        assert data["total"] == 1
+        assert data["data"][0]["id"] == history.id
+        assert data["data"][0]["source_text"] == "Hello"
 
 
 @pytest.mark.e2e
@@ -145,7 +136,7 @@ class TestErrorHandling:
     def test_invalid_request_body(self, client: TestClient):
         """Test that invalid request bodies are handled."""
         response = client.post("/api/v1/auth/login", json={"invalid": "data"})
-        assert response.status_code in [422, 400]
+        assert response.status_code == 422
 
     def test_unauthorized_access(self, client: TestClient):
         """Test that unauthorized requests are rejected."""
@@ -154,4 +145,4 @@ class TestErrorHandling:
             "/api/v1/admin/users",
             headers={"Authorization": "Bearer invalid-token"}
         )
-        assert response.status_code in [401, 403]
+        assert response.status_code == 401
