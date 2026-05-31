@@ -6,6 +6,7 @@ import 'package:frontend/features/auth/data/datasources/auth_local_datasource.da
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/injection_container.dart';
+import 'package:frontend/core/error/api_error_handler.dart';
 
 /// Admin Users Management Page
 /// Displays and manages all application users
@@ -41,7 +42,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     try {
       final token = await sl<AuthLocalDataSource>().getAccessToken();
       if (token == null) {
-        throw Exception('Token not found in local storage. Please login again.');
+        _handleAuthError('Token not found in local storage. Please login again.');
+        return;
       }
       _accessToken = token;
       
@@ -53,26 +55,14 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       );
       setState(() => _currentPage = page);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _handleError(e);
     }
   }
 
   /// Ban a user
   Future<void> _banUser(AdminUser user) async {
     if (_accessToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lỗi: Không có quyền truy cập. Vui lòng đăng nhập lại.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _handleAuthError('Token not found. Please login again.');
       return;
     }
 
@@ -87,26 +77,14 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _handleError(e);
     }
   }
 
   /// Unban a user
   Future<void> _unbanUser(AdminUser user) async {
     if (_accessToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lỗi: Không có quyền truy cập. Vui lòng đăng nhập lại.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _handleAuthError('Token not found. Please login again.');
       return;
     }
 
@@ -121,15 +99,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _handleError(e);
     }
+  }
   }
 
   @override
@@ -598,5 +570,47 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   /// Get color for status badge
   Color _getStatusColor(bool isBanned) {
     return isBanned ? Colors.red : Colors.green;
+  }
+
+  /// Handle authentication errors (401/403)
+  void _handleAuthError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
+      );
+      // Redirect to login
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) {
+          context.read<AuthCubit>().logout();
+        }
+      });
+    }
+  }
+
+  /// Handle all API errors consistently
+  void _handleError(dynamic error) {
+    if (mounted) {
+      final errorMessage = ApiErrorHandler.formatErrorMessage(error);
+      final isAuthError = ApiErrorHandler.isAuthError(error);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: isAuthError ? Colors.red : Colors.red.shade600,
+        ),
+      );
+
+      // If auth error, redirect to login
+      if (isAuthError) {
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            context.read<AuthCubit>().logout();
+          }
+        });
+      }
+    }
   }
 }
