@@ -7,7 +7,7 @@ import json
 import logging
 import random
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from pydantic import ValidationError
@@ -20,6 +20,7 @@ from app.models.translation import Translation, Vocabulary, VocabularyCategory
 from app.repositories.quiz_repository import QuizRepository
 from app.schemas.learning import UserAnswerItem
 from app.schemas.sync import (
+    ConflictInfo,
     FlashcardPushPayload,
     QuizAttemptPushPayload,
     SyncError,
@@ -37,6 +38,19 @@ from app.schemas.sync import (
 logger = logging.getLogger(__name__)
 _CURSOR_VERSION = 1
 _INITIAL_SYNC_TIME = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+# ---------------------------------------------------------------------------
+# Timestamp validation constants for LWW conflict resolution
+# ---------------------------------------------------------------------------
+# Timestamps older than this are almost certainly device clock errors or
+# default values from uninitialized clients — reject them outright.
+_MIN_VALID_TIMESTAMP: datetime = datetime(2020, 1, 1, tzinfo=timezone.utc)
+
+# Allow client clocks to be at most this many seconds ahead of server time.
+# Rejects malicious or badly-drifted clocks that could silently win every
+# conflict by sending timestamps far in the future.
+_MAX_FUTURE_DRIFT_SECONDS: int = 300  # 5 minutes
+
 
 
 class SyncItemError(Exception):
@@ -73,6 +87,67 @@ def _b64encode(value: bytes) -> str:
 def _b64decode(value: str) -> bytes:
     padding = "=" * (-len(value) % 4)
     return base64.urlsafe_b64decode(value + padding)
+
+
+def _validate_client_timestamp(client_updated_at: Optional[datetime]) -> datetime:
+    """Return the UTC-normalised timestamp or raise SyncItemError.
+
+    Guards:
+    - None / missing value.
+    - Timestamps older than _MIN_VALID_TIMESTAMP (epoch/uninitialised clocks).
+    - Timestamps more than _MAX_FUTURE_DRIFT_SECONDS ahead of server time
+      (malicious or severely drifted clocks that would always win LWW).
+    """
+    if client_updated_at is None:
+        raise SyncItemError(
+            "invalid_timestamp",
+            "updated_at is required for sync push",
+        )
+    utc_ts = _as_utc(client_updated_at)
+    if utc_ts < _MIN_VALID_TIMESTAMP:
+        raise SyncItemError(
+            "invalid_timestamp",
+            f"updated_at {utc_ts.isoformat()} is before the minimum valid date "
+            f"{_MIN_VALID_TIMESTAMP.isoformat()}. Check device clock.",
+        )
+    server_now = datetime.now(timezone.utc)
+    if utc_ts > server_now.replace(microsecond=0) + timedelta(seconds=_MAX_FUTURE_DRIFT_SECONDS):
+        raise SyncItemError(
+            "invalid_timestamp",
+            f"updated_at {utc_ts.isoformat()} is more than "
+            f"{_MAX_FUTURE_DRIFT_SECONDS}s ahead of server time "
+            f"{server_now.isoformat()}. Check device clock.",
+        )
+    return utc_ts
+
+
+def _build_conflict_info(
+    client_updated_at: datetime,
+    server_updated_at: datetime,
+    winner: str,
+) -> ConflictInfo:
+    """Construct a ConflictInfo describing the LWW resolution outcome."""
+    utc_client = _as_utc(client_updated_at)
+    utc_server = _as_utc(server_updated_at)
+    delta_ms = int((utc_client - utc_server).total_seconds() * 1000)
+    if winner == "client":
+        reason = (
+            f"Client timestamp is {delta_ms}ms newer than server "
+            f"({utc_client.isoformat()} > {utc_server.isoformat()}). "
+            "Client data applied."
+        )
+    else:
+        reason = (
+            f"Server timestamp is newer or equal "
+            f"(client={utc_client.isoformat()}, server={utc_server.isoformat()}, "
+            f"delta={delta_ms}ms). Server data retained."
+        )
+    return ConflictInfo(
+        client_updated_at=utc_client,
+        server_updated_at=utc_server,
+        winner=winner,  # type: ignore[arg-type]
+        reason=reason,
+    )
 
 
 class SyncService:
@@ -289,6 +364,11 @@ class SyncService:
         payload: FlashcardPushPayload,
         allow_content_match: bool,
     ) -> SyncPushResultItem:
+        # ------------------------------------------------------------------
+        # 1. Validate client timestamp before any DB work
+        # ------------------------------------------------------------------
+        utc_client_ts = _validate_client_timestamp(client_updated_at)
+
         safe_category_id = await SyncService._validate_category(
             db, user_id, payload.category_id
         )
@@ -301,6 +381,9 @@ class SyncService:
             allow_content_match=allow_content_match,
         )
 
+        # ------------------------------------------------------------------
+        # 2. New record — no conflict possible
+        # ------------------------------------------------------------------
         if vocabulary is None:
             now = datetime.now(timezone.utc)
             if translation is None:
@@ -340,8 +423,42 @@ class SyncService:
             await db.flush()
             return SyncService._flashcard_push_result(client_id, "created", vocabulary)
 
-        if _as_utc(client_updated_at) <= _as_utc(vocabulary.updated_at):
-            return SyncService._flashcard_push_result(client_id, "unchanged", vocabulary)
+        # ------------------------------------------------------------------
+        # 3. Existing record — LWW conflict resolution
+        # ------------------------------------------------------------------
+        utc_server_ts = _as_utc(vocabulary.updated_at)
+
+        if utc_client_ts <= utc_server_ts:
+            # Server wins: client sent an older (or equal) timestamp.
+            conflict = _build_conflict_info(utc_client_ts, utc_server_ts, "server")
+            logger.warning(
+                "LWW conflict resolved: server_wins | "
+                "user_id=%s client_id=%s server_id=%s "
+                "client_ts=%s server_ts=%s reason=%s",
+                user_id,
+                client_id,
+                vocabulary.id,
+                utc_client_ts.isoformat(),
+                utc_server_ts.isoformat(),
+                conflict.reason,
+            )
+            return SyncService._flashcard_push_result(
+                client_id, "conflict_server_wins", vocabulary, conflict=conflict
+            )
+
+        # Client wins: client sent a newer timestamp — apply its data.
+        conflict = _build_conflict_info(utc_client_ts, utc_server_ts, "client")
+        logger.warning(
+            "LWW conflict resolved: client_wins | "
+            "user_id=%s client_id=%s server_id=%s "
+            "client_ts=%s server_ts=%s reason=%s",
+            user_id,
+            client_id,
+            vocabulary.id,
+            utc_client_ts.isoformat(),
+            utc_server_ts.isoformat(),
+            conflict.reason,
+        )
 
         now = datetime.now(timezone.utc)
         if vocabulary.sync_client_id is None:
@@ -364,7 +481,9 @@ class SyncService:
         translation.is_deleted = payload.is_deleted
         translation.updated_at = now
         await db.flush()
-        return SyncService._flashcard_push_result(client_id, "updated", vocabulary)
+        return SyncService._flashcard_push_result(
+            client_id, "conflict_client_wins", vocabulary, conflict=conflict
+        )
 
     @staticmethod
     async def _sync_quiz_attempt(
@@ -532,6 +651,7 @@ class SyncService:
         client_id: str,
         status: str,
         vocabulary: Vocabulary,
+        conflict: Optional[ConflictInfo] = None,
     ) -> SyncPushResultItem:
         return SyncPushResultItem(
             resource="flashcard",
@@ -540,6 +660,7 @@ class SyncService:
             status=status,
             server_updated_at=vocabulary.updated_at,
             canonical=SyncService._flashcard_payload(vocabulary),
+            conflict=conflict,
         )
 
     @staticmethod

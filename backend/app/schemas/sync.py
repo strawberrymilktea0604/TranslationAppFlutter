@@ -5,6 +5,30 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, Field
 
 
+# ---------------------------------------------------------------------------
+# Conflict resolution
+# ---------------------------------------------------------------------------
+
+
+class ConflictInfo(BaseModel):
+    """Metadata về conflict resolution result theo Last-Write-Wins."""
+
+    conflict_type: Literal["timestamp_conflict"] = "timestamp_conflict"
+    """Loại conflict. Hiện tại chỉ hỗ trợ timestamp_conflict (LWW)."""
+
+    client_updated_at: datetime
+    """Timestamp client gửi lên."""
+
+    server_updated_at: datetime
+    """Timestamp bản ghi server tại thời điểm so sánh."""
+
+    winner: Literal["client", "server"]
+    """Bên thắng: 'client' → client data ghi đè, 'server' → server data giữ nguyên."""
+
+    reason: str
+    """Mô tả ngắn lý do chọn winner (để debug/log)."""
+
+
 SyncResource = Literal["flashcard", "quiz_attempt"]
 
 
@@ -92,14 +116,26 @@ class SyncPushRequest(BaseModel):
     items: list[SyncPushItem] = Field(..., min_length=1, max_length=100)
 
 
+SyncPushStatus = Literal[
+    "created",
+    "updated",
+    "unchanged",
+    "failed",
+    "conflict_client_wins",
+    "conflict_server_wins",
+]
+
+
 class SyncPushResultItem(BaseModel):
     resource: SyncResource
     client_id: str
     server_id: Optional[int] = None
-    status: Literal["created", "updated", "unchanged", "failed"]
+    status: SyncPushStatus
     server_updated_at: Optional[datetime] = None
     canonical: Optional[dict[str, Any]] = None
     error: Optional[SyncError] = None
+    conflict: Optional[ConflictInfo] = None
+    """Có giá trị khi status là conflict_client_wins hoặc conflict_server_wins."""
 
 
 class SyncPushResponse(BaseModel):

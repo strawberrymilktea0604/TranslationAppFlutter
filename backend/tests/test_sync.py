@@ -34,7 +34,15 @@ from app.schemas.sync import (  # noqa: E402
     SyncVocabularyResponse,
     SyncVocabularyResultItem,
 )
-from app.services.sync_service import SyncCursorError, SyncItemError, SyncService  # noqa: E402
+from app.services.sync_service import (
+    SyncCursorError,
+    SyncItemError,
+    SyncService,
+    _build_conflict_info,
+    _validate_client_timestamp,
+    _MIN_VALID_TIMESTAMP,
+    _MAX_FUTURE_DRIFT_SECONDS,
+)  # noqa: E402
 
 
 NOW = datetime(2026, 5, 31, 10, 0, tzinfo=timezone.utc)
@@ -193,6 +201,7 @@ async def test_flashcard_last_write_wins_updates_denormalized_translation(monkey
     monkeypatch.setattr(SyncService, "_validate_category", valid_category)
     monkeypatch.setattr(SyncService, "_find_flashcard", existing_flashcard)
 
+    # ---- client sends a stale (older) timestamp → server wins ----
     stale = await SyncService._sync_flashcard(
         db=db,
         user_id=123,
@@ -207,9 +216,12 @@ async def test_flashcard_last_write_wins_updates_denormalized_translation(monkey
         ),
         allow_content_match=False,
     )
-    assert stale.status == "unchanged"
-    assert vocabulary.word == "hello"
+    assert stale.status == "conflict_server_wins"
+    assert stale.conflict is not None
+    assert stale.conflict.winner == "server"
+    assert vocabulary.word == "hello"  # data not changed
 
+    # ---- client sends a newer timestamp → client wins ----
     updated = await SyncService._sync_flashcard(
         db=db,
         user_id=123,
@@ -226,7 +238,9 @@ async def test_flashcard_last_write_wins_updates_denormalized_translation(monkey
         ),
         allow_content_match=False,
     )
-    assert updated.status == "updated"
+    assert updated.status == "conflict_client_wins"
+    assert updated.conflict is not None
+    assert updated.conflict.winner == "client"
     assert vocabulary.word == translation.source_text == "hello updated"
     assert vocabulary.definition == translation.translated_text == "xin chao updated"
     assert vocabulary.mastery_level == 4
@@ -274,10 +288,268 @@ async def test_flashcard_push_retry_is_idempotent_with_database():
 
     await engine.dispose()
     assert first.results[0].status == "created"
-    assert second.results[0].status == "unchanged"
+    assert second.results[0].status == "conflict_server_wins"
     assert second.results[0].server_id == first.results[0].server_id
+    # conflict info must be present
+    assert second.results[0].conflict is not None
+    assert second.results[0].conflict.winner == "server"
     assert vocabulary_count == 1
     assert translation_count == 1
+
+
+# ---------------------------------------------------------------------------
+# NEW: Conflict resolution test cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_conflict_equal_timestamps_server_wins(monkeypatch):
+    """When client and server have the same timestamp, server data must be retained."""
+    db = FakeDB()
+    vocabulary = _flashcard(updated_at=NOW)
+    translation = _translation()
+
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def existing_flashcard(**kwargs):
+        return vocabulary, translation
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", existing_flashcard)
+
+    result = await SyncService._sync_flashcard(
+        db=db,
+        user_id=123,
+        client_id="flash-local",
+        server_id=10,
+        client_updated_at=NOW,  # exactly equal
+        payload=FlashcardPushPayload(
+            word="attempt to overwrite",
+            translation="ignored",
+            source_language="en",
+            target_language="vi",
+        ),
+        allow_content_match=False,
+    )
+    assert result.status == "conflict_server_wins"
+    assert result.conflict is not None
+    assert result.conflict.winner == "server"
+    assert vocabulary.word == "hello"  # server data must not be overwritten
+
+
+@pytest.mark.asyncio
+async def test_invalid_timestamp_too_old_is_rejected(monkeypatch):
+    """Timestamps before _MIN_VALID_TIMESTAMP must be rejected with invalid_timestamp."""
+    db = FakeDB()
+
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def no_existing(**kwargs):
+        return None, None
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", no_existing)
+
+    too_old = _MIN_VALID_TIMESTAMP - timedelta(days=1)  # 2019-12-31
+    with pytest.raises(SyncItemError) as exc_info:
+        await SyncService._sync_flashcard(
+            db=db,
+            user_id=123,
+            client_id="flash-old",
+            server_id=None,
+            client_updated_at=too_old,
+            payload=FlashcardPushPayload(
+                word="test",
+                translation="test",
+                source_language="en",
+                target_language="vi",
+            ),
+            allow_content_match=False,
+        )
+    assert exc_info.value.code == "invalid_timestamp"
+
+
+@pytest.mark.asyncio
+async def test_invalid_timestamp_far_future_is_rejected(monkeypatch):
+    """Timestamps more than MAX_FUTURE_DRIFT_SECONDS ahead of server must be rejected."""
+    db = FakeDB()
+
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def no_existing(**kwargs):
+        return None, None
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", no_existing)
+
+    far_future = datetime.now(timezone.utc) + timedelta(seconds=_MAX_FUTURE_DRIFT_SECONDS + 60)
+    with pytest.raises(SyncItemError) as exc_info:
+        await SyncService._sync_flashcard(
+            db=db,
+            user_id=123,
+            client_id="flash-future",
+            server_id=None,
+            client_updated_at=far_future,
+            payload=FlashcardPushPayload(
+                word="test",
+                translation="test",
+                source_language="en",
+                target_language="vi",
+            ),
+            allow_content_match=False,
+        )
+    assert exc_info.value.code == "invalid_timestamp"
+
+
+@pytest.mark.asyncio
+async def test_conflict_is_logged_server_wins(monkeypatch, caplog):
+    """A structured warning must be emitted when server wins the LWW conflict."""
+    import logging
+
+    db = FakeDB()
+    vocabulary = _flashcard(updated_at=NOW)
+    translation = _translation()
+
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def existing_flashcard(**kwargs):
+        return vocabulary, translation
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", existing_flashcard)
+
+    with caplog.at_level(logging.WARNING, logger="app.services.sync_service"):
+        await SyncService._sync_flashcard(
+            db=db,
+            user_id=123,
+            client_id="flash-local",
+            server_id=10,
+            client_updated_at=NOW - timedelta(seconds=5),
+            payload=FlashcardPushPayload(
+                word="ignored",
+                translation="ignored",
+                source_language="en",
+                target_language="vi",
+            ),
+            allow_content_match=False,
+        )
+
+    assert any("server_wins" in record.message for record in caplog.records), (
+        "Expected a 'server_wins' warning log entry for the LWW conflict"
+    )
+
+
+@pytest.mark.asyncio
+async def test_conflict_is_logged_client_wins(monkeypatch, caplog):
+    """A structured warning must be emitted when client wins the LWW conflict."""
+    import logging
+
+    db = FakeDB()
+    vocabulary = _flashcard(updated_at=NOW)
+    translation = _translation()
+
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def existing_flashcard(**kwargs):
+        return vocabulary, translation
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", existing_flashcard)
+
+    with caplog.at_level(logging.WARNING, logger="app.services.sync_service"):
+        await SyncService._sync_flashcard(
+            db=db,
+            user_id=123,
+            client_id="flash-local",
+            server_id=10,
+            client_updated_at=NOW + timedelta(seconds=5),
+            payload=FlashcardPushPayload(
+                word="newer word",
+                translation="newer trans",
+                source_language="en",
+                target_language="vi",
+            ),
+            allow_content_match=False,
+        )
+
+    assert any("client_wins" in record.message for record in caplog.records), (
+        "Expected a 'client_wins' warning log entry for the LWW conflict"
+    )
+
+
+@pytest.mark.asyncio
+async def test_conflict_info_in_push_response_batch(monkeypatch):
+    """End-to-end: push batch must surface conflict field in the result for conflicting items."""
+    db = FakeDB()
+    vocabulary = _flashcard(updated_at=NOW)
+    translation = _translation()
+
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def existing_flashcard(**kwargs):
+        return vocabulary, translation
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", existing_flashcard)
+
+    # Stale item → server wins
+    stale_item = SyncPushItem(
+        resource="flashcard",
+        client_id="flash-local",
+        updated_at=NOW - timedelta(seconds=10),
+        payload={
+            "word": "old word",
+            "translation": "old trans",
+            "source_language": "en",
+            "target_language": "vi",
+        },
+    )
+    response = await SyncService.push(db=db, user_id=123, items=[stale_item])
+
+    assert response.results[0].status == "conflict_server_wins"
+    assert response.results[0].conflict is not None
+    assert response.results[0].conflict.conflict_type == "timestamp_conflict"
+    assert response.results[0].conflict.winner == "server"
+    assert response.results[0].canonical is not None  # server data returned
+
+
+def test_validate_client_timestamp_accepts_valid():
+    """Valid timestamps within range must pass without raising."""
+    valid_ts = datetime.now(timezone.utc) - timedelta(hours=1)
+    result = _validate_client_timestamp(valid_ts)
+    assert result.tzinfo is not None  # must be UTC-aware
+
+
+def test_validate_client_timestamp_rejects_none():
+    with pytest.raises(SyncItemError) as exc_info:
+        _validate_client_timestamp(None)
+    assert exc_info.value.code == "invalid_timestamp"
+
+
+def test_build_conflict_info_server_wins():
+    """_build_conflict_info must set winner and include both timestamps."""
+    client_ts = NOW - timedelta(seconds=10)
+    server_ts = NOW
+    info = _build_conflict_info(client_ts, server_ts, "server")
+    assert info.winner == "server"
+    assert "server" in info.reason.lower()
+    assert info.client_updated_at == client_ts
+    assert info.server_updated_at == server_ts
+
+
+def test_build_conflict_info_client_wins():
+    """_build_conflict_info must set winner and include both timestamps."""
+    client_ts = NOW + timedelta(seconds=10)
+    server_ts = NOW
+    info = _build_conflict_info(client_ts, server_ts, "client")
+    assert info.winner == "client"
+    assert "client" in info.reason.lower()
 
 
 @pytest.mark.asyncio
