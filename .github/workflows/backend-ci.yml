@@ -98,7 +98,7 @@ jobs:
           docker run --rm \
             --env DATABASE_URL="postgresql://postgres:test_password@localhost:5433/translation_app_test" \
             --env REDIS_URL="redis://localhost:6379" \
-            --env SECRET_KEY="test-secret-key-for-ci" \
+            --env SECRET_KEY="test-secret-key-for-ci-1234567890" \
             --env TESTING="true" \
             -v ${{ github.workspace }}/backend/coverage:/app/coverage \
             -v /var/run/docker.sock:/var/run/docker.sock \
@@ -130,15 +130,15 @@ jobs:
 
       - name: Set up Docker Compose
         run: |
-          docker-compose --version
+          docker compose --version
 
       - name: Start test services
         run: |
-          docker-compose -f docker-compose.test.yml up -d test-db test-redis
+          docker compose -f docker-compose.test.yml up -d test-db test-redis
           echo "Waiting for services to be healthy..."
           for i in {1..30}; do
-            if docker-compose -f docker-compose.test.yml exec -T test-db pg_isready -U postgres && \
-               docker-compose -f docker-compose.test.yml exec -T test-redis redis-cli ping; then
+            if docker compose -f docker-compose.test.yml exec -T test-db pg_isready -U postgres && \
+               docker compose -f docker-compose.test.yml exec -T test-redis redis-cli ping; then
               echo "Services are healthy"
               break
             fi
@@ -148,11 +148,11 @@ jobs:
 
       - name: Build test image
         run: |
-          docker-compose -f docker-compose.test.yml build backend-tests
+          docker compose -f docker-compose.test.yml build backend-tests
 
       - name: Run unit tests
         run: |
-          docker-compose -f docker-compose.test.yml run --rm backend-tests pytest tests/ -v --cov=app --cov-report=html:/app/coverage --cov-report=term-missing --timeout=300
+          docker compose -f docker-compose.test.yml run --rm backend-tests pytest tests/ -v --cov=app --cov-report=html:/app/coverage --cov-report=term-missing --timeout=300
 
       - name: Upload coverage reports
         if: always()
@@ -165,7 +165,7 @@ jobs:
       - name: Stop test services
         if: always()
         run: |
-          docker-compose -f docker-compose.test.yml down -v
+          docker compose -f docker-compose.test.yml down -v
 
   e2e-tests:
     name: E2E Tests
@@ -180,15 +180,15 @@ jobs:
         run: mkdir -p backend/tests/e2e && touch backend/tests/e2e/__init__.py
 
       - name: Set up Docker Compose
-        run: docker-compose --version
+        run: docker compose --version
 
       - name: Start test services
         run: |
-          docker-compose -f docker-compose.test.yml up -d test-db test-redis
+          docker compose -f docker-compose.test.yml up -d test-db test-redis
           echo "Waiting for services to be healthy..."
           for i in {1..30}; do
-            if docker-compose -f docker-compose.test.yml exec -T test-db pg_isready -U postgres && \
-               docker-compose -f docker-compose.test.yml exec -T test-redis redis-cli ping; then
+            if docker compose -f docker-compose.test.yml exec -T test-db pg_isready -U postgres && \
+               docker compose -f docker-compose.test.yml exec -T test-redis redis-cli ping; then
               echo "Services are healthy"
               break
             fi
@@ -198,12 +198,12 @@ jobs:
 
       - name: Build test image
         run: |
-          docker-compose -f docker-compose.test.yml build backend-tests
+          docker compose -f docker-compose.test.yml build backend-tests
 
       - name: Run E2E tests
         run: |
           if [ -d "backend/tests/e2e" ] && [ "$(ls -A backend/tests/e2e)" ]; then
-            docker-compose -f docker-compose.test.yml run --rm backend-tests pytest tests/e2e/ -v --cov=app --cov-append --cov-report=term-missing --timeout=300
+            docker compose -f docker-compose.test.yml run --rm backend-tests pytest tests/e2e/ -v --cov=app --cov-append --cov-report=term-missing --timeout=300
           else
             echo "No E2E tests found, skipping E2E test run"
           fi
@@ -219,7 +219,7 @@ jobs:
       - name: Stop test services
         if: always()
         run: |
-          docker-compose -f docker-compose.test.yml down -v
+          docker compose -f docker-compose.test.yml down -v
 
   build-production-image:
     name: Build & Push Backend Image

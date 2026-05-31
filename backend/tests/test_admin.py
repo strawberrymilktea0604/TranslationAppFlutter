@@ -22,7 +22,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("SECRET_KEY", "test-secret-key-for-admin-tests")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-admin-tests-123")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.database import get_db  # noqa: E402
