@@ -14,14 +14,14 @@ from typing import List
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("SECRET_KEY", "test-secret-key-for-banks-tests")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-banks-tests-123")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.core.database import get_db
-from app.core.dependencies import get_admin_user, get_current_user
-from app.main import app
-from app.repositories.quiz_repository import QuizRepository
-from app.schemas.learning import QuizAnswerResult
+from app.core.database import get_db  # noqa: E402
+from app.core.dependencies import get_admin_user, get_current_user  # noqa: E402
+from app.main import app  # noqa: E402
+from app.repositories.quiz_repository import QuizRepository  # noqa: E402
+from app.schemas.learning import QuizAnswerResult  # noqa: E402
 
 
 # ─────────────────────────────────────────────

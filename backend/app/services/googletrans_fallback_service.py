@@ -5,11 +5,13 @@ Used when Google Cloud Translation API is unavailable.
 """
 
 import logging
+import time
 from typing import Optional
 
 import httpx
 
 from app.core.config import settings
+from app.services.api_metric_service import ApiMetricService
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,8 @@ class GoogleTransFallbackService:
         text: str,
         target_language: str,
         source_language: Optional[str] = None,
+        user_id: Optional[int] = None,
+        translation_type: str = "text",
     ) -> dict:
         """
         Translate text using googletrans in a worker thread.
@@ -95,8 +99,13 @@ class GoogleTransFallbackService:
             ) from exc
 
         translator = Translator(timeout=httpx.Timeout(float(timeout)))
+        outbound_started = False
+        outbound_start = 0.0
+        metric_status_code = 500
 
         try:
+            outbound_started = True
+            outbound_start = time.time()
             result = await translator.translate(text, src=src, dest=target_language)
             translated_text = getattr(result, "text", "")
             detected_source = getattr(result, "src", src)
@@ -107,6 +116,7 @@ class GoogleTransFallbackService:
                     error_code="FALLBACK_EMPTY_RESPONSE",
                 )
 
+            metric_status_code = 200
             logger.info(
                 "googletrans fallback succeeded "
                 f"({detected_source} to {target_language})"
@@ -123,3 +133,12 @@ class GoogleTransFallbackService:
                 message=f"Unexpected fallback error: {str(exc)}",
                 error_code="FALLBACK_UNEXPECTED_ERROR",
             ) from exc
+        finally:
+            if outbound_started:
+                await ApiMetricService.record_ai_request(
+                    endpoint=f"translation/{translation_type}",
+                    ai_model="googletrans-fallback",
+                    response_time_ms=(time.time() - outbound_start) * 1000,
+                    status_code=metric_status_code,
+                    user_id=user_id,
+                )

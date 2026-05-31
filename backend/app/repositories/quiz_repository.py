@@ -35,6 +35,8 @@ class QuizRepository:
         answers: List[UserAnswerItem],
         completion_time_seconds: Optional[int] = None,
         time_spent_seconds: Optional[int] = None,
+        sync_client_id: Optional[str] = None,
+        commit: bool = True,
     ) -> Tuple[UserQuiz, List[QuizAnswerResult]]:
         """
         Grade user answers against the correct answers stored in the DB,
@@ -48,6 +50,9 @@ class QuizRepository:
             answers: List of UserAnswerItem (question_id + selected_answer).
             completion_time_seconds: Legacy elapsed time field.
             time_spent_seconds: Canonical elapsed time field (preferred).
+            sync_client_id: Stable client ID used by offline sync retries.
+            commit: Commit immediately for normal submissions; flush only when
+                    an outer batch transaction owns the commit.
 
         Returns:
             Tuple of (UserQuiz ORM instance, list of QuizAnswerResult).
@@ -156,6 +161,7 @@ class QuizRepository:
         now_utc = datetime.now(timezone.utc)
         quiz = UserQuiz(
             user_id=user_id,
+            sync_client_id=sync_client_id,
             bank_id=bank_id,
             score=score,
             # Legacy field kept populated for backward compat
@@ -170,7 +176,10 @@ class QuizRepository:
             status=quiz_status,
         )
         db.add(quiz)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         await db.refresh(quiz)
 
         logger.info(

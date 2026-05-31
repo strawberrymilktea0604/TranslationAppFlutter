@@ -125,7 +125,10 @@ class TranslationService:
         )
         
         try:
-            translated_text = await TranslationService._call_translation_api(request)
+            translated_text = await TranslationService._call_translation_api(
+                request,
+                user_id=user_id,
+            )
             
             # ==================== STEP 4: Cache the Result ====================
             
@@ -171,7 +174,10 @@ class TranslationService:
             raise
     
     @staticmethod
-    async def _call_translation_api(request: TranslationRequest) -> str:
+    async def _call_translation_api(
+        request: TranslationRequest,
+        user_id: Optional[int] = None,
+    ) -> str:
         """
         Call Google Cloud Translation API v2.
         
@@ -193,6 +199,8 @@ class TranslationService:
                 text=request.source_text,
                 target_language=request.target_language,
                 source_language=request.source_language,
+                user_id=user_id,
+                translation_type=request.translation_type,
             )
             return result["translated_text"]
             
@@ -209,7 +217,11 @@ class TranslationService:
                 logger.warning(
                     "⚠️ Google Cloud Translation unavailable. Falling back to googletrans."
                 )
-                return await TranslationService._call_googletrans_fallback(request, primary_error)
+                return await TranslationService._call_googletrans_fallback(
+                    request,
+                    primary_error,
+                    user_id=user_id,
+                )
 
             raise
         except Exception as e:
@@ -224,6 +236,7 @@ class TranslationService:
                 return await TranslationService._call_googletrans_fallback(
                     request,
                     synthetic_primary_error,
+                    user_id=user_id,
                 )
 
             raise
@@ -239,7 +252,6 @@ class TranslationService:
             "TIMEOUT",
             "CONNECTION_ERROR",
             "UNEXPECTED_ERROR",
-            "INVALID_REQUEST",  # Added because invalid API keys return 400 INVALID_REQUEST from Google
         }
         return error.error_code in unavailable_error_codes
 
@@ -247,6 +259,7 @@ class TranslationService:
     async def _call_googletrans_fallback(
         request: TranslationRequest,
         primary_error: GoogleTranslateError,
+        user_id: Optional[int] = None,
     ) -> str:
         """Call googletrans as fallback provider and map failures consistently."""
         try:
@@ -254,6 +267,8 @@ class TranslationService:
                 text=request.source_text,
                 target_language=request.target_language,
                 source_language=request.source_language,
+                user_id=user_id,
+                translation_type=request.translation_type,
             )
             return fallback_result["translated_text"]
         except GoogleTransFallbackError as fallback_error:

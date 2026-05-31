@@ -214,7 +214,10 @@ class ImageService:
             return 0.0
 
     @staticmethod
-    def validate_image_bytes(image_bytes: bytes) -> Tuple[bool, str]:
+    def validate_image_bytes(
+        image_bytes: bytes,
+        max_size_mb: int = 10,
+    ) -> Tuple[bool, str]:
         """
         Validate image bytes before processing.
         
@@ -225,8 +228,9 @@ class ImageService:
         """
         try:
             # Check size
-            if len(image_bytes) > ImageService.MAX_IMAGE_SIZE:
-                return False, f"Image exceeds {ImageService.MAX_IMAGE_SIZE/1024/1024:.0f}MB limit"
+            max_size_bytes = max_size_mb * 1024 * 1024
+            if len(image_bytes) > max_size_bytes:
+                return False, f"Image exceeds {max_size_mb}MB limit"
             
             # Check magic bytes
             if not ImageService._has_valid_magic_bytes(image_bytes[:12]):

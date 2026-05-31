@@ -4,11 +4,13 @@ Handles direct HTTP calls to Google Translation API using REST endpoint.
 API Key is managed securely via environment variables.
 """
 import logging
+import time
 from typing import Optional
 
 import httpx
 
 from app.core.config import settings
+from app.services.api_metric_service import ApiMetricService
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,8 @@ class GoogleTranslateService:
         text: str,
         target_language: str,
         source_language: Optional[str] = None,
+        user_id: Optional[int] = None,
+        translation_type: str = "text",
     ) -> dict:
         """
         Translate text using Google Translation API v2.
@@ -94,19 +98,27 @@ class GoogleTranslateService:
         if source_language and source_language.lower() != "auto":
             payload["source"] = source_language
 
+        outbound_started = False
+        outbound_start = 0.0
+        metric_status_code = 500
+
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
+                outbound_started = True
+                outbound_start = time.time()
                 response = await client.post(
                     GOOGLE_TRANSLATE_URL,
                     params=params,
                     json=payload,
                 )
+                metric_status_code = response.status_code
 
                 if response.status_code == 200:
                     data = response.json()
                     translations = data.get("data", {}).get("translations", [])
 
                     if not translations:
+                        metric_status_code = 500
                         raise GoogleTranslateError(
                             message="Google API returned empty translations",
                             status_code=500,
@@ -158,6 +170,7 @@ class GoogleTranslateService:
                     )
 
         except httpx.TimeoutException:
+            metric_status_code = 504
             logger.error(f"Google Translate API timeout after {timeout}s")
             raise GoogleTranslateError(
                 message=f"Translation request timed out after {timeout} seconds",
@@ -166,6 +179,7 @@ class GoogleTranslateService:
             )
 
         except httpx.ConnectError:
+            metric_status_code = 503
             logger.error("Cannot connect to Google Translate API")
             raise GoogleTranslateError(
                 message="Cannot connect to Google Translation service. Check network.",
@@ -177,12 +191,22 @@ class GoogleTranslateService:
             raise
 
         except Exception as e:
+            metric_status_code = 500
             logger.error(f"Unexpected error calling Google Translate: {e}", exc_info=True)
             raise GoogleTranslateError(
                 message=f"Unexpected translation error: {str(e)}",
                 status_code=500,
                 error_code="UNEXPECTED_ERROR"
             )
+        finally:
+            if outbound_started:
+                await ApiMetricService.record_ai_request(
+                    endpoint=f"translation/{translation_type}",
+                    ai_model="google-translate-v2",
+                    response_time_ms=(time.time() - outbound_start) * 1000,
+                    status_code=metric_status_code,
+                    user_id=user_id,
+                )
 
     @staticmethod
     async def detect_language(text: str) -> dict:

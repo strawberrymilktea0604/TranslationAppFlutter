@@ -47,10 +47,15 @@ async def get_redis_client() -> Redis:
 async def close_redis():
     """Close Redis connection"""
     global _redis_client
-    if _redis_client:
-        await _redis_client.close()
-        _redis_client = None
-        logger.info("Redis connection closed")
+    client = _redis_client
+    _redis_client = None
+
+    if client:
+        try:
+            await client.aclose()
+            logger.info("Redis connection closed")
+        except Exception as e:
+            logger.warning(f"Redis close failed: {e}")
 
 
 async def set_revoked_token(jti: str, ttl_seconds: int) -> bool:

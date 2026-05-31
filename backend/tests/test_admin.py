@@ -22,12 +22,12 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("SECRET_KEY", "test-secret-key-for-admin-tests")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-admin-tests-123")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.core.database import get_db
-from app.core.dependencies import get_admin_user, get_current_user
-from app.main import app
+from app.core.database import get_db  # noqa: E402
+from app.core.dependencies import get_admin_user, get_current_user  # noqa: E402
+from app.main import app  # noqa: E402
 
 
 # ─────────────────────────────────────────────
@@ -450,3 +450,54 @@ def test_learning_admin_bank_admin_sees_correct_answer(admin_client):
     data = resp.json()
     for q in data["questions"]:
         assert "correct_answer" in q
+
+
+def test_admin_analytics_summary_no_token_returns_401(no_auth_client):
+    resp = no_auth_client.get("/api/v1/admin/analytics/summary")
+    assert resp.status_code == 401
+
+
+def test_admin_analytics_summary_regular_user_returns_403(regular_client):
+    client, _ = regular_client
+    resp = client.get("/api/v1/admin/analytics/summary")
+    assert resp.status_code == 403
+
+
+def test_admin_analytics_summary_returns_all_time_metrics(admin_client):
+    client, _ = admin_client
+    app.dependency_overrides[get_db] = _override_db([
+        _FakeResult(scalar_value=12),
+        _FakeResult(scalar_value=34),
+        _FakeResult(scalar_value=56),
+        _FakeResult(scalar_value=78.456),
+    ])
+
+    resp = client.get("/api/v1/admin/analytics/summary")
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "total_users": 12,
+        "total_quiz_attempts": 34,
+        "total_ai_requests": 56,
+        "average_quiz_score": 78.46,
+    }
+
+
+def test_admin_analytics_summary_empty_data_returns_zeroes(admin_client):
+    client, _ = admin_client
+    app.dependency_overrides[get_db] = _override_db([
+        _FakeResult(scalar_value=None),
+        _FakeResult(scalar_value=None),
+        _FakeResult(scalar_value=None),
+        _FakeResult(scalar_value=None),
+    ])
+
+    resp = client.get("/api/v1/admin/analytics/summary")
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "total_users": 0,
+        "total_quiz_attempts": 0,
+        "total_ai_requests": 0,
+        "average_quiz_score": 0.0,
+    }

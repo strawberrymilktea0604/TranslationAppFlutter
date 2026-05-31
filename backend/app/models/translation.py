@@ -40,6 +40,7 @@ class Vocabulary(Base):
     # TẮT tự động tăng vì dùng Snowflake ID
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=False)
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    sync_client_id = Column(String(255), nullable=True)
     translation_id = Column(BigInteger, ForeignKey("translations.id", ondelete="CASCADE"), nullable=False)
     category_id = Column(BigInteger, ForeignKey("vocabulary_categories.id", ondelete="RESTRICT"), nullable=True)
     category = Column(String(100), nullable=True)
