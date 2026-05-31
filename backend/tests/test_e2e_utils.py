@@ -9,7 +9,7 @@ Provides common utilities for end-to-end testing including:
 """
 
 import os
-from typing import AsyncGenerator, Generator
+from typing import Generator
 from datetime import datetime, timezone
 
 import pytest

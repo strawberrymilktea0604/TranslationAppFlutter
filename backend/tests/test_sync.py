@@ -13,18 +13,18 @@ from sqlalchemy.orm import sessionmaker
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-sync-tests-123456789")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.api.v1.endpoints import sync as sync_endpoint
-from app.core.database import get_db
-from app.core.dependencies import get_current_user
-from app.main import app
-from app.models.learning import UserQuiz
-from app.models.translation import (
+from app.api.v1.endpoints import sync as sync_endpoint  # noqa: E402
+from app.core.database import get_db  # noqa: E402
+from app.core.dependencies import get_current_user  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.learning import UserQuiz  # noqa: E402
+from app.models.translation import (  # noqa: E402
     Translation,
     Vocabulary,
     VocabularyCategory,
 )
-from app.models.user import User
-from app.schemas.sync import (
+from app.models.user import User  # noqa: E402
+from app.schemas.sync import (  # noqa: E402
     FlashcardPushPayload,
     QuizAttemptPushPayload,
     SyncPullResponse,
@@ -34,7 +34,7 @@ from app.schemas.sync import (
     SyncVocabularyResponse,
     SyncVocabularyResultItem,
 )
-from app.services.sync_service import SyncCursorError, SyncItemError, SyncService
+from app.services.sync_service import SyncCursorError, SyncItemError, SyncService  # noqa: E402
 
 
 NOW = datetime(2026, 5, 31, 10, 0, tzinfo=timezone.utc)
