@@ -1,43 +1,82 @@
-"""
-Sync Service — Business logic for offline-first vocabulary synchronisation.
-
-Strategy: Last-Write-Wins based on updated_at (§5.2).
-  1. For each record in batch:
-     a. Find matching server record by (user_id, word, source_language, target_language).
-     b. If NOT found → INSERT new Translation + Vocabulary.
-     c. If found AND client.updated_at > server.updated_at → UPDATE.
-     d. If found AND client.updated_at <= server.updated_at → UNCHANGED,
-        return server data so client can reconcile.
-  2. Return list of results with server_id for each client_id.
-"""
+"""Business logic for offline-first flashcard and quiz synchronization."""
+import base64
+import binascii
+import hashlib
+import hmac
+import json
 import logging
 import random
 import time
 from datetime import datetime, timezone
+from typing import Any, Optional
 
-from sqlalchemy import and_, select
+from pydantic import ValidationError
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.translation import Translation, Vocabulary
+from app.core.config import settings
+from app.models.learning import QuestionBank, UserQuiz
+from app.models.translation import Translation, Vocabulary, VocabularyCategory
+from app.repositories.quiz_repository import QuizRepository
+from app.schemas.learning import UserAnswerItem
 from app.schemas.sync import (
+    FlashcardPushPayload,
+    QuizAttemptPushPayload,
+    SyncError,
+    SyncPullItem,
+    SyncPullResponse,
+    SyncPushItem,
+    SyncPushResponse,
+    SyncPushResultItem,
+    SyncVocabularyFailureItem,
     SyncVocabularyItem,
-    SyncVocabularyResultItem,
     SyncVocabularyResponse,
+    SyncVocabularyResultItem,
 )
+
+logger = logging.getLogger(__name__)
+_CURSOR_VERSION = 1
+_INITIAL_SYNC_TIME = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+class SyncItemError(Exception):
+    """A client-correctable error for one item in a push batch."""
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class SyncCursorError(ValueError):
+    """Raised when a pull cursor is malformed or has an invalid signature."""
 
 
 def _generate_snowflake_id() -> int:
-    """Generate a Snowflake-like 64-bit integer ID.
-
-    Matches the pattern used in VocabularyRepository.
-    """
     return (int(time.time() * 1000) << 22) | random.randint(0, 4194303)
 
-logger = logging.getLogger(__name__)
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _isoformat(value: datetime) -> str:
+    return _as_utc(value).isoformat()
+
+
+def _b64encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def _b64decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
 
 
 class SyncService:
-    """Handles batch vocabulary synchronisation."""
+    """Coordinates legacy pushes, resource pushes, and delta pulls."""
 
     @staticmethod
     async def sync_vocabulary(
@@ -45,183 +84,613 @@ class SyncService:
         user_id: int,
         items: list[SyncVocabularyItem],
     ) -> SyncVocabularyResponse:
-        """
-        Synchronise a batch of vocabulary records for a user.
-
-        Implements Last-Write-Wins (§5.2).
-        """
+        """Keep the legacy vocabulary API working with additive failures."""
         results: list[SyncVocabularyResultItem] = []
+        failures: list[SyncVocabularyFailureItem] = []
+
+        for item in items:
+            payload = FlashcardPushPayload(
+                word=item.word,
+                translation=item.translation,
+                source_language=item.source_language,
+                target_language=item.target_language,
+                category_id=item.category_id,
+                category=item.category,
+                mastery_level=item.mastery_level,
+                last_tested_at=item.last_tested_at,
+                is_deleted=item.is_deleted,
+                created_at=item.created_at,
+            )
+            try:
+                async with db.begin_nested():
+                    push_result = await SyncService._sync_flashcard(
+                        db=db,
+                        user_id=user_id,
+                        client_id=item.client_id,
+                        server_id=None,
+                        client_updated_at=item.updated_at,
+                        payload=payload,
+                        allow_content_match=True,
+                    )
+                results.append(
+                    SyncVocabularyResultItem(
+                        client_id=item.client_id,
+                        server_id=push_result.server_id,
+                        status=push_result.status,
+                        server_updated_at=push_result.server_updated_at,
+                        canonical=push_result.canonical,
+                    )
+                )
+            except Exception as exc:
+                error = SyncService._to_sync_error(exc)
+                failures.append(
+                    SyncVocabularyFailureItem(client_id=item.client_id, error=error)
+                )
+                logger.warning("Legacy vocabulary sync failed for %s: %s", item.client_id, exc)
+
+        await db.commit()
+        synced_count = sum(1 for item in results if item.status in ("created", "updated"))
+        return SyncVocabularyResponse(
+            synced_count=synced_count,
+            failed_count=len(failures),
+            results=results,
+            failures=failures,
+        )
+
+    @staticmethod
+    async def push(
+        db: AsyncSession,
+        user_id: int,
+        items: list[SyncPushItem],
+    ) -> SyncPushResponse:
+        """Push a mixed batch while isolating failures with savepoints."""
+        results: list[SyncPushResultItem] = []
 
         for item in items:
             try:
-                result = await SyncService._sync_single_item(
-                    db, user_id, item,
-                )
+                async with db.begin_nested():
+                    if item.resource == "flashcard":
+                        payload = FlashcardPushPayload.model_validate(item.payload)
+                        result = await SyncService._sync_flashcard(
+                            db=db,
+                            user_id=user_id,
+                            client_id=item.client_id,
+                            server_id=item.server_id,
+                            client_updated_at=item.updated_at,
+                            payload=payload,
+                            allow_content_match=False,
+                        )
+                    else:
+                        payload = QuizAttemptPushPayload.model_validate(item.payload)
+                        result = await SyncService._sync_quiz_attempt(
+                            db=db,
+                            user_id=user_id,
+                            client_id=item.client_id,
+                            server_id=item.server_id,
+                            payload=payload,
+                        )
                 results.append(result)
             except Exception as exc:
-                logger.error(
-                    "Sync failed for client_id=%s: %s",
-                    item.client_id, exc,
+                logger.warning(
+                    "Push sync failed for resource=%s client_id=%s: %s",
+                    item.resource,
+                    item.client_id,
+                    exc,
                 )
-                # Skip failed items — the client will retry them next cycle.
-                continue
+                results.append(
+                    SyncPushResultItem(
+                        resource=item.resource,
+                        client_id=item.client_id,
+                        server_id=item.server_id,
+                        status="failed",
+                        error=SyncService._to_sync_error(exc),
+                    )
+                )
 
         await db.commit()
-
-        synced_count = sum(
-            1 for r in results if r.status in ("created", "updated")
-        )
-        return SyncVocabularyResponse(
-            synced_count=synced_count,
+        failed_count = sum(1 for item in results if item.status == "failed")
+        return SyncPushResponse(
+            succeeded_count=len(results) - failed_count,
+            failed_count=failed_count,
             results=results,
         )
 
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
     @staticmethod
-    async def _sync_single_item(
+    async def pull(
         db: AsyncSession,
         user_id: int,
-        item: SyncVocabularyItem,
-    ) -> SyncVocabularyResultItem:
-        """Process a single vocabulary item using Last-Write-Wins."""
-        
-        # Sanitize category_id (offline categories have negative IDs in frontend)
-        safe_category_id = item.category_id if item.category_id and item.category_id > 0 else None
-
-        # 1. Try to find an existing Translation owned by this user
-        #    that matches the word + language pair.
-        stmt = select(Translation, Vocabulary).outerjoin(
-            Vocabulary, 
-            and_(Vocabulary.translation_id == Translation.id, Vocabulary.user_id == user_id)
-        ).where(
-            and_(
-                Translation.user_id == user_id,
-                Translation.source_text == item.word,
-                Translation.translated_text == item.translation,
-                Translation.source_language == item.source_language,
-                Translation.target_language == item.target_language,
-            )
+        cursor: Optional[str],
+        limit: int,
+    ) -> SyncPullResponse:
+        """Return a stable page of changes ordered by updated_at, resource, and ID."""
+        state = SyncService._decode_cursor(cursor)
+        since = _as_utc(datetime.fromisoformat(state["since"]))
+        cutoff = _as_utc(
+            datetime.fromisoformat(state["cutoff"])
+            if state.get("cutoff")
+            else datetime.now(timezone.utc)
         )
-        result = await db.execute(stmt)
-        row = result.first()
+        position = state.get("position")
 
-        if row is None:
-            # ------ Case (b): INSERT new record ------
-            return await SyncService._insert_new(db, user_id, item)
+        vocab_stmt = (
+            select(Vocabulary)
+            .where(
+                Vocabulary.user_id == user_id,
+                Vocabulary.updated_at > since,
+                Vocabulary.updated_at <= cutoff,
+                SyncService._after_position(
+                    Vocabulary.updated_at,
+                    Vocabulary.id,
+                    "flashcard",
+                    position,
+                ),
+            )
+            .order_by(Vocabulary.updated_at, Vocabulary.id)
+            .limit(limit + 1)
+        )
+        quiz_stmt = (
+            select(UserQuiz, QuestionBank.title)
+            .join(QuestionBank, UserQuiz.bank_id == QuestionBank.id)
+            .where(
+                UserQuiz.user_id == user_id,
+                UserQuiz.updated_at > since,
+                UserQuiz.updated_at <= cutoff,
+                SyncService._after_position(
+                    UserQuiz.updated_at,
+                    UserQuiz.id,
+                    "quiz_attempt",
+                    position,
+                ),
+            )
+            .order_by(UserQuiz.updated_at, UserQuiz.id)
+            .limit(limit + 1)
+        )
 
-        existing_translation, existing_vocab = row
+        vocabularies = (await db.execute(vocab_stmt)).scalars().all()
+        quizzes = (await db.execute(quiz_stmt)).all()
+        changes = [
+            SyncService._flashcard_pull_item(vocabulary) for vocabulary in vocabularies
+        ]
+        changes.extend(
+            SyncService._quiz_pull_item(quiz, bank_title) for quiz, bank_title in quizzes
+        )
+        changes.sort(key=lambda item: (_as_utc(item.updated_at), item.resource, item.server_id))
 
-        if existing_vocab is None:
-            # We have a translation, but no vocabulary record yet.
-            vocab_id = _generate_snowflake_id()
+        has_more = len(changes) > limit
+        page = changes[:limit]
+        if has_more:
+            last = page[-1]
+            next_state = {
+                "v": _CURSOR_VERSION,
+                "since": _isoformat(since),
+                "cutoff": _isoformat(cutoff),
+                "position": {
+                    "updated_at": _isoformat(last.updated_at),
+                    "resource": last.resource,
+                    "id": last.server_id,
+                },
+            }
+        else:
+            next_state = {"v": _CURSOR_VERSION, "since": _isoformat(cutoff)}
+
+        return SyncPullResponse(
+            items=page,
+            next_cursor=SyncService._encode_cursor(next_state),
+            has_more=has_more,
+        )
+
+    @staticmethod
+    async def _sync_flashcard(
+        db: AsyncSession,
+        user_id: int,
+        client_id: str,
+        server_id: Optional[int],
+        client_updated_at: datetime,
+        payload: FlashcardPushPayload,
+        allow_content_match: bool,
+    ) -> SyncPushResultItem:
+        safe_category_id = await SyncService._validate_category(
+            db, user_id, payload.category_id
+        )
+        vocabulary, translation = await SyncService._find_flashcard(
+            db=db,
+            user_id=user_id,
+            client_id=client_id,
+            server_id=server_id,
+            payload=payload,
+            allow_content_match=allow_content_match,
+        )
+
+        if vocabulary is None:
             now = datetime.now(timezone.utc)
-            existing_vocab = Vocabulary(
-                id=vocab_id,
+            if translation is None:
+                translation = Translation(
+                    id=_generate_snowflake_id(),
+                    user_id=user_id,
+                    source_language=payload.source_language,
+                    target_language=payload.target_language,
+                    source_text=payload.word,
+                    translated_text=payload.translation,
+                    translation_type="text",
+                    is_deleted=payload.is_deleted,
+                    created_at=payload.created_at or now,
+                    updated_at=now,
+                )
+                db.add(translation)
+                await db.flush()
+
+            vocabulary = Vocabulary(
+                id=_generate_snowflake_id(),
                 user_id=user_id,
-                translation_id=existing_translation.id,
+                sync_client_id=client_id,
+                translation_id=translation.id,
                 category_id=safe_category_id,
-                category=item.category,
-                is_deleted=item.is_deleted,
-                word=item.word,
-                definition=item.translation,
-                source_language=item.source_language,
-                target_language=item.target_language,
-                created_at=item.created_at or now,
+                category=payload.category,
+                word=payload.word,
+                definition=payload.translation,
+                source_language=payload.source_language,
+                target_language=payload.target_language,
+                mastery_level=payload.mastery_level,
+                last_tested_at=payload.last_tested_at,
+                is_deleted=payload.is_deleted,
+                created_at=payload.created_at or now,
                 updated_at=now,
             )
-            db.add(existing_vocab)
+            db.add(vocabulary)
             await db.flush()
-            return SyncVocabularyResultItem(
-                client_id=item.client_id,
-                server_id=existing_vocab.id,
-                status="created",
-            )
+            return SyncService._flashcard_push_result(client_id, "created", vocabulary)
 
-        # Ensure both datetimes are comparable (timezone-aware)
-        server_updated = existing_vocab.updated_at
-        client_updated = item.updated_at
-
-        # Normalise to UTC-aware if naive
-        if server_updated and server_updated.tzinfo is None:
-            server_updated = server_updated.replace(tzinfo=timezone.utc)
-        if client_updated.tzinfo is None:
-            client_updated = client_updated.replace(tzinfo=timezone.utc)
-
-        if client_updated > server_updated:
-            # ------ Case (c): UPDATE ------
-            existing_vocab.is_deleted = item.is_deleted
-            existing_vocab.category_id = safe_category_id
-            existing_vocab.category = item.category
-            existing_vocab.updated_at = datetime.now(timezone.utc)
-            await db.flush()
-            await db.refresh(existing_vocab)
-
-            return SyncVocabularyResultItem(
-                client_id=item.client_id,
-                server_id=existing_vocab.id,
-                status="updated",
-            )
-        else:
-            # ------ Case (d): UNCHANGED ------
-            return SyncVocabularyResultItem(
-                client_id=item.client_id,
-                server_id=existing_vocab.id,
-                status="unchanged",
-                server_updated_at=existing_vocab.updated_at,
-            )
-
-    @staticmethod
-    async def _insert_new(
-        db: AsyncSession,
-        user_id: int,
-        item: SyncVocabularyItem,
-    ) -> SyncVocabularyResultItem:
-        """Insert a brand-new Translation + Vocabulary record."""
+        if _as_utc(client_updated_at) <= _as_utc(vocabulary.updated_at):
+            return SyncService._flashcard_push_result(client_id, "unchanged", vocabulary)
 
         now = datetime.now(timezone.utc)
-        translation_id = _generate_snowflake_id()
-        
-        safe_category_id = item.category_id if item.category_id and item.category_id > 0 else None
+        if vocabulary.sync_client_id is None:
+            vocabulary.sync_client_id = client_id
+        vocabulary.category_id = safe_category_id
+        vocabulary.category = payload.category
+        vocabulary.word = payload.word
+        vocabulary.definition = payload.translation
+        vocabulary.source_language = payload.source_language
+        vocabulary.target_language = payload.target_language
+        vocabulary.mastery_level = payload.mastery_level
+        vocabulary.last_tested_at = payload.last_tested_at
+        vocabulary.is_deleted = payload.is_deleted
+        vocabulary.updated_at = now
 
-        translation = Translation(
-            id=translation_id,
-            user_id=user_id,
-            source_language=item.source_language,
-            target_language=item.target_language,
-            source_text=item.word,
-            translated_text=item.translation,
-            translation_type="text",
-            is_deleted=item.is_deleted,
-            created_at=item.created_at or now,
-            updated_at=now,
-        )
-        db.add(translation)
+        translation.source_text = payload.word
+        translation.translated_text = payload.translation
+        translation.source_language = payload.source_language
+        translation.target_language = payload.target_language
+        translation.is_deleted = payload.is_deleted
+        translation.updated_at = now
         await db.flush()
+        return SyncService._flashcard_push_result(client_id, "updated", vocabulary)
 
-        # Also create a Vocabulary record linked to this translation.
-        vocab_id = _generate_snowflake_id()
-        vocabulary = Vocabulary(
-            id=vocab_id,
+    @staticmethod
+    async def _sync_quiz_attempt(
+        db: AsyncSession,
+        user_id: int,
+        client_id: str,
+        server_id: Optional[int],
+        payload: QuizAttemptPushPayload,
+    ) -> SyncPushResultItem:
+        existing = await SyncService._find_quiz_attempt(db, user_id, client_id, server_id)
+        if existing is not None:
+            return SyncService._quiz_push_result(client_id, "unchanged", existing)
+
+        answers = [
+            UserAnswerItem(
+                question_id=answer.question_id,
+                selected_answer=answer.selected_answer,
+            )
+            for answer in payload.answers
+        ]
+        quiz, _ = await QuizRepository.grade_and_save(
+            db=db,
             user_id=user_id,
-            translation_id=translation_id,
-            category_id=safe_category_id,
-            category=item.category,
-            is_deleted=item.is_deleted,
-            word=item.word,
-            definition=item.translation,
-            source_language=item.source_language,
-            target_language=item.target_language,
-            created_at=item.created_at or now,
-            updated_at=now,
+            bank_id=payload.bank_id,
+            answers=answers,
+            time_spent_seconds=payload.time_spent_seconds,
+            sync_client_id=client_id,
+            commit=False,
         )
-        db.add(vocabulary)
-        await db.flush()
+        if payload.created_at is not None:
+            quiz.created_at = payload.created_at
+        return SyncService._quiz_push_result(client_id, "created", quiz)
 
-        return SyncVocabularyResultItem(
-            client_id=item.client_id,
-            server_id=vocab_id,
-            status="created",
+    @staticmethod
+    async def _validate_category(
+        db: AsyncSession,
+        user_id: int,
+        category_id: Optional[int],
+    ) -> Optional[int]:
+        if category_id is None or category_id <= 0:
+            return None
+        category = (
+            await db.execute(
+                select(VocabularyCategory.id).where(
+                    VocabularyCategory.id == category_id,
+                    VocabularyCategory.user_id == user_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if category is None:
+            raise SyncItemError("invalid_category", "Flashcard category does not exist")
+        return category_id
+
+    @staticmethod
+    async def _find_flashcard(
+        db: AsyncSession,
+        user_id: int,
+        client_id: str,
+        server_id: Optional[int],
+        payload: FlashcardPushPayload,
+        allow_content_match: bool,
+    ) -> tuple[Optional[Vocabulary], Optional[Translation]]:
+        if server_id is not None:
+            row = await SyncService._flashcard_row_by(db, user_id, Vocabulary.id == server_id)
+            if row is None:
+                raise SyncItemError("not_found", "Flashcard does not exist")
+            return row
+
+        row = await SyncService._flashcard_row_by(
+            db, user_id, Vocabulary.sync_client_id == client_id
         )
+        if row is not None:
+            return row
+
+        if client_id.isdigit():
+            row = await SyncService._flashcard_row_by(
+                db, user_id, Vocabulary.id == int(client_id)
+            )
+            if row is not None:
+                return row
+
+        if not allow_content_match:
+            return None, None
+
+        result = await db.execute(
+            select(Translation, Vocabulary)
+            .outerjoin(
+                Vocabulary,
+                and_(
+                    Vocabulary.translation_id == Translation.id,
+                    Vocabulary.user_id == user_id,
+                ),
+            )
+            .where(
+                Translation.user_id == user_id,
+                Translation.source_text == payload.word,
+                Translation.translated_text == payload.translation,
+                Translation.source_language == payload.source_language,
+                Translation.target_language == payload.target_language,
+            )
+        )
+        row = result.first()
+        if row is None:
+            return None, None
+        translation, vocabulary = row
+        return vocabulary, translation
+
+    @staticmethod
+    async def _flashcard_row_by(
+        db: AsyncSession,
+        user_id: int,
+        condition: Any,
+    ) -> Optional[tuple[Vocabulary, Translation]]:
+        result = await db.execute(
+            select(Vocabulary, Translation)
+            .join(Translation, Vocabulary.translation_id == Translation.id)
+            .where(Vocabulary.user_id == user_id, condition)
+        )
+        return result.first()
+
+    @staticmethod
+    async def _find_quiz_attempt(
+        db: AsyncSession,
+        user_id: int,
+        client_id: str,
+        server_id: Optional[int],
+    ) -> Optional[UserQuiz]:
+        if server_id is not None:
+            quiz = (
+                await db.execute(
+                    select(UserQuiz).where(
+                        UserQuiz.id == server_id,
+                        UserQuiz.user_id == user_id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if quiz is None:
+                raise SyncItemError("not_found", "Quiz attempt does not exist")
+            return quiz
+
+        quiz = (
+            await db.execute(
+                select(UserQuiz).where(
+                    UserQuiz.user_id == user_id,
+                    UserQuiz.sync_client_id == client_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if quiz is not None:
+            return quiz
+
+        if client_id.isdigit():
+            return (
+                await db.execute(
+                    select(UserQuiz).where(
+                        UserQuiz.id == int(client_id),
+                        UserQuiz.user_id == user_id,
+                    )
+                )
+            ).scalar_one_or_none()
+        return None
+
+    @staticmethod
+    def _flashcard_push_result(
+        client_id: str,
+        status: str,
+        vocabulary: Vocabulary,
+    ) -> SyncPushResultItem:
+        return SyncPushResultItem(
+            resource="flashcard",
+            client_id=client_id,
+            server_id=vocabulary.id,
+            status=status,
+            server_updated_at=vocabulary.updated_at,
+            canonical=SyncService._flashcard_payload(vocabulary),
+        )
+
+    @staticmethod
+    def _quiz_push_result(
+        client_id: str,
+        status: str,
+        quiz: UserQuiz,
+    ) -> SyncPushResultItem:
+        return SyncPushResultItem(
+            resource="quiz_attempt",
+            client_id=client_id,
+            server_id=quiz.id,
+            status=status,
+            server_updated_at=quiz.updated_at,
+            canonical=SyncService._quiz_payload(quiz),
+        )
+
+    @staticmethod
+    def _flashcard_pull_item(vocabulary: Vocabulary) -> SyncPullItem:
+        return SyncPullItem(
+            resource="flashcard",
+            server_id=vocabulary.id,
+            updated_at=vocabulary.updated_at,
+            payload=SyncService._flashcard_payload(vocabulary),
+        )
+
+    @staticmethod
+    def _quiz_pull_item(quiz: UserQuiz, bank_title: str) -> SyncPullItem:
+        return SyncPullItem(
+            resource="quiz_attempt",
+            server_id=quiz.id,
+            updated_at=quiz.updated_at,
+            payload=SyncService._quiz_payload(quiz, bank_title),
+        )
+
+    @staticmethod
+    def _flashcard_payload(vocabulary: Vocabulary) -> dict[str, Any]:
+        return {
+            "id": vocabulary.id,
+            "client_id": vocabulary.sync_client_id,
+            "translation_id": vocabulary.translation_id,
+            "word": vocabulary.word,
+            "translation": vocabulary.definition,
+            "source_language": vocabulary.source_language,
+            "target_language": vocabulary.target_language,
+            "category_id": vocabulary.category_id,
+            "category": vocabulary.category,
+            "mastery_level": vocabulary.mastery_level or 0,
+            "last_tested_at": vocabulary.last_tested_at,
+            "is_deleted": bool(vocabulary.is_deleted),
+            "created_at": vocabulary.created_at,
+            "updated_at": vocabulary.updated_at,
+        }
+
+    @staticmethod
+    def _quiz_payload(quiz: UserQuiz, bank_title: Optional[str] = None) -> dict[str, Any]:
+        return {
+            "quiz_id": quiz.id,
+            "client_id": quiz.sync_client_id,
+            "bank_id": quiz.bank_id,
+            "bank_title": bank_title,
+            "score": quiz.score,
+            "completion_time_seconds": quiz.completion_time_seconds,
+            "time_spent_seconds": quiz.time_spent_seconds,
+            "total_questions": quiz.total_questions,
+            "correct_count": quiz.correct_answers,
+            "correct_answers": quiz.correct_answers,
+            "submitted_at": quiz.submitted_at,
+            "status": quiz.status,
+            "created_at": quiz.created_at,
+            "updated_at": quiz.updated_at,
+        }
+
+    @staticmethod
+    def _after_position(updated_at: Any, item_id: Any, resource: str, position: Any) -> Any:
+        if position is None:
+            return True
+
+        position_time = _as_utc(datetime.fromisoformat(position["updated_at"]))
+        position_resource = position["resource"]
+        position_id = int(position["id"])
+        if resource > position_resource:
+            return or_(updated_at > position_time, updated_at == position_time)
+        if resource == position_resource:
+            return or_(
+                updated_at > position_time,
+                and_(updated_at == position_time, item_id > position_id),
+            )
+        return updated_at > position_time
+
+    @staticmethod
+    def _encode_cursor(state: dict[str, Any]) -> str:
+        payload = json.dumps(state, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        signature = hmac.new(
+            settings.SECRET_KEY.encode("utf-8"),
+            payload,
+            hashlib.sha256,
+        ).digest()
+        return f"{_b64encode(payload)}.{_b64encode(signature)}"
+
+    @staticmethod
+    def _decode_cursor(cursor: Optional[str]) -> dict[str, Any]:
+        if cursor is None:
+            return {"v": _CURSOR_VERSION, "since": _isoformat(_INITIAL_SYNC_TIME)}
+        try:
+            encoded_payload, encoded_signature = cursor.split(".", maxsplit=1)
+            payload = _b64decode(encoded_payload)
+            signature = _b64decode(encoded_signature)
+            expected = hmac.new(
+                settings.SECRET_KEY.encode("utf-8"),
+                payload,
+                hashlib.sha256,
+            ).digest()
+            if not hmac.compare_digest(signature, expected):
+                raise SyncCursorError("Invalid sync cursor signature")
+            state = json.loads(payload.decode("utf-8"))
+            if state.get("v") != _CURSOR_VERSION or "since" not in state:
+                raise SyncCursorError("Unsupported sync cursor")
+            datetime.fromisoformat(state["since"])
+            if state.get("cutoff"):
+                datetime.fromisoformat(state["cutoff"])
+            position = state.get("position")
+            if position is not None:
+                datetime.fromisoformat(position["updated_at"])
+                if position["resource"] not in {"flashcard", "quiz_attempt"}:
+                    raise SyncCursorError("Invalid sync cursor position")
+                int(position["id"])
+            return state
+        except SyncCursorError:
+            raise
+        except (
+            binascii.Error,
+            UnicodeDecodeError,
+            TypeError,
+            ValueError,
+            KeyError,
+            json.JSONDecodeError,
+        ) as exc:
+            raise SyncCursorError("Invalid sync cursor") from exc
+
+    @staticmethod
+    def _to_sync_error(exc: Exception) -> SyncError:
+        if isinstance(exc, SyncItemError):
+            return SyncError(code=exc.code, message=exc.message)
+        if isinstance(exc, ValidationError):
+            return SyncError(code="invalid_payload", message=str(exc))
+        if isinstance(exc, ValueError):
+            message = str(exc)
+            if ":" in message:
+                code, detail = message.split(":", maxsplit=1)
+                if code in {"bad_request", "not_found"}:
+                    return SyncError(code=code, message=detail.strip())
+            return SyncError(code="invalid_payload", message=message)
+        return SyncError(code="internal_error", message="Item could not be synchronized")

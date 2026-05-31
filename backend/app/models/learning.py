@@ -36,6 +36,7 @@ class UserQuiz(Base):
 
     id = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    sync_client_id = Column(String(255), nullable=True)
     bank_id = Column(BigInteger, ForeignKey("question_banks.id", ondelete="CASCADE"), nullable=False)
     score = Column(Float, nullable=True)
     # Legacy timing field — kept for backward compatibility

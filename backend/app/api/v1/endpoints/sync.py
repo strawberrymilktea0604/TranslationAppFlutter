@@ -1,97 +1,106 @@
-"""
-Sync Endpoints — /api/v1/sync/
-
-Handles offline-first batch synchronisation of vocabulary data.
-
-Features:
-- Batch sync with Last-Write-Wins strategy (§5.2)
-- Requires authentication (UC09)
-- Returns per-item sync status (created / updated / unchanged)
-- After sync, broadcasts a WebSocket event so the client can refresh
-  the History and Saved-Vocab tabs in real time.
-"""
+"""Offline-first synchronization endpoints."""
 import logging
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.websocket import manager as ws_manager
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.common import SuccessResponse
-from app.schemas.sync import SyncVocabularyRequest, SyncVocabularyResponse
-from app.services.sync_service import SyncService
-from app.api.v1.endpoints.websocket import manager as ws_manager
+from app.schemas.sync import (
+    SyncPullResponse,
+    SyncPushRequest,
+    SyncPushResponse,
+    SyncVocabularyRequest,
+    SyncVocabularyResponse,
+)
+from app.services.sync_service import SyncCursorError, SyncService
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/sync", tags=["sync"])
+
+
+async def _broadcast_sync_completed(user_id: int, synced_count: int) -> None:
+    """Notify connected clients without failing the HTTP request."""
+    try:
+        await ws_manager.broadcast_sync_completed(
+            user_id=user_id,
+            synced_count=synced_count,
+        )
+    except Exception as exc:
+        logger.warning("WebSocket sync broadcast failed for user %s: %s", user_id, exc)
+
+
+@router.post(
+    "/push",
+    response_model=SyncPushResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Push offline learning changes",
+)
+async def push_changes(
+    req: SyncPushRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SyncPushResponse:
+    """Push flashcard and quiz-attempt changes in one isolated batch."""
+    result = await SyncService.push(db=db, user_id=current_user.id, items=req.items)
+    await _broadcast_sync_completed(current_user.id, result.succeeded_count)
+    return result
+
+
+@router.get(
+    "/pull",
+    response_model=SyncPullResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Pull offline learning changes",
+)
+async def pull_changes(
+    cursor: Optional[str] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SyncPullResponse:
+    """Pull a stable delta page of flashcards and quiz attempts."""
+    try:
+        return await SyncService.pull(
+            db=db,
+            user_id=current_user.id,
+            cursor=cursor,
+            limit=limit,
+        )
+    except SyncCursorError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(
     "/vocabulary",
     response_model=SuccessResponse,
     status_code=status.HTTP_200_OK,
-    summary="Batch sync vocabulary from client",
-    description=(
-        "Accepts a batch of unsynced vocabulary records from the client, "
-        "upserts them using Last-Write-Wins, and returns the sync results."
-    ),
+    summary="Batch sync vocabulary from legacy clients",
 )
 async def sync_vocabulary(
     req: SyncVocabularyRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """
-    Synchronise vocabulary data from the mobile client.
-
-    **Strategy:** Last-Write-Wins based on `updated_at` (§5.2).
-
-    **Flow:**
-    1. For each record in `items`:
-       - If NOT found on server → INSERT.
-       - If found AND client `updated_at` > server → UPDATE.
-       - If found AND client `updated_at` ≤ server → UNCHANGED (return server data).
-    2. Client marks successfully synced items as `is_synced = true`.
-    3. Server pushes a `sync_completed` WebSocket event so both tabs refresh.
-
-    **Auth:** Requires a valid Bearer token.
-    """
+) -> SuccessResponse:
+    """Preserve the original vocabulary-only contract for existing clients."""
     try:
         result: SyncVocabularyResponse = await SyncService.sync_vocabulary(
             db=db,
             user_id=current_user.id,
             items=req.items,
         )
-
-        logger.info(
-            "✅ Sync completed for user %s: %d/%d items synced",
-            current_user.id,
-            result.synced_count,
-            len(req.items),
-        )
-
-        # Push real-time notification to all open WebSocket connections
-        # for this user so the History + Saved-Vocab tabs can reload.
-        try:
-            await ws_manager.broadcast_sync_completed(
-                user_id=current_user.id,
-                synced_count=result.synced_count,
-            )
-        except Exception as ws_err:
-            # WS broadcast is best-effort; never fail the HTTP response.
-            logger.warning("WS broadcast failed for user %s: %s", current_user.id, ws_err)
-
-        return SuccessResponse(
-            success=True,
-            message=f"Synced {result.synced_count} of {len(req.items)} items",
-            data=result.model_dump(),
-        )
-
-    except Exception as e:
-        logger.error("❌ Sync failed for user %s: %s", current_user.id, e)
+        await _broadcast_sync_completed(current_user.id, result.synced_count)
+        return SuccessResponse(data=result.model_dump())
+    except Exception as exc:
+        logger.error("Vocabulary sync failed for user %s: %s", current_user.id, exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Vocabulary sync failed. Please try again.",
-        )
+        ) from exc
