@@ -35,7 +35,6 @@ from app.schemas.admin import (
     QuestionCreateRequest,
     QuestionDeleteResponse,
     QuestionResponse,
-    QuestionToggleResponse,
     QuestionUpdateRequest,
 )
 from app.schemas.learning import QuestionAdminSchema, QuestionBankAdminDetail

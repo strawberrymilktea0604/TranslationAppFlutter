@@ -8,11 +8,14 @@ from .translation import Translation, Vocabulary
 from .system import ApiMetric
 # Gom model Learning
 from .learning import QuestionBank, Question, UserQuiz
+# Gom model Conversation
+from .conversation import ConversationSession, ConversationMessage
 
 __all__ = [
-    "Base", 
-    "User", "UserToken", "UserAiQuota", 
-    "Translation", "Vocabulary", 
+    "Base",
+    "User", "UserToken", "UserAiQuota",
+    "Translation", "Vocabulary",
     "ApiMetric",
-    "QuestionBank", "Question", "UserQuiz"
+    "QuestionBank", "Question", "UserQuiz",
+    "ConversationSession", "ConversationMessage",
 ]

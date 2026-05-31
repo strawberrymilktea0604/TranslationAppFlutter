@@ -69,13 +69,21 @@ class Settings(BaseSettings):
     WEBSOCKET_MESSAGE_QUEUE_SIZE: int = 100
     WEBSOCKET_BUFFER_SIZE: int = 1024  # KB
     CONVERSATION_SESSION_TIMEOUT: int = 300  # 5 minutes
-    CONVERSATION_SEGMENT_TIMEOUT: int = 10  # seconds
     CONVERSATION_MAX_AUDIO_SIZE: int = 50  # MB
     CONVERSATION_MAX_SESSIONS_PER_USER: int = 3
     AUDIO_CHUNK_SIZE: int = 4096  # bytes
     AUDIO_SAMPLE_RATE: int = 16000  # Hz
     AUDIO_CHANNELS: int = 1  # mono
     AUDIO_FORMAT: str = "pcm_s16le"
+
+    # Conversation Pipeline (silence-based VAD)
+    CONVERSATION_SILENCE_RMS_THRESHOLD: float = 0.008  # normalised RMS (raw ≈ 250 / 32768)
+    CONVERSATION_SILENCE_DURATION_MS: int = 1500        # trailing silence to finalize
+    CONVERSATION_SILENCE_WINDOW_MS: int = 100           # RMS scanning window
+    CONVERSATION_MAX_UTTERANCE_SECONDS: int = 30        # hard cap per utterance
+    CONVERSATION_DRAIN_TIMEOUT_SECONDS: int = 30        # session_end queue drain
+    CONVERSATION_PCM_SAMPLE_RATE: int = 16000           # required sample rate
+
     WEBSOCKET_POOL_SIZE: int = 100
     WEBSOCKET_MESSAGE_RATE_LIMIT: int = 1000  # messages per minute
     WEBSOCKET_AUDIO_RATE_LIMIT_MB: int = 50  # MB per minute

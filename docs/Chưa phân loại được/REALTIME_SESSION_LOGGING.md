@@ -554,8 +554,8 @@ async def websocket_conversation(
                 
                 # Send result to client
                 await websocket.send_json({
-                    "event": "translation_result",
-                    "stt_text": stt_result["text"],
+                    "event": "final_translation",
+                    "source_text": stt_result["text"],
                     "translated_text": translation,
                 })
             

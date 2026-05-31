@@ -78,7 +78,7 @@ class WsAudioMetadataEvent(BaseModel):
     Example::
         {
             "event": "audio_metadata",
-            "sample_rate": 44100,
+            "sample_rate": 16000,
             "audio_format": "pcm_s16le",
             "speaker": "SPEAKER_A",
             "source_language": "vi",
@@ -156,9 +156,12 @@ class WsPingEvent(BaseModel):
 
 class WsEndUtteranceEvent(BaseModel):
     """
-    Signals that the client has finished speaking.
+    Signals that the client has finished speaking (fallback trigger).
+
+    The server normally auto-finalizes on 1500 ms trailing silence.
+    This event may be used when the client wants to force finalization.
     Server flushes the PCM buffer, runs STT, translates, and returns a
-    translation_result event.
+    ``final_translation`` event.
 
     Example::
         {"event": "end_utterance"}

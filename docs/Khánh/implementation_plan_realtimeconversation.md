@@ -5,7 +5,7 @@ Tạo màn hình hội thoại phiên dịch real-time giữa hai người nói 
 ## User Review Required
 
 > [!IMPORTANT]
-> Backend đã có sẵn WebSocket endpoint tại `/api/v1/ws/conversation` với protocol đầy đủ: `session_start` → `audio_metadata` → binary PCM chunks → `end_utterance` → `translation_result` → `session_end`. Feature này sẽ tích hợp trực tiếp với backend protocol này.
+> Backend có WebSocket endpoint tại `/api/v1/ws/conversation` với protocol: `session_start` → `audio_metadata` → binary PCM chunks → silence auto-finalization hoặc `end_utterance` fallback → `final_translation` → `session_end`.
 
 > [!WARNING]
 > Task này chỉ xây dựng **UI layer + BLoC + Domain + Data** cho Conversation Screen. Chưa tích hợp thực tế với microphone recording (sẽ chuẩn bị UI states cho trạng thái "đang nghe" và "đang xử lý" nhưng chưa gọi `AudioRecorderService`). Audio recording integration sẽ là task tiếp theo.
@@ -100,7 +100,7 @@ UseCase orchestrating the conversation connection:
 
 #### [NEW] [conversation_message_model.dart](file:///c:/Users/minhk/Downloads/TranslationAppFlutter/frontend/lib/features/conversation/data/models/conversation_message_model.dart)
 
-Data model mapping JSON → Entity. Parses backend `translation_result` event JSON.
+Data model mapping JSON → Entity. Parses backend `final_translation` event JSON và tạm chấp nhận legacy `translation_result`.
 
 #### [NEW] [conversation_remote_datasource.dart](file:///c:/Users/minhk/Downloads/TranslationAppFlutter/frontend/lib/features/conversation/data/datasources/conversation_remote_datasource.dart)
 
@@ -117,7 +117,7 @@ WebSocket datasource wrapping `web_socket_channel` package (đã có trong pubsp
 
 Implements `ConversationRepository`. Maps raw WS messages to domain events:
 - `session_started` → `ConversationSessionStarted`
-- `translation_result` → `ConversationTranslationReceived`
+- `final_translation` hoặc legacy `translation_result` → `ConversationTranslationReceived`
 - `error` → `ConversationError`
 - `audio_metadata_ack` → `ConversationMetadataAcknowledged`
 
@@ -148,7 +148,7 @@ ConversationCubit methods:
 - `switchSpeaker()` → toggle speaker, send speaker_changed
 - `endSession()` → send session_end, clear messages
 - `disconnect()` → close WebSocket
-- Internal: listen to WS stream, update messages list khi nhận `translation_result`
+- Internal: listen to WS stream, update messages list khi nhận `final_translation`
 
 ---
 

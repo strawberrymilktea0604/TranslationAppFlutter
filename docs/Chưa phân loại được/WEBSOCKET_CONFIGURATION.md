@@ -1,7 +1,7 @@
 # WebSocket Configuration Guide
 
 **Status:** ✅ Production Ready  
-**Last Updated:** May 24, 2026  
+**Last Updated:** May 31, 2026
 **WebSocket Endpoints:**
 - `/api/v1/ws` - Sync notifications (vocabulary & translation history)
 - `/api/v1/ws/conversation` - Real-time voice translation
@@ -33,8 +33,12 @@ Real-time voice translation pipeline with streaming audio support.
 Client: ws://backend/api/v1/ws/conversation?token=ACCESS_TOKEN
 Client → Server: Binary audio chunks (16kHz mono PCM)
 Server: STT → Translation → Response
-Server → Client: {"event": "translation_result", "text": "...", ...}
+Server → Client: {"event": "final_translation", "source_text": "...", ...}
 ```
+
+`end_utterance` is a fallback trigger. If the final audio chunk already caused
+server-side silence finalization, the immediately following empty fallback is
+ignored once so the client does not receive a false `EMPTY_AUDIO_BUFFER` error.
 
 **Use Cases:**
 - Real-time voice chat translation
@@ -65,15 +69,20 @@ WEBSOCKET_BUFFER_SIZE=1024  # KB - TCP buffer
 
 # Conversation-specific settings
 CONVERSATION_SESSION_TIMEOUT=300  # seconds - 5 min idle timeout
-CONVERSATION_SEGMENT_TIMEOUT=10   # seconds - end utterance if no audio for 10s
 CONVERSATION_MAX_AUDIO_SIZE=50  # MB - max audio file size per session
 CONVERSATION_MAX_SESSIONS_PER_USER=3  # Concurrent conversations
+CONVERSATION_SILENCE_RMS_THRESHOLD=0.008  # Normalised PCM RMS
+CONVERSATION_SILENCE_DURATION_MS=1500  # Trailing silence before auto-finalize
+CONVERSATION_SILENCE_WINDOW_MS=100  # RMS scan window
+CONVERSATION_MAX_UTTERANCE_SECONDS=30  # Hard cap per turn
+CONVERSATION_DRAIN_TIMEOUT_SECONDS=30  # session_end queue drain
+CONVERSATION_PCM_SAMPLE_RATE=16000  # Required conversation WS sample rate
 
 # Audio streaming settings
 AUDIO_CHUNK_SIZE=4096  # bytes per chunk (16kHz * 2 bytes * 0.128s)
 AUDIO_SAMPLE_RATE=16000  # Hz - must match client
 AUDIO_CHANNELS=1  # mono
-AUDIO_FORMAT="pcm_s16le"  # format: pcm_s16le, wav, m4a, etc.
+AUDIO_FORMAT="pcm_s16le"  # conversation WS only; REST audio accepts file containers
 
 # Connection pool (for backend WebSocket clients)
 WEBSOCKET_POOL_SIZE=100  # Max concurrent WS connections to handle
@@ -219,7 +228,7 @@ Future<void> connectConversationWebSocket(String token) async {
   final audioData = <int>[...]; // 16-bit PCM bytes
   channel.sink.addStream(Stream.fromIterable([audioData]));
 
-  // End utterance for processing
+  // Optional fallback: the server normally auto-finalizes after trailing silence
   channel.sink.add(jsonEncode({
     'event': 'end_utterance',
   }));
@@ -228,8 +237,8 @@ Future<void> connectConversationWebSocket(String token) async {
   channel.stream.listen((message) {
     final event = jsonDecode(message);
     
-    if (event['event'] == 'translation_result') {
-      print('STT: ${event['stt_text']}');
+    if (event['event'] == 'final_translation') {
+      print('STT: ${event['source_text']}');
       print('Translation: ${event['translated_text']}');
     }
   });
@@ -456,7 +465,10 @@ WS ws://backend:8080/api/v1/ws/conversation?token=abc123
 [Binary Audio Data] → 16kHz mono PCM chunks
 ```
 
-### 4. End Utterance
+### 4. End Utterance Fallback
+
+The server normally finalizes a turn after 1500 ms of trailing silence.
+Clients may send this event to force a flush:
 
 ```json
 {
@@ -468,8 +480,8 @@ WS ws://backend:8080/api/v1/ws/conversation?token=abc123
 
 ```json
 {
-  "event": "translation_result",
-  "stt_text": "Xin chào",
+  "event": "final_translation",
+  "source_text": "Xin chào",
   "translated_text": "Hello",
   "source_language": "vi",
   "target_language": "en",

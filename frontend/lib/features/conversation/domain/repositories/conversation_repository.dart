@@ -15,7 +15,7 @@ abstract class ConversationRepository {
   /// Returns a broadcast [Stream] of [ConversationEvent]s parsed from
   /// server messages. The stream emits:
   /// - [ConversationSessionStarted] after successful `session_start`.
-  /// - [ConversationTranslationReceived] for each `translation_result`.
+  /// - [ConversationTranslationReceived] for each `final_translation`.
   /// - [ConversationErrorEvent] for server-side errors.
   /// - [ConversationConnectionChanged] on connection status changes.
   ///
@@ -50,7 +50,7 @@ abstract class ConversationRepository {
   /// Signals that the current utterance has ended.
   ///
   /// The server will flush the PCM buffer, run STT, translate,
-  /// and return a `translation_result` event.
+  /// and return a `final_translation` event.
   void endUtterance();
 
   /// Changes the active speaker mid-session.

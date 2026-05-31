@@ -9,6 +9,7 @@ Existing /api/v1/ws sync behaviour is verified in the last test class.
 """
 
 import io
+import struct
 import wave
 from typing import Optional
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -70,7 +71,7 @@ def _send_session_start(
 
 def _send_audio_metadata(
     ws,
-    sample_rate: int = 44100,
+    sample_rate: int = 16000,
     audio_format: str = "pcm_s16le",
     speaker: str = "SPEAKER_A",
     source_language: str = "vi",
@@ -87,11 +88,56 @@ def _send_audio_metadata(
     return ws.receive_json()
 
 
+def _pcm_window(sample: int, duration_ms: int = 100) -> bytes:
+    """Build one mono PCM s16le window for server-side VAD tests."""
+    sample_count = settings.CONVERSATION_PCM_SAMPLE_RATE * duration_ms // 1000
+    return struct.pack(f"<{sample_count}h", *([sample] * sample_count))
+
+
 # Common mock patches applied by most tests
 _PATCH_IS_TOKEN_REVOKED = "app.api.v1.endpoints.websocket.is_token_revoked"
 _PATCH_SESSION_MAKER = "app.api.v1.endpoints.websocket.async_session_maker"
-_PATCH_STT = "app.api.v1.endpoints.websocket.STTService.transcribe_audio"
-_PATCH_TRANSLATE = "app.api.v1.endpoints.websocket.TranslationService.translate_with_cache"
+_PATCH_STT = "app.services.conversation_pipeline.STTService.transcribe_audio"
+_PATCH_TRANSLATE = (
+    "app.services.conversation_pipeline.TranslationService.translate_with_cache"
+)
+_PATCH_CREATE_CONVERSATION_SESSION = (
+    "app.api.v1.endpoints.websocket.ConversationRepository.create_session"
+)
+_PATCH_UPDATE_CONVERSATION_SESSION = (
+    "app.api.v1.endpoints.websocket.ConversationRepository.update_session_status"
+)
+_PATCH_UPDATE_CONVERSATION_LANGUAGES = (
+    "app.api.v1.endpoints.websocket.ConversationRepository.update_session_languages"
+)
+_PATCH_APPEND_CONVERSATION_MESSAGE = (
+    "app.services.conversation_pipeline.ConversationRepository.append_message"
+)
+_PATCH_UPDATE_CONVERSATION_MESSAGE = (
+    "app.services.conversation_pipeline.ConversationRepository.update_message_latencies"
+)
+
+
+@pytest.fixture(autouse=True)
+def _mock_conversation_persistence():
+    """Keep WebSocket tests isolated from the conversation persistence tables."""
+    with patch(
+        _PATCH_CREATE_CONVERSATION_SESSION,
+        new=AsyncMock(return_value=MagicMock(id=101)),
+    ), patch(
+        _PATCH_UPDATE_CONVERSATION_SESSION,
+        new=AsyncMock(return_value=None),
+    ), patch(
+        _PATCH_UPDATE_CONVERSATION_LANGUAGES,
+        new=AsyncMock(return_value=None),
+    ), patch(
+        _PATCH_APPEND_CONVERSATION_MESSAGE,
+        new=AsyncMock(return_value=MagicMock(id=201)),
+    ), patch(
+        _PATCH_UPDATE_CONVERSATION_MESSAGE,
+        new=AsyncMock(return_value=None),
+    ):
+        yield
 
 
 def _make_db_ctx(user: Optional[MagicMock]):
@@ -320,6 +366,35 @@ class TestSessionLifecycle:
         assert error["event"] == "error"
         assert error["code"] == "SESSION_ALREADY_ACTIVE"
 
+    def test_session_start_persist_failure_returns_error(self):
+        from app.services.conversation_session_manager import conversation_manager
+
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+        baseline_count = conversation_manager.active_session_count()
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(
+                 _PATCH_CREATE_CONVERSATION_SESSION,
+                 new=AsyncMock(side_effect=RuntimeError("db unavailable")),
+             ):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                ws.send_json({
+                    "event": "session_start",
+                    "source_language": "vi",
+                    "target_language": "en",
+                    "speaker": "SPEAKER_A",
+                })
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "SESSION_PERSIST_FAILED"
+        assert conversation_manager.active_session_count() == baseline_count
+
 
 # ---------------------------------------------------------------------------
 # 3. Audio metadata tests
@@ -336,9 +411,11 @@ class TestAudioMetadata:
         user = _make_user()
         client = TestClient(app)
         session_id = None
+        language_update_mock = AsyncMock(return_value=None)
 
         with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
-             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_UPDATE_CONVERSATION_LANGUAGES, new=language_update_mock):
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
@@ -347,7 +424,7 @@ class TestAudioMetadata:
 
                 ack = _send_audio_metadata(
                     ws,
-                    sample_rate=48000,
+                    sample_rate=16000,
                     audio_format="PCM_S16LE",
                     speaker="SPEAKER_B",
                     source_language="en",
@@ -357,15 +434,21 @@ class TestAudioMetadata:
                 session = conversation_manager.get_session(session_id)
                 assert session is not None
                 assert session.audio_metadata is not None
-                assert session.audio_metadata.sample_rate == 48000
+                assert session.audio_metadata.sample_rate == 16000
                 assert session.audio_metadata.audio_format.value == "pcm_s16le"
                 assert session.current_speaker.value == "SPEAKER_B"
                 assert session.source_language == "en"
                 assert session.target_language == "vi"
 
+        language_update_mock.assert_awaited_once()
+        assert language_update_mock.await_args.args[1:] == (
+            session_id,
+            "en",
+            "vi",
+        )
         assert ack["event"] == "audio_metadata_ack"
         assert ack["metadata"] == {
-            "sample_rate": 48000,
+            "sample_rate": 16000,
             "audio_format": "pcm_s16le",
             "speaker": "SPEAKER_B",
             "source_language": "en",
@@ -386,8 +469,8 @@ class TestAudioMetadata:
 
                 ws.send_json({
                     "event": "audio_metadata",
-                    "sampleRate": 44100,
-                    "audioFormat": "m4a",
+                    "sampleRate": 16000,
+                    "audioFormat": "pcm_s16le",
                     "speaker": "SPEAKER_A",
                     "sourceLanguage": "vi",
                     "targetLanguage": "en",
@@ -395,8 +478,28 @@ class TestAudioMetadata:
                 ack = ws.receive_json()
 
         assert ack["event"] == "audio_metadata_ack"
-        assert ack["metadata"]["sample_rate"] == 44100
-        assert ack["metadata"]["audio_format"] == "m4a"
+        assert ack["metadata"]["sample_rate"] == 16000
+        assert ack["metadata"]["audio_format"] == "pcm_s16le"
+
+    def test_audio_metadata_persist_failure_returns_error(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(
+                 _PATCH_UPDATE_CONVERSATION_LANGUAGES,
+                 new=AsyncMock(side_effect=RuntimeError("db unavailable")),
+             ):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                error = _send_audio_metadata(ws)
+
+        assert error["event"] == "error"
+        assert error["code"] == "SESSION_PERSIST_FAILED"
 
     @pytest.mark.parametrize(
         "payload",
@@ -412,6 +515,22 @@ class TestAudioMetadata:
                 "event": "audio_metadata",
                 "sample_rate": 12345,
                 "audio_format": "pcm_s16le",
+                "speaker": "SPEAKER_A",
+                "source_language": "vi",
+                "target_language": "en",
+            },
+            {
+                "event": "audio_metadata",
+                "sample_rate": 44100,
+                "audio_format": "pcm_s16le",
+                "speaker": "SPEAKER_A",
+                "source_language": "vi",
+                "target_language": "en",
+            },
+            {
+                "event": "audio_metadata",
+                "sample_rate": 16000,
+                "audio_format": "m4a",
                 "speaker": "SPEAKER_A",
                 "source_language": "vi",
                 "target_language": "en",
@@ -547,10 +666,10 @@ class TestBinaryAudio:
                 result = ws.receive_json()
 
         # STT must have been called with both chunks concatenated (1024 bytes)
-        assert result["event"] == "translation_result"
+        assert result["event"] == "final_translation"
         assert len(received_audio) == 1
         with wave.open(io.BytesIO(received_audio[0]), "rb") as wav_file:
-            assert wav_file.getframerate() == 44100
+            assert wav_file.getframerate() == 16000
             assert wav_file.getnchannels() == 1
             assert wav_file.getsampwidth() == 2
             pcm_frames = wav_file.readframes(wav_file.getnframes())
@@ -577,6 +696,42 @@ class TestBinaryAudio:
 
         assert error["event"] == "error"
         assert error["code"] == "MISSING_AUDIO_METADATA"
+
+    def test_empty_binary_chunk_returns_error(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(b"")
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "EMPTY_AUDIO_CHUNK"
+
+    def test_odd_sized_pcm_chunk_returns_error(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(b"\x00")
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "INVALID_AUDIO_CHUNK"
 
     def test_end_utterance_empty_buffer_returns_error(self):
         """end_utterance with no audio → EMPTY_AUDIO_BUFFER error."""
@@ -607,10 +762,10 @@ class TestBinaryAudio:
 class TestEndUtterancePipeline:
     """Full STT + translation pipeline triggered by end_utterance."""
 
-    def test_end_utterance_returns_translation_result(self):
+    def test_end_utterance_returns_final_translation(self):
         """
         end_utterance should call mocked STT and mocked translate, then return
-        a translation_result event with expected fields.
+        a final_translation event with expected fields.
         """
         token = _make_token()
         user = _make_user()
@@ -638,7 +793,7 @@ class TestEndUtterancePipeline:
 
                 result = ws.receive_json()
 
-        assert result["event"] == "translation_result"
+        assert result["event"] == "final_translation"
         assert result["source_text"] == "Xin chào thế giới"
         assert result["translated_text"] == "Hello world"
         assert result["source_language"] == "vi"
@@ -678,7 +833,7 @@ class TestEndUtterancePipeline:
                 ws.send_bytes(b"\x00" * 2048)
                 ws.send_json({"event": "end_utterance"})
                 result = ws.receive_json()
-                assert result["event"] == "translation_result"
+                assert result["event"] == "final_translation"
 
                 # Second end_utterance without any new audio must fail
                 # because buffer was reset after the first flush.
@@ -744,6 +899,347 @@ class TestEndUtterancePipeline:
         assert error["event"] == "error"
         assert error["code"] == "STT_FAILED"
 
+    def test_end_utterance_empty_stt_result_returns_error(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        stt_mock = AsyncMock(return_value={
+            "text": " ",
+            "language": "vi",
+            "language_probability": 0.99,
+        })
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                ws.send_json({"event": "end_utterance"})
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "STT_NO_TEXT_EXTRACTED"
+
+    def test_end_utterance_translation_failure_returns_error(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        stt_mock = AsyncMock(return_value={
+            "text": "xin chao",
+            "language": "vi",
+            "language_probability": 0.99,
+        })
+        translate_mock = AsyncMock(side_effect=RuntimeError("translator unavailable"))
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                ws.send_json({"event": "end_utterance"})
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "TRANSLATION_FAILED"
+
+    def test_trailing_silence_auto_finalizes_without_end_utterance(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        stt_mock = AsyncMock(return_value={
+            "text": "xin chao",
+            "language": "vi",
+            "language_probability": 0.99,
+        })
+        translate_mock = AsyncMock(return_value=("hello", False, 25.0))
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                ws.send_bytes(_pcm_window(0, duration_ms=1500))
+                result = ws.receive_json()
+
+        assert result["event"] == "final_translation"
+        assert result["source_text"] == "xin chao"
+        assert result["translated_text"] == "hello"
+        assert result["sequence_number"] == 1
+
+    def test_empty_fallback_after_silence_auto_finalize_is_ignored_once(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        stt_mock = AsyncMock(return_value={
+            "text": "xin chao",
+            "language": "vi",
+            "language_probability": 0.99,
+        })
+        translate_mock = AsyncMock(return_value=("hello", False, 25.0))
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                ws.send_bytes(_pcm_window(0, duration_ms=1500))
+                result = ws.receive_json()
+
+                ws.send_json({"event": "end_utterance"})
+                ws.send_json({"event": "ping"})
+                pong = ws.receive_json()
+
+                ws.send_json({"event": "end_utterance"})
+                error = ws.receive_json()
+
+        assert result["event"] == "final_translation"
+        assert pong["event"] == "pong"
+        assert error["event"] == "error"
+        assert error["code"] == "EMPTY_AUDIO_BUFFER"
+
+    def test_message_persist_failure_returns_error_instead_of_final_translation(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        stt_mock = AsyncMock(return_value={
+            "text": "xin chao",
+            "language": "vi",
+            "language_probability": 0.99,
+        })
+        translate_mock = AsyncMock(return_value=("hello", False, 25.0))
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock), \
+             patch(
+                 _PATCH_APPEND_CONVERSATION_MESSAGE,
+                 new=AsyncMock(side_effect=RuntimeError("db unavailable")),
+             ):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                ws.send_json({"event": "end_utterance"})
+                error = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "MESSAGE_PERSIST_FAILED"
+
+    def test_final_translation_is_persisted_before_send(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        stt_mock = AsyncMock(return_value={
+            "text": "xin chao",
+            "language": "vi",
+            "language_probability": 0.99,
+        })
+        translate_mock = AsyncMock(return_value=("hello", False, 25.0))
+        append_mock = AsyncMock(return_value=MagicMock(id=987))
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock), \
+             patch(_PATCH_APPEND_CONVERSATION_MESSAGE, new=append_mock):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                ws.send_json({"event": "end_utterance"})
+                result = ws.receive_json()
+
+        append_mock.assert_awaited_once()
+        persisted = append_mock.await_args.kwargs
+        assert persisted["session_db_id"] == 101
+        assert persisted["sequence_number"] == 1
+        assert persisted["speaker"] == "SPEAKER_A"
+        assert persisted["transcript"] == "xin chao"
+        assert persisted["translated_text"] == "hello"
+        assert persisted["finalize_trigger"] == "end_utterance"
+        assert result["event"] == "final_translation"
+        assert result["message_id"] == 987
+
+    def test_session_end_flushes_short_audio_before_closing(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        stt_mock = AsyncMock(return_value={
+            "text": "short speech",
+            "language": "en",
+            "language_probability": 0.99,
+        })
+        translate_mock = AsyncMock(return_value=("loi noi ngan", False, 25.0))
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(b"\x01\x00" * 100)
+                ws.send_json({"event": "session_end"})
+                result = ws.receive_json()
+
+        assert result["event"] == "final_translation"
+        assert result["source_text"] == "short speech"
+        assert result["translated_text"] == "loi noi ngan"
+
+
+class TestPipelineLimitsAndObservability:
+    def test_audio_too_long_resets_only_current_turn(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch.object(settings, "CONVERSATION_MAX_UTTERANCE_SECONDS", 0.05):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                error = ws.receive_json()
+                ws.send_json({"event": "ping"})
+                pong = ws.receive_json()
+
+        assert error["event"] == "error"
+        assert error["code"] == "AUDIO_TOO_LONG"
+        assert pong["event"] == "pong"
+
+    def test_pipeline_logs_latency_for_each_processing_stage(self):
+        from app.services.realtime_session_logger import (
+            RealtimeSessionLogger,
+            SessionEventType,
+        )
+
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+        stt_mock = AsyncMock(return_value={
+            "text": "xin chao",
+            "language": "vi",
+            "language_probability": 0.99,
+        })
+        translate_mock = AsyncMock(return_value=("hello", False, 25.0))
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock), \
+             patch.object(RealtimeSessionLogger, "log_event") as log_event_mock:
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as ws:
+                _send_session_start(ws)
+                _send_audio_metadata(ws)
+                ws.send_bytes(_pcm_window(1000))
+                ws.send_json({"event": "end_utterance"})
+                result = ws.receive_json()
+
+        assert result["event"] == "final_translation"
+        calls_by_type = {
+            invocation.kwargs["event_type"]: invocation.kwargs
+            for invocation in log_event_mock.call_args_list
+        }
+        latency_events = {
+            SessionEventType.AUDIO_CHUNK_RECEIVED,
+            SessionEventType.WAV_CONVERSION_COMPLETED,
+            SessionEventType.STT_COMPLETED,
+            SessionEventType.TRANSLATION_COMPLETED,
+            SessionEventType.MESSAGE_PERSISTED,
+            SessionEventType.FINAL_TRANSLATION_SENT,
+        }
+        assert latency_events <= calls_by_type.keys()
+        for event_type in latency_events:
+            assert calls_by_type[event_type]["latency_ms"] >= 0
+
+
+class TestSessionIsolation:
+    def test_final_translation_returns_to_originating_websocket(self):
+        token = _make_token()
+        user = _make_user()
+        client = TestClient(app)
+        stt_mock = AsyncMock(side_effect=[
+            {
+                "text": "first utterance",
+                "language": "en",
+                "language_probability": 0.99,
+            },
+            {
+                "text": "second utterance",
+                "language": "en",
+                "language_probability": 0.99,
+            },
+        ])
+        translate_mock = AsyncMock(side_effect=[
+            ("first translation", False, 10.0),
+            ("second translation", False, 10.0),
+        ])
+
+        with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_STT, new=stt_mock), \
+             patch(_PATCH_TRANSLATE, new=translate_mock):
+            with client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as first_ws, client.websocket_connect(
+                f"/api/v1/ws/conversation?token={token}"
+            ) as second_ws:
+                first_start = _send_session_start(first_ws)
+                second_start = _send_session_start(second_ws)
+                _send_audio_metadata(first_ws)
+                _send_audio_metadata(second_ws)
+
+                first_ws.send_bytes(_pcm_window(1000))
+                first_ws.send_json({"event": "end_utterance"})
+                first_result = first_ws.receive_json()
+
+                second_ws.send_bytes(_pcm_window(1000))
+                second_ws.send_json({"event": "end_utterance"})
+                second_result = second_ws.receive_json()
+
+        assert first_result["session_id"] == first_start["session_id"]
+        assert first_result["translated_text"] == "first translation"
+        assert second_result["session_id"] == second_start["session_id"]
+        assert second_result["translated_text"] == "second translation"
+
 
 # ---------------------------------------------------------------------------
 # 5. Speaker changed test
@@ -792,16 +1288,18 @@ class TestSpeakerChanged:
 
 class TestDisconnectCleanup:
     def test_disconnect_removes_session(self):
-        """When the client disconnects, the session must be removed from manager."""
+        """Disconnect removes in-memory state and persists the terminal status."""
         from app.services.conversation_session_manager import conversation_manager
 
         token = _make_token()
         user = _make_user()
         client = TestClient(app)
         session_ids = []
+        update_mock = AsyncMock(return_value=None)
 
         with patch(_PATCH_IS_TOKEN_REVOKED, new=AsyncMock(return_value=False)), \
-             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)):
+             patch(_PATCH_SESSION_MAKER, side_effect=_make_db_ctx(user)), \
+             patch(_PATCH_UPDATE_CONVERSATION_SESSION, new=update_mock):
             with client.websocket_connect(
                 f"/api/v1/ws/conversation?token={token}"
             ) as ws:
@@ -816,6 +1314,8 @@ class TestDisconnectCleanup:
                 # Connection closes here (end of `with` block)
 
         assert not conversation_manager.has_session(session_ids[0])
+        update_mock.assert_awaited_once()
+        assert update_mock.await_args.args[1:] == (session_ids[0], "disconnected")
 
 
 # ---------------------------------------------------------------------------

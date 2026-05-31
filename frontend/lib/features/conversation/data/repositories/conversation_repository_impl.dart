@@ -28,8 +28,8 @@ class ConversationRepositoryImpl implements ConversationRepository {
   ConversationRepositoryImpl({
     required ConversationRemoteDataSource dataSource,
     required String baseApiUrl,
-  })  : _dataSource = dataSource,
-        _baseApiUrl = baseApiUrl;
+  }) : _dataSource = dataSource,
+       _baseApiUrl = baseApiUrl;
 
   @override
   WebSocketConnectionStatus get connectionStatus =>
@@ -52,10 +52,12 @@ class ConversationRepositoryImpl implements ConversationRepository {
       _handleRawMessage,
       onError: (Object error) {
         if (!_eventController.isClosed) {
-          _eventController.add(ConversationErrorEvent(
-            code: 'WS_STREAM_ERROR',
-            message: error.toString(),
-          ));
+          _eventController.add(
+            ConversationErrorEvent(
+              code: 'WS_STREAM_ERROR',
+              message: error.toString(),
+            ),
+          );
         }
       },
     );
@@ -64,9 +66,7 @@ class ConversationRepositoryImpl implements ConversationRepository {
     _statusSubscription?.cancel();
     _statusSubscription = _dataSource.statusStream.listen((status) {
       if (!_eventController.isClosed) {
-        _eventController.add(
-          ConversationConnectionChanged(status: status),
-        );
+        _eventController.add(ConversationConnectionChanged(status: status));
       }
     });
 
@@ -86,42 +86,42 @@ class ConversationRepositoryImpl implements ConversationRepository {
 
       switch (event) {
         case 'session_started':
-          _eventController.add(ConversationSessionStarted(
-            sessionId: data['session_id'] as String? ?? '',
-            status: data['status'] as String? ?? '',
-          ));
+          _eventController.add(
+            ConversationSessionStarted(
+              sessionId: data['session_id'] as String? ?? '',
+              status: data['status'] as String? ?? '',
+            ),
+          );
 
         case 'audio_metadata_ack':
-          _eventController.add(ConversationMetadataAcknowledged(
-            sessionId: data['session_id'] as String? ?? '',
-          ));
+          _eventController.add(
+            ConversationMetadataAcknowledged(
+              sessionId: data['session_id'] as String? ?? '',
+            ),
+          );
 
-        case 'translation_result':
+        case 'final_translation' || 'translation_result':
           final model = ConversationMessageModel.fromJson(data);
           _eventController.add(
             ConversationTranslationReceived(message: model.toEntity()),
           );
 
         case 'error':
-          _eventController.add(ConversationErrorEvent(
-            code: data['code'] as String? ?? 'UNKNOWN',
-            message: data['message'] as String? ?? 'Unknown error',
-          ));
+          _eventController.add(
+            ConversationErrorEvent(
+              code: data['code'] as String? ?? 'UNKNOWN',
+              message: data['message'] as String? ?? 'Unknown error',
+            ),
+          );
 
         case 'pong':
           _eventController.add(const ConversationPong());
 
         default:
-          developer.log(
-            'Unknown event: $event',
-            name: 'ConversationRepo',
-          );
+          developer.log('Unknown event: $event', name: 'ConversationRepo');
       }
     } catch (e) {
-      developer.log(
-        'Parse error: $e',
-        name: 'ConversationRepo',
-      );
+      developer.log('Parse error: $e', name: 'ConversationRepo');
     }
   }
 

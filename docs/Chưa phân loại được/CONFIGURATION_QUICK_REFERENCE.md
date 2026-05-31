@@ -93,7 +93,7 @@ WEBSOCKET_MAX_CONNECTIONS_PER_USER=5
 
 # Conversation (real-time voice translation)
 CONVERSATION_SESSION_TIMEOUT=300     # 5 minutes idle
-CONVERSATION_SEGMENT_TIMEOUT=10      # Utterance timeout
+CONVERSATION_SILENCE_DURATION_MS=1500 # Trailing silence auto-finalize
 CONVERSATION_MAX_AUDIO_SIZE=50       # MB
 
 # Audio Streaming

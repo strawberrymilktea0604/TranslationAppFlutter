@@ -2,8 +2,8 @@
 ConversationSessionManager — In-process session registry for real-time
 voice translation WebSocket sessions.
 
-Manages paired (TranslationSession, PCMBuffer) objects, keyed by session_id.
-One session per WebSocket connection.
+Manages paired (TranslationSession, PCMBuffer, ConversationPipeline) objects,
+keyed by session_id.  One session per WebSocket connection.
 
 This is an in-process singleton suitable for single-worker deployments.
 Replace with a Redis-backed registry for multi-worker / horizontal scaling.
@@ -12,16 +12,14 @@ Replace with a Redis-backed registry for multi-worker / horizontal scaling.
 import logging
 from typing import Dict, Optional, Tuple
 
+from app.core.config import settings
 from app.core.pcm_buffer import PCMBuffer
 from app.schemas.realtime_session import SessionStatus, Speaker, TranslationSession
+from app.services.conversation_pipeline import ConversationPipeline
 
 logger = logging.getLogger(__name__)
 
-# Maximum PCM buffer size per session: 10 MB
-# At 16kHz mono 16-bit PCM → ~2.5 minutes of audio.
-_MAX_BUFFER_BYTES: int = 10 * 1024 * 1024
-
-
+# Maximum buffer size is configured through CONVERSATION_MAX_AUDIO_SIZE.
 class ConversationSessionManager:
     """
     In-process registry that maps session_id → (TranslationSession, PCMBuffer).
@@ -33,6 +31,8 @@ class ConversationSessionManager:
     def __init__(self) -> None:
         # session_id → (TranslationSession, PCMBuffer)
         self._sessions: Dict[str, Tuple[TranslationSession, PCMBuffer]] = {}
+        # session_id → ConversationPipeline (optional, set after pipeline created)
+        self._pipelines: Dict[str, ConversationPipeline] = {}
 
     # --------------------------------------------------------------------------
     # Session lifecycle
@@ -58,7 +58,13 @@ class ConversationSessionManager:
             current_speaker=speaker,
             status=SessionStatus.IDLE,
         )
-        buffer = PCMBuffer(max_size_bytes=_MAX_BUFFER_BYTES)
+        buffer = PCMBuffer(
+            max_size_bytes=settings.CONVERSATION_MAX_AUDIO_SIZE * 1024 * 1024,
+            sample_rate=settings.CONVERSATION_PCM_SAMPLE_RATE,
+            silence_threshold=settings.CONVERSATION_SILENCE_RMS_THRESHOLD,
+            silence_duration_ms=settings.CONVERSATION_SILENCE_DURATION_MS,
+            silence_window_ms=settings.CONVERSATION_SILENCE_WINDOW_MS,
+        )
         self._sessions[session.session_id] = (session, buffer)
         logger.info(
             "Conversation session created: session_id=%s user_id=%s %s→%s",
@@ -79,6 +85,18 @@ class ConversationSessionManager:
         pair = self._sessions.get(session_id)
         return pair[1] if pair else None
 
+    def set_pipeline(
+        self, session_id: str, pipeline: ConversationPipeline
+    ) -> None:
+        """Associate a pipeline with a session."""
+        self._pipelines[session_id] = pipeline
+
+    def get_pipeline(
+        self, session_id: str
+    ) -> Optional[ConversationPipeline]:
+        """Return the ConversationPipeline for *session_id*, or None."""
+        return self._pipelines.get(session_id)
+
     def remove_session(self, session_id: str) -> None:
         """
         Remove a session and its buffer from the registry.
@@ -87,6 +105,7 @@ class ConversationSessionManager:
         to free memory promptly rather than waiting for GC.
         """
         pair = self._sessions.pop(session_id, None)
+        self._pipelines.pop(session_id, None)
         if pair is None:
             return
         session, buffer = pair

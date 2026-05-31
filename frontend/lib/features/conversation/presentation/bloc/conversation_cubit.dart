@@ -35,7 +35,7 @@ class ConversationCubit extends Cubit<ConversationState> {
 
   /// Tracks when the current silence started for VAD.
   DateTime? _silenceStartTime;
-  
+
   /// Threshold for automatic stop (e.g. 1.5 seconds of silence).
   static const _silenceDurationThreshold = Duration(milliseconds: 1500);
 
@@ -50,11 +50,11 @@ class ConversationCubit extends Cubit<ConversationState> {
     required ConversationRepository repository,
     required AuthLocalDataSource authLocalDataSource,
     required AudioRecorderService audioRecorderService,
-  })  : _connectUseCase = connectUseCase,
-        _repository = repository,
-        _authLocalDataSource = authLocalDataSource,
-        _audioRecorderService = audioRecorderService,
-        super(const ConversationInitial());
+  }) : _connectUseCase = connectUseCase,
+       _repository = repository,
+       _authLocalDataSource = authLocalDataSource,
+       _audioRecorderService = audioRecorderService,
+       super(const ConversationInitial());
 
   // ---------------------------------------------------------------------------
   // Connection
@@ -65,24 +65,28 @@ class ConversationCubit extends Cubit<ConversationState> {
   /// Emits [ConversationConnecting] → [ConversationConnected]
   /// or [ConversationFailure] on error.
   Future<void> connect() async {
-    emit(ConversationConnecting(
-      messages: state.messages,
-      currentSpeaker: state.currentSpeaker,
-      connectionStatus: WebSocketConnectionStatus.connecting,
-      sourceLanguage: state.sourceLanguage,
-      targetLanguage: state.targetLanguage,
-    ));
+    emit(
+      ConversationConnecting(
+        messages: state.messages,
+        currentSpeaker: state.currentSpeaker,
+        connectionStatus: WebSocketConnectionStatus.connecting,
+        sourceLanguage: state.sourceLanguage,
+        targetLanguage: state.targetLanguage,
+      ),
+    );
 
     // Retrieve stored access token.
     final token = await _authLocalDataSource.getAccessToken();
     if (token == null || token.isEmpty) {
-      emit(ConversationFailure(
-        message: 'Vui lòng đăng nhập để sử dụng tính năng hội thoại.',
-        messages: state.messages,
-        currentSpeaker: state.currentSpeaker,
-        sourceLanguage: state.sourceLanguage,
-        targetLanguage: state.targetLanguage,
-      ));
+      emit(
+        ConversationFailure(
+          message: 'Vui lòng đăng nhập để sử dụng tính năng hội thoại.',
+          messages: state.messages,
+          currentSpeaker: state.currentSpeaker,
+          sourceLanguage: state.sourceLanguage,
+          targetLanguage: state.targetLanguage,
+        ),
+      );
       return;
     }
 
@@ -92,13 +96,15 @@ class ConversationCubit extends Cubit<ConversationState> {
 
     result.fold(
       (failure) {
-        emit(ConversationFailure(
-          message: failure.message,
-          messages: state.messages,
-          currentSpeaker: state.currentSpeaker,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-        ));
+        emit(
+          ConversationFailure(
+            message: failure.message,
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
       },
       (eventStream) {
         _eventSubscription?.cancel();
@@ -106,24 +112,28 @@ class ConversationCubit extends Cubit<ConversationState> {
           _handleEvent,
           onError: (Object error) {
             if (!isClosed) {
-              emit(ConversationFailure(
-                message: error.toString(),
-                messages: state.messages,
-                currentSpeaker: state.currentSpeaker,
-                sourceLanguage: state.sourceLanguage,
-                targetLanguage: state.targetLanguage,
-              ));
+              emit(
+                ConversationFailure(
+                  message: error.toString(),
+                  messages: state.messages,
+                  currentSpeaker: state.currentSpeaker,
+                  sourceLanguage: state.sourceLanguage,
+                  targetLanguage: state.targetLanguage,
+                ),
+              );
             }
           },
         );
 
-        emit(ConversationConnected(
-          messages: state.messages,
-          currentSpeaker: state.currentSpeaker,
-          connectionStatus: WebSocketConnectionStatus.connected,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-        ));
+        emit(
+          ConversationConnected(
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            connectionStatus: WebSocketConnectionStatus.connected,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
       },
     );
   }
@@ -162,134 +172,174 @@ class ConversationCubit extends Cubit<ConversationState> {
 
     final hasPermission = await _audioRecorderService.hasPermission();
     if (!hasPermission) {
-      emit(ConversationFailure(
-        message: 'Cần cấp quyền microphone để ghi âm.',
-        messages: state.messages,
-        currentSpeaker: state.currentSpeaker,
-        sourceLanguage: state.sourceLanguage,
-        targetLanguage: state.targetLanguage,
-      ));
+      emit(
+        ConversationFailure(
+          message: 'Cần cấp quyền microphone để ghi âm.',
+          messages: state.messages,
+          currentSpeaker: state.currentSpeaker,
+          sourceLanguage: state.sourceLanguage,
+          targetLanguage: state.targetLanguage,
+        ),
+      );
       return;
     }
 
     try {
       final stream = await _audioRecorderService.startStreamRecording();
-      
+
       _silenceStartTime = null; // Reset silence tracker
       _audioBuffer.clear(); // Reset audio buffer
 
       _audioSubscription?.cancel();
-      _audioSubscription = stream.listen((chunk) {
-        _audioBuffer.addAll(chunk);
+      _audioSubscription = stream.listen(
+        (chunk) {
+          _audioBuffer.addAll(chunk);
 
-        // Send audio in 2-second chunks
-        while (_audioBuffer.length >= _bytesPerTwoSeconds) {
-          final chunkToSend = Uint8List.fromList(_audioBuffer.sublist(0, _bytesPerTwoSeconds));
-          _audioBuffer = _audioBuffer.sublist(_bytesPerTwoSeconds);
+          // Send audio in 2-second chunks
+          while (_audioBuffer.length >= _bytesPerTwoSeconds) {
+            final chunkToSend = Uint8List.fromList(
+              _audioBuffer.sublist(0, _bytesPerTwoSeconds),
+            );
+            _audioBuffer = _audioBuffer.sublist(_bytesPerTwoSeconds);
 
-          if (state.connectionStatus == WebSocketConnectionStatus.connected && state is ConversationRecording) {
-            try {
-              final now = DateTime.now();
-              developer.log('Sending 2s audio chunk (${chunkToSend.length} bytes)', time: now, name: 'ConversationCubit');
-              _repository.sendAudioChunk(chunkToSend);
-            } catch (e) {
-              developer.log('Failed to send audio chunk: $e', name: 'ConversationCubit', error: e);
+            if (state.connectionStatus == WebSocketConnectionStatus.connected &&
+                state is ConversationRecording) {
+              try {
+                final now = DateTime.now();
+                developer.log(
+                  'Sending 2s audio chunk (${chunkToSend.length} bytes)',
+                  time: now,
+                  name: 'ConversationCubit',
+                );
+                _repository.sendAudioChunk(chunkToSend);
+              } catch (e) {
+                developer.log(
+                  'Failed to send audio chunk: $e',
+                  name: 'ConversationCubit',
+                  error: e,
+                );
+              }
             }
           }
-        }
 
-        // VAD Logic
-        final volume = VadUtil.calculateNormalizedVolume(chunk);
-        if (VadUtil.isSilence(volume, threshold: 0.05)) {
-          _silenceStartTime ??= DateTime.now();
-          if (DateTime.now().difference(_silenceStartTime!) > _silenceDurationThreshold) {
-            developer.log('Silence detected for > 1.5s, stopping listening...', name: 'ConversationCubit');
-            stopListening();
+          // VAD Logic
+          final volume = VadUtil.calculateNormalizedVolume(chunk);
+          if (VadUtil.isSilence(volume, threshold: 0.05)) {
+            _silenceStartTime ??= DateTime.now();
+            if (DateTime.now().difference(_silenceStartTime!) >
+                _silenceDurationThreshold) {
+              developer.log(
+                'Silence detected for > 1.5s, stopping listening...',
+                name: 'ConversationCubit',
+              );
+              stopListening();
+              _silenceStartTime = null;
+              return;
+            }
+          } else {
             _silenceStartTime = null;
-            return;
           }
-        } else {
-          _silenceStartTime = null;
-        }
 
-        // Emit new state with volume level for UI animation
-        if (!isClosed && state is ConversationRecording) {
-          emit(ConversationRecording(
-            messages: state.messages,
-            currentSpeaker: state.currentSpeaker,
-            connectionStatus: state.connectionStatus,
-            sourceLanguage: state.sourceLanguage,
-            targetLanguage: state.targetLanguage,
-            volumeLevel: volume,
-          ));
-        }
+          // Emit new state with volume level for UI animation
+          if (!isClosed && state is ConversationRecording) {
+            emit(
+              ConversationRecording(
+                messages: state.messages,
+                currentSpeaker: state.currentSpeaker,
+                connectionStatus: state.connectionStatus,
+                sourceLanguage: state.sourceLanguage,
+                targetLanguage: state.targetLanguage,
+                volumeLevel: volume,
+              ),
+            );
+          }
+        },
+        onError: (error) {
+          if (!isClosed) {
+            emit(
+              ConversationFailure(
+                message: 'Lỗi luồng ghi âm: $error',
+                messages: state.messages,
+                currentSpeaker: state.currentSpeaker,
+                sourceLanguage: state.sourceLanguage,
+                targetLanguage: state.targetLanguage,
+              ),
+            );
+          }
+        },
+      );
 
-      }, onError: (error) {
-        if (!isClosed) {
-          emit(ConversationFailure(
-            message: 'Lỗi luồng ghi âm: $error',
-            messages: state.messages,
-            currentSpeaker: state.currentSpeaker,
-            sourceLanguage: state.sourceLanguage,
-            targetLanguage: state.targetLanguage,
-          ));
-        }
-      });
-
-      emit(ConversationRecording(
-        messages: state.messages,
-        currentSpeaker: state.currentSpeaker,
-        connectionStatus: WebSocketConnectionStatus.connected,
-        sourceLanguage: state.sourceLanguage,
-        targetLanguage: state.targetLanguage,
-      ));
+      emit(
+        ConversationRecording(
+          messages: state.messages,
+          currentSpeaker: state.currentSpeaker,
+          connectionStatus: WebSocketConnectionStatus.connected,
+          sourceLanguage: state.sourceLanguage,
+          targetLanguage: state.targetLanguage,
+        ),
+      );
     } catch (e) {
-      emit(ConversationFailure(
-        message: 'Lỗi khi bắt đầu ghi âm: $e',
-        messages: state.messages,
-        currentSpeaker: state.currentSpeaker,
-        sourceLanguage: state.sourceLanguage,
-        targetLanguage: state.targetLanguage,
-      ));
+      emit(
+        ConversationFailure(
+          message: 'Lỗi khi bắt đầu ghi âm: $e',
+          messages: state.messages,
+          currentSpeaker: state.currentSpeaker,
+          sourceLanguage: state.sourceLanguage,
+          targetLanguage: state.targetLanguage,
+        ),
+      );
     }
   }
 
   /// Stops the current recording and sends `end_utterance` to the server.
   ///
   /// Emits [ConversationProcessing] while waiting for the translation result.
-  Future<void> stopListening() async {
+  Future<void> stopListening({bool finalizeUtterance = true}) async {
     if (isClosed) return;
-    
+
     _silenceStartTime = null; // Reset
-    
+
     await _audioSubscription?.cancel();
     _audioSubscription = null;
-    
+
     if (_audioRecorderService.isRecording) {
       await _audioRecorderService.stopStreamRecording();
     }
 
     // Send any remaining audio in the buffer before ending utterance
-    if (_audioBuffer.isNotEmpty && state.connectionStatus == WebSocketConnectionStatus.connected) {
+    if (_audioBuffer.isNotEmpty &&
+        state.connectionStatus == WebSocketConnectionStatus.connected) {
       try {
         final chunkToSend = Uint8List.fromList(_audioBuffer);
         final now = DateTime.now();
-        developer.log('Sending remaining audio chunk (${chunkToSend.length} bytes)', time: now, name: 'ConversationCubit');
+        developer.log(
+          'Sending remaining audio chunk (${chunkToSend.length} bytes)',
+          time: now,
+          name: 'ConversationCubit',
+        );
         _repository.sendAudioChunk(chunkToSend);
       } catch (e) {
-        developer.log('Failed to send remaining audio chunk: $e', name: 'ConversationCubit', error: e);
+        developer.log(
+          'Failed to send remaining audio chunk: $e',
+          name: 'ConversationCubit',
+          error: e,
+        );
       }
       _audioBuffer.clear();
     }
 
-    _repository.endUtterance();
-    emit(ConversationProcessing(
-      messages: state.messages,
-      currentSpeaker: state.currentSpeaker,
-      connectionStatus: WebSocketConnectionStatus.connected,
-      sourceLanguage: state.sourceLanguage,
-      targetLanguage: state.targetLanguage,
-    ));
+    if (finalizeUtterance) {
+      _repository.endUtterance();
+      emit(
+        ConversationProcessing(
+          messages: state.messages,
+          currentSpeaker: state.currentSpeaker,
+          connectionStatus: WebSocketConnectionStatus.connected,
+          sourceLanguage: state.sourceLanguage,
+          targetLanguage: state.targetLanguage,
+        ),
+      );
+    }
   }
 
   /// Switches the active speaker between A and B.
@@ -308,22 +358,25 @@ class ConversationCubit extends Cubit<ConversationState> {
   /// Ends the conversation session and stops continuous recording.
   Future<void> endSession() async {
     if (isClosed) return;
-    await stopListening();
+    // session_end flushes and drains any remaining audio on the server.
+    await stopListening(finalizeUtterance: false);
     _repository.endSession();
-    emit(ConversationConnected(
-      messages: state.messages,
-      currentSpeaker: state.currentSpeaker,
-      connectionStatus: WebSocketConnectionStatus.connected,
-      sourceLanguage: state.sourceLanguage,
-      targetLanguage: state.targetLanguage,
-    ));
+    emit(
+      ConversationConnected(
+        messages: state.messages,
+        currentSpeaker: state.currentSpeaker,
+        connectionStatus: WebSocketConnectionStatus.connected,
+        sourceLanguage: state.sourceLanguage,
+        targetLanguage: state.targetLanguage,
+      ),
+    );
   }
 
   /// Disconnects and resets to initial state.
   Future<void> disconnect() async {
     await _audioSubscription?.cancel();
     _audioSubscription = null;
-    
+
     if (_audioRecorderService.isRecording) {
       await _audioRecorderService.stopStreamRecording();
     }
@@ -332,7 +385,7 @@ class ConversationCubit extends Cubit<ConversationState> {
     _eventSubscription = null;
     _audioBuffer.clear();
     _repository.disconnect();
-    
+
     if (!isClosed) {
       emit(const ConversationInitial());
     }
@@ -344,25 +397,29 @@ class ConversationCubit extends Cubit<ConversationState> {
     required String targetLanguage,
   }) {
     if (isClosed) return;
-    emit(ConversationConnected(
-      messages: state.messages,
-      currentSpeaker: state.currentSpeaker,
-      connectionStatus: state.connectionStatus,
-      sourceLanguage: sourceLanguage,
-      targetLanguage: targetLanguage,
-    ));
+    emit(
+      ConversationConnected(
+        messages: state.messages,
+        currentSpeaker: state.currentSpeaker,
+        connectionStatus: state.connectionStatus,
+        sourceLanguage: sourceLanguage,
+        targetLanguage: targetLanguage,
+      ),
+    );
   }
 
   /// Clears all messages from the conversation.
   void clearMessages() {
     if (isClosed) return;
-    emit(ConversationConnected(
-      messages: const [],
-      currentSpeaker: state.currentSpeaker,
-      connectionStatus: state.connectionStatus,
-      sourceLanguage: state.sourceLanguage,
-      targetLanguage: state.targetLanguage,
-    ));
+    emit(
+      ConversationConnected(
+        messages: const [],
+        currentSpeaker: state.currentSpeaker,
+        connectionStatus: state.connectionStatus,
+        sourceLanguage: state.sourceLanguage,
+        targetLanguage: state.targetLanguage,
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -374,14 +431,16 @@ class ConversationCubit extends Cubit<ConversationState> {
 
     switch (event) {
       case ConversationSessionStarted():
-        emit(ConversationConnected(
-          messages: state.messages,
-          currentSpeaker: state.currentSpeaker,
-          connectionStatus: WebSocketConnectionStatus.connected,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-          sessionId: event.sessionId,
-        ));
+        emit(
+          ConversationConnected(
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            connectionStatus: WebSocketConnectionStatus.connected,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+            sessionId: event.sessionId,
+          ),
+        );
         // Auto-start listening (continuous recording) once session starts
         startListening();
 
@@ -392,22 +451,26 @@ class ConversationCubit extends Cubit<ConversationState> {
       case ConversationTranslationReceived(:final message):
         final updatedMessages = List<ConversationMessage>.of(state.messages)
           ..add(message);
-        emit(ConversationConnected(
-          messages: updatedMessages,
-          currentSpeaker: state.currentSpeaker,
-          connectionStatus: WebSocketConnectionStatus.connected,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-        ));
+        emit(
+          ConversationConnected(
+            messages: updatedMessages,
+            currentSpeaker: state.currentSpeaker,
+            connectionStatus: WebSocketConnectionStatus.connected,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
 
       case ConversationErrorEvent(:final code, :final message):
-        emit(ConversationFailure(
-          message: '[$code] $message',
-          messages: state.messages,
-          currentSpeaker: state.currentSpeaker,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-        ));
+        emit(
+          ConversationFailure(
+            message: '[$code] $message',
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
 
       case ConversationPong():
         // Keepalive — no state change needed.
@@ -416,23 +479,27 @@ class ConversationCubit extends Cubit<ConversationState> {
       case ConversationConnectionChanged(:final status):
         if (status == WebSocketConnectionStatus.disconnected ||
             status == WebSocketConnectionStatus.error) {
-          emit(ConversationDisconnected(
-            messages: state.messages,
-            currentSpeaker: state.currentSpeaker,
-            sourceLanguage: state.sourceLanguage,
-            targetLanguage: state.targetLanguage,
-            reason: status == WebSocketConnectionStatus.error
-                ? 'Lỗi kết nối WebSocket'
-                : 'Mất kết nối',
-          ));
+          emit(
+            ConversationDisconnected(
+              messages: state.messages,
+              currentSpeaker: state.currentSpeaker,
+              sourceLanguage: state.sourceLanguage,
+              targetLanguage: state.targetLanguage,
+              reason: status == WebSocketConnectionStatus.error
+                  ? 'Lỗi kết nối WebSocket'
+                  : 'Mất kết nối',
+            ),
+          );
         } else if (status == WebSocketConnectionStatus.reconnecting) {
-          emit(ConversationConnecting(
-            messages: state.messages,
-            currentSpeaker: state.currentSpeaker,
-            connectionStatus: WebSocketConnectionStatus.reconnecting,
-            sourceLanguage: state.sourceLanguage,
-            targetLanguage: state.targetLanguage,
-          ));
+          emit(
+            ConversationConnecting(
+              messages: state.messages,
+              currentSpeaker: state.currentSpeaker,
+              connectionStatus: WebSocketConnectionStatus.reconnecting,
+              sourceLanguage: state.sourceLanguage,
+              targetLanguage: state.targetLanguage,
+            ),
+          );
         }
     }
   }
@@ -440,30 +507,36 @@ class ConversationCubit extends Cubit<ConversationState> {
   void _emitWithUpdatedSpeaker(ConversationSpeaker newSpeaker) {
     switch (state) {
       case ConversationConnected():
-        emit(ConversationConnected(
-          messages: state.messages,
-          currentSpeaker: newSpeaker,
-          connectionStatus: state.connectionStatus,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-        ));
+        emit(
+          ConversationConnected(
+            messages: state.messages,
+            currentSpeaker: newSpeaker,
+            connectionStatus: state.connectionStatus,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
       case ConversationRecording():
-        emit(ConversationRecording(
-          messages: state.messages,
-          currentSpeaker: newSpeaker,
-          connectionStatus: state.connectionStatus,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-        ));
+        emit(
+          ConversationRecording(
+            messages: state.messages,
+            currentSpeaker: newSpeaker,
+            connectionStatus: state.connectionStatus,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
       default:
         // For other states, just update via Connected.
-        emit(ConversationConnected(
-          messages: state.messages,
-          currentSpeaker: newSpeaker,
-          connectionStatus: state.connectionStatus,
-          sourceLanguage: state.sourceLanguage,
-          targetLanguage: state.targetLanguage,
-        ));
+        emit(
+          ConversationConnected(
+            messages: state.messages,
+            currentSpeaker: newSpeaker,
+            connectionStatus: state.connectionStatus,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
     }
   }
 
