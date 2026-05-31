@@ -1,0 +1,25 @@
+# Development and Testing Dependencies
+-r requirements.txt
+
+# Testing
+pytest==7.4.4
+pytest-asyncio==0.23.3
+pytest-cov==4.1.0
+pytest-xdist==3.5.0
+pytest-timeout==2.1.0
+
+# API Testing & Mocking
+httpx==0.28.1
+responses==0.24.1
+
+# Database Testing
+testcontainers==4.1.0
+
+# Code Quality & Formatting
+ruff==0.3.7
+black==24.1.1
+isort==5.13.2
+
+# Debugging
+ipython==8.20.0
+ipdb==0.13.13
