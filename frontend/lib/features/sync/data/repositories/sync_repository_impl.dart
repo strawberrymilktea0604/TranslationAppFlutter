@@ -8,6 +8,7 @@ import '../../../auth/data/datasources/auth_local_datasource.dart';
 import '../../../vocabulary/data/datasources/vocabulary_local_datasource.dart';
 import '../../../vocabulary/data/datasources/vocabulary_remote_datasource.dart';
 import '../../../vocabulary/data/models/vocabulary_model.dart';
+import '../../../vocabulary/data/models/quiz_result_model.dart';
 import '../../domain/entities/sync_entity.dart';
 import '../../domain/entities/sync_push_entity.dart';
 import '../../domain/repositories/sync_repository.dart';
@@ -198,18 +199,20 @@ class SyncRepositoryImpl implements SyncRepository {
     // ─── Phase 1: PUSH — send local changes to server ───
 
     final unsyncedModels = await _localDataSource.getUnsynced();
+    final unsyncedQuizResults = await _localDataSource.getUnsyncedQuizResults();
 
     SyncPushResponseModel? pushResponse;
 
-    if (unsyncedModels.isNotEmpty) {
+    if (unsyncedModels.isNotEmpty || unsyncedQuizResults.isNotEmpty) {
       developer.log(
-        'Full sync: pushing ${unsyncedModels.length} unsynced items…',
+        'Full sync: pushing ${unsyncedModels.length} flashcards and ${unsyncedQuizResults.length} quiz attempts…',
         name: 'SyncRepository',
       );
 
-      final pushItems = unsyncedModels
-          .map(SyncPushItemModel.fromVocabularyModel)
-          .toList();
+      final pushItems = [
+        ...unsyncedModels.map(SyncPushItemModel.fromVocabularyModel),
+        ...unsyncedQuizResults.map(SyncPushItemModel.fromQuizResultModel),
+      ];
       final pushRequest = SyncPushRequestModel(items: pushItems);
 
       // Attempt push with exponential backoff.
@@ -228,7 +231,7 @@ class SyncRepositoryImpl implements SyncRepository {
           );
 
           // Process push results.
-          await _processPushResults(pushResponse, unsyncedModels);
+          await _processPushResults(pushResponse, unsyncedModels, unsyncedQuizResults);
 
           developer.log(
             'Push completed: ${pushResponse.succeededCount} succeeded, '
@@ -335,22 +338,43 @@ class SyncRepositoryImpl implements SyncRepository {
   Future<void> _processPushResults(
     SyncPushResponseModel response,
     List<VocabularyModel> unsyncedModels,
+    List<QuizResultModel> unsyncedQuizResults,
   ) async {
-    final idMap = <int, String>{};
+    final vocabIdMap = <int, String>{};
+    final quizIdMap = <int, String>{};
 
     for (final result in response.results) {
-      if (result.status == 'created' || result.status == 'updated') {
-        final localModel = unsyncedModels.where(
-          (m) => m.backendId == result.clientId,
-        );
-        if (localModel.isNotEmpty && result.serverId != null) {
-          idMap[localModel.first.id] = result.serverId.toString();
+      if (result.status == 'created' || result.status == 'updated' || result.status == 'unchanged') {
+        if (result.resource == 'flashcard') {
+          final localModel = unsyncedModels.where(
+            (m) => m.backendId == result.clientId,
+          );
+          if (localModel.isNotEmpty && result.serverId != null) {
+            vocabIdMap[localModel.first.id] = result.serverId.toString();
+          }
+        } else if (result.resource == 'quiz_attempt') {
+          final localModel = unsyncedQuizResults.where(
+            (m) => m.backendId == result.clientId,
+          );
+          if (localModel.isNotEmpty && result.serverId != null) {
+            quizIdMap[localModel.first.id] = result.serverId.toString();
+          }
         }
+      } else if (result.status == 'failed') {
+        developer.log(
+          'Sync Push rejected ${result.resource} with client_id ${result.clientId}: ${result.error?['message']}',
+          name: 'SyncRepository',
+          level: 900,
+        );
       }
     }
 
-    if (idMap.isNotEmpty) {
-      await _localDataSource.markSyncedAndUpdateId(idMap);
+    if (vocabIdMap.isNotEmpty) {
+      await _localDataSource.markSyncedAndUpdateId(vocabIdMap);
+    }
+    
+    if (quizIdMap.isNotEmpty) {
+      await _localDataSource.markQuizResultsSyncedAndUpdateId(quizIdMap);
     }
   }
 
@@ -378,6 +402,7 @@ class SyncRepositoryImpl implements SyncRepository {
 
       // Process pulled items by resource type.
       final vocabModels = <VocabularyModel>[];
+      final quizModels = <QuizResultModel>[];
 
       for (final item in pullResponse.items) {
         if (item.resource == 'flashcard') {
@@ -392,13 +417,29 @@ class SyncRepositoryImpl implements SyncRepository {
               level: 800,
             );
           }
+        } else if (item.resource == 'quiz_attempt') {
+          try {
+            quizModels.add(
+              _quizAttemptPayloadToQuizResultModel(item.payload),
+            );
+          } catch (e) {
+            developer.log(
+              'Skipping malformed quiz attempt pull item: $e',
+              name: 'SyncRepository',
+              level: 800,
+            );
+          }
         }
-        // quiz_attempt items can be handled in a future iteration.
       }
 
       // Upsert pulled vocabularies into Isar.
       if (vocabModels.isNotEmpty) {
         await _localDataSource.saveAll(vocabModels);
+      }
+      
+      // Upsert pulled quiz results into Isar.
+      for (final q in quizModels) {
+        await _localDataSource.saveQuizResult(q);
       }
 
       totalPulled += pullResponse.items.length;
@@ -441,6 +482,27 @@ class SyncRepositoryImpl implements SyncRepository {
       createdAt: DateTime.parse(payload['created_at'] as String),
       updatedAt: DateTime.parse(payload['updated_at'] as String),
       isSynced: true, // Data pulled from server is synced.
+    );
+  }
+
+  /// Converts a quiz_attempt pull payload to a [QuizResultModel].
+  QuizResultModel _quizAttemptPayloadToQuizResultModel(
+    Map<String, dynamic> payload,
+  ) {
+    return QuizResultModel(
+      backendId: payload['quiz_id'].toString(),
+      bankBackendId: payload['bank_id'].toString(),
+      bankTitle: payload['bank_title'] as String? ?? 'N/A',
+      totalQuestions: payload['total_questions'] as int? ?? 0,
+      correctAnswers: payload['correct_count'] as int? ?? 0,
+      score: (payload['score'] as num?)?.toDouble() ?? 0.0,
+      durationSeconds: payload['completion_time_seconds'] as int? ?? 0,
+      status: payload['status'] as String? ?? 'completed',
+      answers: [], // We might not get full answers in pull unless they were added to payload
+      completedAt: payload['created_at'] != null
+          ? DateTime.parse(payload['created_at'] as String)
+          : DateTime.now(),
+      isSynced: true,
     );
   }
 }

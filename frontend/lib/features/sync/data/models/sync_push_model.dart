@@ -1,5 +1,6 @@
 import '../../domain/entities/sync_push_entity.dart';
 import '../../../vocabulary/data/models/vocabulary_model.dart';
+import '../../../vocabulary/data/models/quiz_result_model.dart';
 
 /// DTO for a single item in a push sync request.
 ///
@@ -44,6 +45,27 @@ class SyncPushItemModel {
         'last_tested_at': m.lastTestedAt?.toUtc().toIso8601String(),
         'is_deleted': m.isDeleted,
         'created_at': m.createdAt.toUtc().toIso8601String(),
+      },
+    );
+  }
+
+  /// Creates a push item from a local [QuizResultModel].
+  factory SyncPushItemModel.fromQuizResultModel(QuizResultModel m) {
+    final int? sId = int.tryParse(m.backendId);
+
+    return SyncPushItemModel(
+      resource: 'quiz_attempt',
+      clientId: m.backendId,
+      serverId: sId,
+      updatedAt: m.completedAt,
+      payload: {
+        'bank_id': int.tryParse(m.bankBackendId) ?? 0,
+        'time_spent_seconds': m.durationSeconds,
+        'created_at': m.completedAt.toUtc().toIso8601String(),
+        'answers': m.answers.map((a) => {
+          'question_id': int.tryParse(a.questionBackendId) ?? 0,
+          'selected_answer': a.selectedAnswer,
+        }).toList(),
       },
     );
   }

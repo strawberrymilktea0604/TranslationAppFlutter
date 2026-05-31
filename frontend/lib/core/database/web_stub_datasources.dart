@@ -93,6 +93,9 @@ class WebVocabularyLocalDataSource implements VocabularyLocalDataSource {
 
   @override
   Future<void> markQuizResultsSynced(List<int> isarIds) async {}
+
+  @override
+  Future<void> markQuizResultsSyncedAndUpdateId(Map<int, String> idMap) async {}
 }
 
 /// Web stub for history — returns empty data.
