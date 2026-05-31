@@ -96,7 +96,7 @@ jobs:
       - name: Run unit tests
         run: |
           docker run --rm \
-            --env DATABASE_URL="postgresql://postgres:test_password@localhost:5433/translation_app_test" \
+            --env DATABASE_URL="postgresql+asyncpg://postgres:test_password@localhost:5433/translation_app_test" \
             --env REDIS_URL="redis://localhost:6379" \
             --env SECRET_KEY="test-secret-key-for-ci-1234567890" \
             --env TESTING="true" \

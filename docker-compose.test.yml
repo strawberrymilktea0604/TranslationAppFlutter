@@ -42,9 +42,9 @@ services:
       test-redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://postgres:test_password@test-db:5432/translation_app_test
+      DATABASE_URL: postgresql+asyncpg://postgres:test_password@test-db:5432/translation_app_test
       REDIS_URL: redis://test-redis:6379
-      SECRET_KEY: test-secret-key-for-ci
+      SECRET_KEY: test-secret-key-for-ci-1234567890
       TESTING: "true"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
@@ -64,9 +64,9 @@ services:
       - test-db
       - test-redis
     environment:
-      DATABASE_URL: postgresql://postgres:test_password@test-db:5432/translation_app_test
+      DATABASE_URL: postgresql+asyncpg://postgres:test_password@test-db:5432/translation_app_test
       REDIS_URL: redis://test-redis:6379
-      SECRET_KEY: test-secret-key-for-ci
+      SECRET_KEY: test-secret-key-for-ci-1234567890
       TESTING: "true"
       E2E_TEST: "true"
       PYTHONDONTWRITEBYTECODE: "1"
