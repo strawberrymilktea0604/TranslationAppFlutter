@@ -5,27 +5,47 @@ import 'dart:typed_data';
 import 'package:bloc/bloc.dart';
 
 import 'package:frontend/core/audio_recorder/audio_recorder_service.dart';
+import 'package:frontend/core/utils/audio_chunk_buffer.dart';
+import 'package:frontend/core/utils/vad_util.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:frontend/features/conversation/domain/entities/conversation_entity.dart';
 import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
 import 'package:frontend/features/conversation/domain/usecases/connect_conversation_usecase.dart';
-import 'package:frontend/core/utils/vad_util.dart';
+import 'package:frontend/features/conversation/domain/usecases/end_session_usecase.dart';
+import 'package:frontend/features/conversation/domain/usecases/send_audio_chunk_usecase.dart';
+import 'package:frontend/features/conversation/domain/usecases/start_session_usecase.dart';
+import 'package:frontend/features/conversation/domain/usecases/switch_speaker_usecase.dart';
 
 part 'conversation_state.dart';
 
-/// Cubit managing the real-time conversation translation session.
+/// ViewModel (Cubit) managing the real-time conversation translation session.
 ///
-/// Handles the full lifecycle:
-///   connect → startSession → recording → processing → result → repeat
+/// Implements the MVVM pattern using Cubit as the ViewModel layer.
+/// All business logic is delegated to dedicated UseCases:
 ///
-/// Clean Architecture flow:
-///   UI → ConversationCubit → UseCase/Repository → DataSource (WebSocket)
+/// | Action             | UseCase                    |
+/// |--------------------|----------------------------|
+/// | Connect WS         | [ConnectConversationUseCase]|
+/// | Start session      | [StartSessionUseCase]       |
+/// | Send audio chunk   | [SendAudioChunkUseCase]     |
+/// | Switch speaker     | [SwitchSpeakerUseCase]      |
+/// | End session        | [EndSessionUseCase]         |
 ///
-/// The Cubit listens to the [ConversationEvent] stream from the repository
-/// and emits appropriate [ConversationState] subclasses. The UI rebuilds
-/// via [BlocBuilder] / [BlocConsumer].
-class ConversationCubit extends Cubit<ConversationState> {
+/// Lifecycle:
+///   connect → startSession → recording ⇄ processing → endSession → disconnect
+///
+/// Audio flow:
+///   Microphone → [AudioRecorderService] → [AudioChunkBuffer] → [SendAudioChunkUseCase]
+///
+/// The ViewModel listens to the [ConversationEvent] stream from the
+/// repository and emits appropriate [ConversationState] subclasses.
+/// The UI rebuilds via [BlocBuilder] / [BlocConsumer].
+class ConversationViewModel extends Cubit<ConversationState> {
   final ConnectConversationUseCase _connectUseCase;
+  final StartSessionUseCase _startSessionUseCase;
+  final SendAudioChunkUseCase _sendAudioChunkUseCase;
+  final SwitchSpeakerUseCase _switchSpeakerUseCase;
+  final EndSessionUseCase _endSessionUseCase;
   final ConversationRepository _repository;
   final AuthLocalDataSource _authLocalDataSource;
   final AudioRecorderService _audioRecorderService;
@@ -33,28 +53,36 @@ class ConversationCubit extends Cubit<ConversationState> {
   StreamSubscription<ConversationEvent>? _eventSubscription;
   StreamSubscription<Uint8List>? _audioSubscription;
 
+  /// Audio chunk buffer — accumulates raw PCM and flushes 2-second chunks.
+  final AudioChunkBuffer _audioBuffer = AudioChunkBuffer();
+
   /// Tracks when the current silence started for VAD.
   DateTime? _silenceStartTime;
 
-  /// Threshold for automatic stop (e.g. 1.5 seconds of silence).
+  /// Threshold for automatic stop (1.5 seconds of silence).
   static const _silenceDurationThreshold = Duration(milliseconds: 1500);
 
-  /// Buffer to accumulate audio data for 2-second chunks.
-  List<int> _audioBuffer = [];
+  /// The server-assigned session ID for the current session.
+  String? _currentSessionId;
 
-  /// Bytes required for 2 seconds of audio (16000Hz * 1 channel * 2 bytes/sample * 2 seconds).
-  static const int _bytesPerTwoSeconds = 64000;
-
-  ConversationCubit({
+  ConversationViewModel({
     required ConnectConversationUseCase connectUseCase,
+    required StartSessionUseCase startSessionUseCase,
+    required SendAudioChunkUseCase sendAudioChunkUseCase,
+    required SwitchSpeakerUseCase switchSpeakerUseCase,
+    required EndSessionUseCase endSessionUseCase,
     required ConversationRepository repository,
     required AuthLocalDataSource authLocalDataSource,
     required AudioRecorderService audioRecorderService,
-  }) : _connectUseCase = connectUseCase,
-       _repository = repository,
-       _authLocalDataSource = authLocalDataSource,
-       _audioRecorderService = audioRecorderService,
-       super(const ConversationInitial());
+  })  : _connectUseCase = connectUseCase,
+        _startSessionUseCase = startSessionUseCase,
+        _sendAudioChunkUseCase = sendAudioChunkUseCase,
+        _switchSpeakerUseCase = switchSpeakerUseCase,
+        _endSessionUseCase = endSessionUseCase,
+        _repository = repository,
+        _authLocalDataSource = authLocalDataSource,
+        _audioRecorderService = audioRecorderService,
+        super(const ConversationInitial());
 
   // ---------------------------------------------------------------------------
   // Connection
@@ -85,6 +113,7 @@ class ConversationCubit extends Cubit<ConversationState> {
           currentSpeaker: state.currentSpeaker,
           sourceLanguage: state.sourceLanguage,
           targetLanguage: state.targetLanguage,
+          errorType: ConversationErrorType.authRequired,
         ),
       );
       return;
@@ -103,6 +132,7 @@ class ConversationCubit extends Cubit<ConversationState> {
             currentSpeaker: state.currentSpeaker,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
+            errorType: ConversationErrorType.wsDisconnected,
           ),
         );
       },
@@ -119,6 +149,7 @@ class ConversationCubit extends Cubit<ConversationState> {
                   currentSpeaker: state.currentSpeaker,
                   sourceLanguage: state.sourceLanguage,
                   targetLanguage: state.targetLanguage,
+                  errorType: ConversationErrorType.wsDisconnected,
                 ),
               );
             }
@@ -132,6 +163,7 @@ class ConversationCubit extends Cubit<ConversationState> {
             connectionStatus: WebSocketConnectionStatus.connected,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
+            sessionLifecycle: SessionLifecycleStatus.idle,
           ),
         );
       },
@@ -143,30 +175,28 @@ class ConversationCubit extends Cubit<ConversationState> {
   // ---------------------------------------------------------------------------
 
   /// Starts a new conversation session with the specified languages.
+  ///
+  /// Delegates to [StartSessionUseCase] which sends both
+  /// `session_start` and `audio_metadata` events to the backend.
   void startSession({
     required String sourceLanguage,
     required String targetLanguage,
   }) {
-    _repository.startSession(
-      sourceLanguage: sourceLanguage,
-      targetLanguage: targetLanguage,
-      speaker: state.currentSpeaker,
-    );
-
-    // Also send audio metadata for the default recording configuration.
-    _repository.sendAudioMetadata(
-      sampleRate: 16000,
-      audioFormat: 'pcm_s16le',
-      speaker: state.currentSpeaker,
-      sourceLanguage: sourceLanguage,
-      targetLanguage: targetLanguage,
+    _startSessionUseCase(
+      StartSessionParams(
+        sourceLanguage: sourceLanguage,
+        targetLanguage: targetLanguage,
+        speaker: state.currentSpeaker,
+      ),
     );
   }
 
-  /// Transitions the UI to "recording" state.
+  /// Transitions the UI to "recording" state and starts streaming
+  /// audio from the microphone to the backend.
   ///
-  /// This signals the UI to show the recording animation and starts
-  /// streaming audio from the microphone to the backend.
+  /// Error handling:
+  /// - [ConversationErrorType.micPermissionDenied] if permission denied.
+  /// - [ConversationErrorType.recorderFailure] if recorder fails to start.
   Future<void> startListening() async {
     if (isClosed) return;
 
@@ -179,6 +209,7 @@ class ConversationCubit extends Cubit<ConversationState> {
           currentSpeaker: state.currentSpeaker,
           sourceLanguage: state.sourceLanguage,
           targetLanguage: state.targetLanguage,
+          errorType: ConversationErrorType.micPermissionDenied,
         ),
       );
       return;
@@ -187,73 +218,12 @@ class ConversationCubit extends Cubit<ConversationState> {
     try {
       final stream = await _audioRecorderService.startStreamRecording();
 
-      _silenceStartTime = null; // Reset silence tracker
-      _audioBuffer.clear(); // Reset audio buffer
+      _silenceStartTime = null;
+      _audioBuffer.clear();
 
       _audioSubscription?.cancel();
       _audioSubscription = stream.listen(
-        (chunk) {
-          _audioBuffer.addAll(chunk);
-
-          // Send audio in 2-second chunks
-          while (_audioBuffer.length >= _bytesPerTwoSeconds) {
-            final chunkToSend = Uint8List.fromList(
-              _audioBuffer.sublist(0, _bytesPerTwoSeconds),
-            );
-            _audioBuffer = _audioBuffer.sublist(_bytesPerTwoSeconds);
-
-            if (state.connectionStatus == WebSocketConnectionStatus.connected &&
-                state is ConversationRecording) {
-              try {
-                final now = DateTime.now();
-                developer.log(
-                  'Sending 2s audio chunk (${chunkToSend.length} bytes)',
-                  time: now,
-                  name: 'ConversationCubit',
-                );
-                _repository.sendAudioChunk(chunkToSend);
-              } catch (e) {
-                developer.log(
-                  'Failed to send audio chunk: $e',
-                  name: 'ConversationCubit',
-                  error: e,
-                );
-              }
-            }
-          }
-
-          // VAD Logic
-          final volume = VadUtil.calculateNormalizedVolume(chunk);
-          if (VadUtil.isSilence(volume, threshold: 0.05)) {
-            _silenceStartTime ??= DateTime.now();
-            if (DateTime.now().difference(_silenceStartTime!) >
-                _silenceDurationThreshold) {
-              developer.log(
-                'Silence detected for > 1.5s, stopping listening...',
-                name: 'ConversationCubit',
-              );
-              stopListening();
-              _silenceStartTime = null;
-              return;
-            }
-          } else {
-            _silenceStartTime = null;
-          }
-
-          // Emit new state with volume level for UI animation
-          if (!isClosed && state is ConversationRecording) {
-            emit(
-              ConversationRecording(
-                messages: state.messages,
-                currentSpeaker: state.currentSpeaker,
-                connectionStatus: state.connectionStatus,
-                sourceLanguage: state.sourceLanguage,
-                targetLanguage: state.targetLanguage,
-                volumeLevel: volume,
-              ),
-            );
-          }
-        },
+        _onAudioChunk,
         onError: (error) {
           if (!isClosed) {
             emit(
@@ -263,6 +233,7 @@ class ConversationCubit extends Cubit<ConversationState> {
                 currentSpeaker: state.currentSpeaker,
                 sourceLanguage: state.sourceLanguage,
                 targetLanguage: state.targetLanguage,
+                errorType: ConversationErrorType.recorderFailure,
               ),
             );
           }
@@ -286,6 +257,60 @@ class ConversationCubit extends Cubit<ConversationState> {
           currentSpeaker: state.currentSpeaker,
           sourceLanguage: state.sourceLanguage,
           targetLanguage: state.targetLanguage,
+          errorType: ConversationErrorType.recorderFailure,
+        ),
+      );
+    }
+  }
+
+  /// Processes an incoming audio chunk from the recorder.
+  ///
+  /// Buffers the audio into 2-second chunks via [AudioChunkBuffer],
+  /// then sends each ready chunk via [SendAudioChunkUseCase].
+  /// Also performs VAD to auto-stop after 1.5s of silence.
+  void _onAudioChunk(Uint8List chunk) {
+    // Buffer and flush 2-second chunks.
+    final readyChunks = _audioBuffer.addAndFlush(chunk);
+    for (final chunkToSend in readyChunks) {
+      if (state is ConversationRecording) {
+        final sent = _sendAudioChunkUseCase(chunkToSend);
+        if (sent) {
+          developer.log(
+            'Sent 2s audio chunk (${chunkToSend.length} bytes)',
+            name: 'ConversationVM',
+          );
+        }
+      }
+    }
+
+    // VAD — detect silence to auto-stop.
+    final volume = VadUtil.calculateNormalizedVolume(chunk);
+    if (VadUtil.isSilence(volume, threshold: 0.05)) {
+      _silenceStartTime ??= DateTime.now();
+      if (DateTime.now().difference(_silenceStartTime!) >
+          _silenceDurationThreshold) {
+        developer.log(
+          'Silence detected for > 1.5s, auto-stopping...',
+          name: 'ConversationVM',
+        );
+        stopListening();
+        _silenceStartTime = null;
+        return;
+      }
+    } else {
+      _silenceStartTime = null;
+    }
+
+    // Emit volume level for UI animation.
+    if (!isClosed && state is ConversationRecording) {
+      emit(
+        ConversationRecording(
+          messages: state.messages,
+          currentSpeaker: state.currentSpeaker,
+          connectionStatus: state.connectionStatus,
+          sourceLanguage: state.sourceLanguage,
+          targetLanguage: state.targetLanguage,
+          volumeLevel: volume,
         ),
       );
     }
@@ -293,11 +318,12 @@ class ConversationCubit extends Cubit<ConversationState> {
 
   /// Stops the current recording and sends `end_utterance` to the server.
   ///
+  /// Flushes any remaining buffered audio before signaling end.
   /// Emits [ConversationProcessing] while waiting for the translation result.
   Future<void> stopListening({bool finalizeUtterance = true}) async {
     if (isClosed) return;
 
-    _silenceStartTime = null; // Reset
+    _silenceStartTime = null;
 
     await _audioSubscription?.cancel();
     _audioSubscription = null;
@@ -306,26 +332,16 @@ class ConversationCubit extends Cubit<ConversationState> {
       await _audioRecorderService.stopStreamRecording();
     }
 
-    // Send any remaining audio in the buffer before ending utterance
-    if (_audioBuffer.isNotEmpty &&
-        state.connectionStatus == WebSocketConnectionStatus.connected) {
-      try {
-        final chunkToSend = Uint8List.fromList(_audioBuffer);
-        final now = DateTime.now();
+    // Send any remaining audio in the buffer before ending utterance.
+    final remaining = _audioBuffer.flushRemaining();
+    if (remaining != null) {
+      final sent = _sendAudioChunkUseCase(remaining);
+      if (sent) {
         developer.log(
-          'Sending remaining audio chunk (${chunkToSend.length} bytes)',
-          time: now,
-          name: 'ConversationCubit',
-        );
-        _repository.sendAudioChunk(chunkToSend);
-      } catch (e) {
-        developer.log(
-          'Failed to send remaining audio chunk: $e',
-          name: 'ConversationCubit',
-          error: e,
+          'Sent remaining audio (${remaining.length} bytes)',
+          name: 'ConversationVM',
         );
       }
-      _audioBuffer.clear();
     }
 
     if (finalizeUtterance) {
@@ -343,24 +359,27 @@ class ConversationCubit extends Cubit<ConversationState> {
   }
 
   /// Switches the active speaker between A and B.
+  ///
+  /// Delegates to [SwitchSpeakerUseCase] and re-emits the current
+  /// state with the updated speaker.
   void switchSpeaker() {
     if (isClosed) return;
     final newSpeaker = state.currentSpeaker == ConversationSpeaker.speakerA
         ? ConversationSpeaker.speakerB
         : ConversationSpeaker.speakerA;
 
-    _repository.changeSpeaker(newSpeaker);
-
-    // Re-emit current state type with updated speaker.
+    _switchSpeakerUseCase(newSpeaker);
     _emitWithUpdatedSpeaker(newSpeaker);
   }
 
   /// Ends the conversation session and stops continuous recording.
+  ///
+  /// Delegates to [EndSessionUseCase].
   Future<void> endSession() async {
     if (isClosed) return;
-    // session_end flushes and drains any remaining audio on the server.
     await stopListening(finalizeUtterance: false);
-    _repository.endSession();
+    _endSessionUseCase();
+    _currentSessionId = null;
     emit(
       ConversationConnected(
         messages: state.messages,
@@ -368,6 +387,7 @@ class ConversationCubit extends Cubit<ConversationState> {
         connectionStatus: WebSocketConnectionStatus.connected,
         sourceLanguage: state.sourceLanguage,
         targetLanguage: state.targetLanguage,
+        sessionLifecycle: SessionLifecycleStatus.ended,
       ),
     );
   }
@@ -384,6 +404,7 @@ class ConversationCubit extends Cubit<ConversationState> {
     _eventSubscription?.cancel();
     _eventSubscription = null;
     _audioBuffer.clear();
+    _currentSessionId = null;
     _repository.disconnect();
 
     if (!isClosed) {
@@ -404,6 +425,7 @@ class ConversationCubit extends Cubit<ConversationState> {
         connectionStatus: state.connectionStatus,
         sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
+        sessionLifecycle: state.sessionLifecycle,
       ),
     );
   }
@@ -418,6 +440,7 @@ class ConversationCubit extends Cubit<ConversationState> {
         connectionStatus: state.connectionStatus,
         sourceLanguage: state.sourceLanguage,
         targetLanguage: state.targetLanguage,
+        sessionLifecycle: state.sessionLifecycle,
       ),
     );
   }
@@ -430,7 +453,8 @@ class ConversationCubit extends Cubit<ConversationState> {
     if (isClosed) return;
 
     switch (event) {
-      case ConversationSessionStarted():
+      case ConversationSessionStarted(:final sessionId):
+        _currentSessionId = sessionId;
         emit(
           ConversationConnected(
             messages: state.messages,
@@ -438,10 +462,11 @@ class ConversationCubit extends Cubit<ConversationState> {
             connectionStatus: WebSocketConnectionStatus.connected,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
-            sessionId: event.sessionId,
+            sessionId: sessionId,
+            sessionLifecycle: SessionLifecycleStatus.ready,
           ),
         );
-        // Auto-start listening (continuous recording) once session starts
+        // Auto-start listening once session starts.
         startListening();
 
       case ConversationMetadataAcknowledged():
@@ -458,8 +483,12 @@ class ConversationCubit extends Cubit<ConversationState> {
             connectionStatus: WebSocketConnectionStatus.connected,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
+            sessionId: _currentSessionId,
+            sessionLifecycle: SessionLifecycleStatus.ready,
           ),
         );
+        // Auto-resume recording for continuous conversation.
+        _autoResumeListening();
 
       case ConversationErrorEvent(:final code, :final message):
         emit(
@@ -469,6 +498,7 @@ class ConversationCubit extends Cubit<ConversationState> {
             currentSpeaker: state.currentSpeaker,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
+            errorType: ConversationErrorType.backendError,
           ),
         );
 
@@ -504,6 +534,25 @@ class ConversationCubit extends Cubit<ConversationState> {
     }
   }
 
+  /// Automatically resumes recording after receiving a translation result.
+  ///
+  /// This enables continuous conversation mode: after each utterance
+  /// is translated, the mic turns on again for the next one.
+  Future<void> _autoResumeListening() async {
+    if (isClosed) return;
+    if (_currentSessionId == null) return;
+    if (state.connectionStatus != WebSocketConnectionStatus.connected) return;
+
+    // Small delay to avoid overlapping with UI state transitions.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    if (!isClosed &&
+        state is ConversationConnected &&
+        _currentSessionId != null) {
+      startListening();
+    }
+  }
+
   void _emitWithUpdatedSpeaker(ConversationSpeaker newSpeaker) {
     switch (state) {
       case ConversationConnected():
@@ -514,6 +563,7 @@ class ConversationCubit extends Cubit<ConversationState> {
             connectionStatus: state.connectionStatus,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
+            sessionLifecycle: state.sessionLifecycle,
           ),
         );
       case ConversationRecording():
@@ -527,7 +577,6 @@ class ConversationCubit extends Cubit<ConversationState> {
           ),
         );
       default:
-        // For other states, just update via Connected.
         emit(
           ConversationConnected(
             messages: state.messages,
@@ -535,6 +584,7 @@ class ConversationCubit extends Cubit<ConversationState> {
             connectionStatus: state.connectionStatus,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
+            sessionLifecycle: state.sessionLifecycle,
           ),
         );
     }

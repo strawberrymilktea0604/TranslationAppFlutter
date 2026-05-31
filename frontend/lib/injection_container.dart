@@ -87,7 +87,11 @@ import 'package:frontend/features/conversation/data/datasources/conversation_rem
 import 'package:frontend/features/conversation/data/repositories/conversation_repository_impl.dart';
 import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
 import 'package:frontend/features/conversation/domain/usecases/connect_conversation_usecase.dart';
-import 'package:frontend/features/conversation/presentation/bloc/conversation_cubit.dart';
+import 'package:frontend/features/conversation/domain/usecases/start_session_usecase.dart';
+import 'package:frontend/features/conversation/domain/usecases/send_audio_chunk_usecase.dart';
+import 'package:frontend/features/conversation/domain/usecases/end_session_usecase.dart';
+import 'package:frontend/features/conversation/domain/usecases/switch_speaker_usecase.dart';
+import 'package:frontend/features/conversation/presentation/bloc/conversation_viewmodel.dart';
 
 import 'main.dart' show config, isarDatabase;
 
@@ -484,12 +488,20 @@ Future<void> initDependencies() async {
     ),
   );
 
-  // UseCase
+  // UseCases — one use case per business action.
   sl.registerLazySingleton(() => ConnectConversationUseCase(sl()));
+  sl.registerLazySingleton(() => StartSessionUseCase(sl()));
+  sl.registerLazySingleton(() => SendAudioChunkUseCase(sl()));
+  sl.registerLazySingleton(() => EndSessionUseCase(sl()));
+  sl.registerLazySingleton(() => SwitchSpeakerUseCase(sl()));
 
-  // Cubit — factory: new instance per conversation screen.
-  sl.registerFactory(() => ConversationCubit(
+  // ViewModel (MVVM) — factory: new instance per conversation screen.
+  sl.registerFactory(() => ConversationViewModel(
     connectUseCase: sl(),
+    startSessionUseCase: sl(),
+    sendAudioChunkUseCase: sl(),
+    switchSpeakerUseCase: sl(),
+    endSessionUseCase: sl(),
     repository: sl(),
     authLocalDataSource: sl(),
     audioRecorderService: sl(),

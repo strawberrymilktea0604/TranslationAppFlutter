@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:frontend/features/conversation/domain/entities/conversation_entity.dart';
-import 'package:frontend/features/conversation/presentation/bloc/conversation_cubit.dart';
+import 'package:frontend/features/conversation/presentation/bloc/conversation_viewmodel.dart';
 import 'package:frontend/features/conversation/presentation/widgets/connection_status_indicator.dart';
 import 'package:frontend/features/conversation/presentation/widgets/message_bubble.dart';
+import 'package:frontend/features/conversation/presentation/widgets/recording_wave_indicator.dart';
+import 'package:frontend/features/conversation/presentation/widgets/session_status_bar.dart';
 import 'package:frontend/features/conversation/presentation/widgets/speaker_toggle.dart';
 import 'package:frontend/injection_container.dart';
 
@@ -14,19 +16,22 @@ import 'package:frontend/injection_container.dart';
 ///
 /// Layout:
 /// - AppBar with title + connection status chip
-/// - Scrollable list of message bubbles
-/// - Bottom control bar: language selector, speaker toggle, mic button,
-///   start/stop controls
+/// - Scrollable list of message bubbles (with processing indicator)
+/// - Bottom control bar: language selector, session status, speaker toggle,
+///   mic button, start/stop controls
 ///
-/// State management: [ConversationCubit] provided via [BlocProvider].
+/// State management: [ConversationViewModel] provided via [BlocProvider].
 /// WriteCubit — scoped locally per this screen (not global).
+///
+/// Error handling: uses [ConversationErrorType] to show contextual
+/// error messages (permission dialog, reconnect banner, snackbar).
 class ConversationPage extends StatelessWidget {
   const ConversationPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<ConversationCubit>(
-      create: (_) => sl<ConversationCubit>(),
+    return BlocProvider<ConversationViewModel>(
+      create: (_) => sl<ConversationViewModel>(),
       child: const _ConversationView(),
     );
   }
@@ -82,26 +87,8 @@ class _ConversationViewState extends State<_ConversationView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(context),
-      body: BlocConsumer<ConversationCubit, ConversationState>(
-        listener: (context, state) {
-          // Scroll to bottom when new messages arrive.
-          if (state is ConversationConnected && state.messages.isNotEmpty) {
-            _scrollToBottom();
-          }
-          // Show error snackbar.
-          if (state is ConversationFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            );
-          }
-        },
+      body: BlocConsumer<ConversationViewModel, ConversationState>(
+        listener: _onStateChanged,
         builder: (context, state) {
           return Column(
             children: [
@@ -121,6 +108,164 @@ class _ConversationViewState extends State<_ConversationView> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // State change listener — contextual error handling
+  // ---------------------------------------------------------------------------
+
+  void _onStateChanged(BuildContext context, ConversationState state) {
+    // Scroll to bottom when new messages arrive.
+    if (state is ConversationConnected && state.messages.isNotEmpty) {
+      _scrollToBottom();
+    }
+
+    // Handle errors by type.
+    if (state is ConversationFailure) {
+      _handleError(context, state);
+    }
+  }
+
+  /// Routes errors to the appropriate UI response based on [ConversationErrorType].
+  void _handleError(BuildContext context, ConversationFailure state) {
+    switch (state.errorType) {
+      case ConversationErrorType.micPermissionDenied:
+        _showPermissionDeniedDialog(context);
+
+      case ConversationErrorType.authRequired:
+        _showSnackBar(
+          context,
+          message: state.message,
+          icon: Icons.lock_outline_rounded,
+          color: const Color(0xFFFF9800),
+        );
+
+      case ConversationErrorType.wsDisconnected:
+        _showSnackBar(
+          context,
+          message: state.message,
+          icon: Icons.wifi_off_rounded,
+          color: Theme.of(context).colorScheme.error,
+          action: SnackBarAction(
+            label: 'Thử lại',
+            textColor: Colors.white,
+            onPressed: () =>
+                context.read<ConversationViewModel>().connect(),
+          ),
+        );
+
+      case ConversationErrorType.recorderFailure:
+        _showSnackBar(
+          context,
+          message: state.message,
+          icon: Icons.mic_off_rounded,
+          color: Theme.of(context).colorScheme.error,
+        );
+
+      case ConversationErrorType.backendError:
+        _showSnackBar(
+          context,
+          message: state.message,
+          icon: Icons.error_outline_rounded,
+          color: const Color(0xFFFF5722),
+        );
+
+      case ConversationErrorType.unknown:
+        _showSnackBar(
+          context,
+          message: state.message,
+          icon: Icons.warning_amber_rounded,
+          color: Theme.of(context).colorScheme.error,
+        );
+    }
+  }
+
+  void _showSnackBar(
+    BuildContext context, {
+    required String message,
+    required IconData icon,
+    required Color color,
+    SnackBarAction? action,
+  }) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: GoogleFonts.inter(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        action: action,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  void _showPermissionDeniedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          icon: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF44336).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.mic_off_rounded,
+              color: Color(0xFFF44336),
+              size: 32,
+            ),
+          ),
+          title: Text(
+            'Cần quyền truy cập Microphone',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+          content: Text(
+            'Ứng dụng cần quyền truy cập microphone để ghi âm '
+            'và dịch hội thoại. Vui lòng vào Cài đặt để cấp quyền.',
+            style: GoogleFonts.inter(fontSize: 14, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Để sau'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                // Re-attempt permission request.
+                context.read<ConversationViewModel>().startListening();
+              },
+              child: const Text('Thử lại'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // AppBar
+  // ---------------------------------------------------------------------------
+
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
       title: Text(
@@ -134,7 +279,7 @@ class _ConversationViewState extends State<_ConversationView> {
         // Connection status indicator
         Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: BlocSelector<ConversationCubit, ConversationState,
+          child: BlocSelector<ConversationViewModel, ConversationState,
               WebSocketConnectionStatus>(
             selector: (state) => state.connectionStatus,
             builder: (context, status) {
@@ -145,6 +290,10 @@ class _ConversationViewState extends State<_ConversationView> {
       ],
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Disconnect Banner
+  // ---------------------------------------------------------------------------
 
   Widget _buildDisconnectBanner(
     BuildContext context,
@@ -179,7 +328,8 @@ class _ConversationViewState extends State<_ConversationView> {
             ),
           ),
           TextButton.icon(
-            onPressed: () => context.read<ConversationCubit>().connect(),
+            onPressed: () =>
+                context.read<ConversationViewModel>().connect(),
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Thử lại'),
             style: TextButton.styleFrom(
@@ -191,6 +341,10 @@ class _ConversationViewState extends State<_ConversationView> {
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Message List
+  // ---------------------------------------------------------------------------
 
   Widget _buildMessageList(BuildContext context, ConversationState state) {
     final messages = state.messages;
@@ -354,6 +508,10 @@ class _ConversationViewState extends State<_ConversationView> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Bottom Control Bar
+  // ---------------------------------------------------------------------------
+
   Widget _buildBottomBar(BuildContext context, ConversationState state) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -391,6 +549,15 @@ class _ConversationViewState extends State<_ConversationView> {
             _buildLanguageRow(context, state),
           const SizedBox(height: 12),
 
+          // Session status indicator (visible during active session)
+          if (hasActiveSession) ...[
+            SessionStatusBar(
+              status: state.sessionLifecycle,
+              volumeLevel: isRecording ? state.volumeLevel : 0.0,
+            ),
+            const SizedBox(height: 12),
+          ],
+
           // Controls row
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -400,8 +567,8 @@ class _ConversationViewState extends State<_ConversationView> {
                 SpeakerToggle(
                   currentSpeaker: state.currentSpeaker,
                   onToggle: () =>
-                      context.read<ConversationCubit>().switchSpeaker(),
-                  enabled: true, // Always allow switching speaker
+                      context.read<ConversationViewModel>().switchSpeaker(),
+                  enabled: true,
                 ),
 
               if (isConnected) const SizedBox(width: 16),
@@ -423,7 +590,7 @@ class _ConversationViewState extends State<_ConversationView> {
             ],
           ),
 
-          // Recording indicator
+          // Recording indicator with wave animation
           if (isRecording) ...[
             const SizedBox(height: 10),
             _buildRecordingIndicator(context, state.volumeLevel),
@@ -434,8 +601,7 @@ class _ConversationViewState extends State<_ConversationView> {
   }
 
   Widget _buildLanguageRow(BuildContext context, ConversationState state) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -463,11 +629,11 @@ class _ConversationViewState extends State<_ConversationView> {
             },
             icon: Icon(
               Icons.swap_horiz_rounded,
-              color: theme.colorScheme.primary,
+              color: Theme.of(context).colorScheme.primary,
             ),
             style: IconButton.styleFrom(
               backgroundColor:
-                  theme.colorScheme.primary.withValues(alpha: 0.1),
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -535,7 +701,7 @@ class _ConversationViewState extends State<_ConversationView> {
   Widget _buildStartSessionButton(BuildContext context) {
     return FilledButton.icon(
       onPressed: () {
-        context.read<ConversationCubit>().startSession(
+        context.read<ConversationViewModel>().startSession(
           sourceLanguage: _srcLang,
           targetLanguage: _tgtLang,
         );
@@ -572,7 +738,7 @@ class _ConversationViewState extends State<_ConversationView> {
   Widget _buildConnectButton(BuildContext context) {
     return FilledButton.icon(
       onPressed: () {
-        context.read<ConversationCubit>().connect();
+        context.read<ConversationViewModel>().connect();
       },
       icon: const Icon(Icons.wifi_rounded, size: 20),
       label: const Text('Bắt đầu kết nối'),
@@ -586,11 +752,6 @@ class _ConversationViewState extends State<_ConversationView> {
   }
 
   Widget _buildRecordingIndicator(BuildContext context, double volumeLevel) {
-    // Dynamic scale and opacity based on volume level.
-    // Minimum scale is 1.0, maximum is around 1.8.
-    final dynamicScale = 1.0 + (volumeLevel * 0.8);
-    final dynamicOpacity = (0.5 + (volumeLevel * 0.5)).clamp(0.0, 1.0);
-
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 600),
@@ -600,23 +761,12 @@ class _ConversationViewState extends State<_ConversationView> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Dynamic pulsing red dot responding to volume
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 100), // Fast response to volume changes
-                curve: Curves.easeOut,
-                width: 8 * dynamicScale,
-                height: 8 * dynamicScale,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF44336).withValues(alpha: dynamicOpacity),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFF44336).withValues(alpha: dynamicOpacity * 0.5),
-                      blurRadius: 4 * dynamicScale,
-                      spreadRadius: 2 * dynamicScale,
-                    ),
-                  ],
-                ),
+              // Wave animation responding to volume.
+              RecordingWaveIndicator(
+                volumeLevel: volumeLevel,
+                barCount: 5,
+                color: const Color(0xFFF44336),
+                maxBarHeight: 24,
               ),
               const SizedBox(width: 12),
               Text(
@@ -658,8 +808,8 @@ class _ConversationViewState extends State<_ConversationView> {
             FilledButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                context.read<ConversationCubit>().endSession();
-                context.read<ConversationCubit>().disconnect();
+                context.read<ConversationViewModel>().endSession();
+                context.read<ConversationViewModel>().disconnect();
               },
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFF44336),

@@ -16,7 +16,7 @@ class ConnectConversationParams {
 /// and returns a stream of [ConversationEvent]s.
 ///
 /// Clean Architecture flow:
-///   UI → ConversationCubit → ConnectConversationUseCase → ConversationRepository
+///   UI → ConversationViewModel → ConnectConversationUseCase → ConversationRepository
 ///
 /// This use case orchestrates the connection setup. The Cubit is
 /// responsible for listening to the returned stream and emitting

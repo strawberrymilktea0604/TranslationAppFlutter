@@ -1,4 +1,47 @@
-part of 'conversation_cubit.dart';
+part of 'conversation_viewmodel.dart';
+
+/// Error classification for the conversation feature.
+///
+/// Allows the UI layer to display contextually appropriate error
+/// messages and actions (e.g. "open Settings" for permission errors).
+enum ConversationErrorType {
+  /// Microphone permission was denied by the user.
+  micPermissionDenied,
+
+  /// WebSocket connection was lost unexpectedly.
+  wsDisconnected,
+
+  /// Audio recorder failed to start or stream.
+  recorderFailure,
+
+  /// Server returned an error event.
+  backendError,
+
+  /// User is not authenticated (no token).
+  authRequired,
+
+  /// Catch-all for unexpected errors.
+  unknown,
+}
+
+/// Session lifecycle status used by the UI to show appropriate
+/// indicators and controls.
+enum SessionLifecycleStatus {
+  /// No active session.
+  idle,
+
+  /// Session created, ready to record.
+  ready,
+
+  /// Microphone active, capturing audio.
+  recording,
+
+  /// Audio sent, waiting for STT + translation.
+  processing,
+
+  /// Session ended by user.
+  ended,
+}
 
 /// Base sealed class for conversation states.
 ///
@@ -26,6 +69,9 @@ sealed class ConversationState {
   /// Current microphone volume level (0.0 to 1.0) when recording.
   final double volumeLevel;
 
+  /// Session lifecycle status for UI indicators.
+  final SessionLifecycleStatus sessionLifecycle;
+
   const ConversationState({
     this.messages = const [],
     this.currentSpeaker = ConversationSpeaker.speakerA,
@@ -33,6 +79,7 @@ sealed class ConversationState {
     this.sourceLanguage = 'vi',
     this.targetLanguage = 'en',
     this.volumeLevel = 0.0,
+    this.sessionLifecycle = SessionLifecycleStatus.idle,
   });
 }
 
@@ -52,6 +99,7 @@ final class ConversationConnecting extends ConversationState {
     required super.connectionStatus,
     required super.sourceLanguage,
     required super.targetLanguage,
+    super.sessionLifecycle,
   });
 }
 
@@ -66,6 +114,7 @@ final class ConversationConnected extends ConversationState {
     required super.connectionStatus,
     required super.sourceLanguage,
     required super.targetLanguage,
+    super.sessionLifecycle,
     this.sessionId,
   });
 }
@@ -79,7 +128,7 @@ final class ConversationRecording extends ConversationState {
     required super.sourceLanguage,
     required super.targetLanguage,
     super.volumeLevel = 0.0,
-  });
+  }) : super(sessionLifecycle: SessionLifecycleStatus.recording);
 }
 
 /// Audio uploaded, STT + translation in progress on server.
@@ -90,7 +139,7 @@ final class ConversationProcessing extends ConversationState {
     required super.connectionStatus,
     required super.sourceLanguage,
     required super.targetLanguage,
-  });
+  }) : super(sessionLifecycle: SessionLifecycleStatus.processing);
 }
 
 /// WebSocket disconnected unexpectedly.
@@ -103,6 +152,7 @@ final class ConversationDisconnected extends ConversationState {
     required super.currentSpeaker,
     required super.sourceLanguage,
     required super.targetLanguage,
+    super.sessionLifecycle,
     this.reason = 'Mất kết nối',
   }) : super(connectionStatus: WebSocketConnectionStatus.disconnected);
 }
@@ -112,11 +162,16 @@ final class ConversationFailure extends ConversationState {
   /// Error message for display.
   final String message;
 
+  /// Classified error type for contextual UI handling.
+  final ConversationErrorType errorType;
+
   const ConversationFailure({
     required this.message,
     required super.messages,
     required super.currentSpeaker,
     required super.sourceLanguage,
     required super.targetLanguage,
+    this.errorType = ConversationErrorType.unknown,
+    super.sessionLifecycle,
   }) : super(connectionStatus: WebSocketConnectionStatus.error);
 }
