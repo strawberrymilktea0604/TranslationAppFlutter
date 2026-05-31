@@ -1,6 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:frontend/core/config/api_config.dart';
+import 'package:frontend/core/services/local_data_source.dart';
+import 'package:frontend/core/services/service_locator.dart';
+import 'package:frontend/core/error/api_error_handler.dart';
 
 /// User model for admin list display
 class AdminUser {
@@ -132,7 +136,7 @@ class AdminUsersService with ChangeNotifier {
         if (search != null && search.isNotEmpty) 'search': search,
       };
 
-      final uri = Uri.parse('$baseUrl/users/admin/users')
+      final uri = Uri.parse('$baseUrl/admin/users')
           .replace(queryParameters: queryParams);
 
       final response = await client.get(
@@ -140,13 +144,7 @@ class AdminUsersService with ChangeNotifier {
         headers: {'Authorization': 'Bearer $token'},
       );
 
-      if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
-      }
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to fetch users: ${response.body}');
-      }
+      _handleHttpErrors(response);
 
       final data = AdminUserListResponse.fromJson(
         jsonDecode(response.body) as Map<String, dynamic>,
@@ -167,17 +165,11 @@ class AdminUsersService with ChangeNotifier {
   Future<void> banUser(int userId, String accessToken) async {
     try {
       final response = await client.patch(
-        Uri.parse('$baseUrl/users/admin/users/$userId/ban'),
+        Uri.parse('$baseUrl/admin/users/$userId/ban'),
         headers: {'Authorization': 'Bearer $accessToken'},
       );
 
-      if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
-      }
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to ban user: ${response.body}');
-      }
+      _handleHttpErrors(response);
 
       // Update local user
       final userIndex = _users.indexWhere((u) => u.id == userId);
@@ -198,17 +190,11 @@ class AdminUsersService with ChangeNotifier {
   Future<void> unbanUser(int userId, String accessToken) async {
     try {
       final response = await client.patch(
-        Uri.parse('$baseUrl/users/admin/users/$userId/unban'),
+        Uri.parse('$baseUrl/admin/users/$userId/unban'),
         headers: {'Authorization': 'Bearer $accessToken'},
       );
 
-      if (response.statusCode == 401) {
-        throw Exception('Unauthorized');
-      }
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to unban user: ${response.body}');
-      }
+      _handleHttpErrors(response);
 
       // Update local user
       final userIndex = _users.indexWhere((u) => u.id == userId);
@@ -232,5 +218,11 @@ class AdminUsersService with ChangeNotifier {
     _currentPage = 1;
     _error = null;
     notifyListeners();
+  }
+
+  // ==================== PRIVATE ====================
+
+  void _handleHttpErrors(http.Response response) {
+    ApiErrorHandler.handleHttpResponse(response);
   }
 }
