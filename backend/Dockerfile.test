@@ -55,6 +55,7 @@ COPY --from=builder /root/.local /root/.local
 
 # Copy application code and tests
 COPY alembic.ini ./
+COPY pytest.ini ./
 COPY ./app ./app
 COPY ./alembic ./alembic
 COPY ./tests ./tests

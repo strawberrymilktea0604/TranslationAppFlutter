@@ -18,7 +18,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
-from app.core.database import get_db, Base
+from app.core.database import get_db
+from app.models.base import Base
 from app.main import app
 
 

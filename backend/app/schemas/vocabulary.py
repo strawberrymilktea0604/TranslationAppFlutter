@@ -19,8 +19,8 @@ class VocabularyCreateMultiple(BaseModel):
     """Request schema for creating multiple vocabulary entries at once"""
     translation_ids: list[int] = Field(
         ...,
-        min_items=1,
-        max_items=50,
+        min_length=1,
+        max_length=50,
         description="List of translation IDs to add to vocabulary (max 50 at once)"
     )
 

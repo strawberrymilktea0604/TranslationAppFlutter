@@ -284,8 +284,8 @@ class BulkDeleteRequest(BaseModel):
     """Request schema for bulk deleting translations"""
     translation_ids: list[int] = Field(
         ..., 
-        min_items=1,
-        max_items=100,
+        min_length=1,
+        max_length=100,
         description="List of translation IDs to delete (max 100)"
     )
 
