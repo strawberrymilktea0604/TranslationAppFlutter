@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:frontend/core/config/api_config.dart';
-import 'package:frontend/core/services/local_data_source.dart';
-import 'package:frontend/core/services/service_locator.dart';
+import 'package:frontend/main.dart';
+import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
+import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/error/api_error_handler.dart';
 
 /// Dashboard statistics and metrics
@@ -65,7 +65,7 @@ class AdminDashboardService extends ChangeNotifier {
     http.Client? client,
     String? baseUrl,
   })  : client = client ?? http.Client(),
-        baseUrl = baseUrl ?? ApiConfig.baseUrl;
+        baseUrl = baseUrl ?? config.apiUrl;
 
   // Getters
   DashboardStats? get stats => _stats;

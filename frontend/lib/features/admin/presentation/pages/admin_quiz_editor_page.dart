@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/features/admin/presentation/layout/admin_layout.dart';
 import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
@@ -7,7 +8,6 @@ import 'package:frontend/injection_container.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/services/admin_question_bank_service.dart';
 import 'package:frontend/services/admin_question_service.dart';
-import 'package:frontend/core/error/api_error_handler.dart';
 
 /// Admin Quiz Editor Page
 /// Manages questions within question banks: list, create, edit, toggle, delete
@@ -28,7 +28,7 @@ class _AdminQuizEditorPageState extends State<AdminQuizEditorPage> {
   int? _selectedBankId;
   int _currentPage = 1;
   final int _pageSize = 20;
-  bool _includeDeleted = false;
+  final bool _includeDeleted = false;
   bool _banksInitialized = false;
   bool _questionsInitialized = false;
 
@@ -1051,7 +1051,9 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                           width: 50,
                           child: Radio<String>(
                             value: key,
+                            // ignore: deprecated_member_use
                             groupValue: _selectedCorrectAnswer,
+                            // ignore: deprecated_member_use
                             onChanged: (value) {
                               setState(() => _selectedCorrectAnswer = value);
                             },
@@ -1075,9 +1077,9 @@ class _QuestionFormDialogState extends State<_QuestionFormDialog> {
                           ),
                         ),
                       ],
-                    );
+                    ),
                   );
-                }).toList(),
+                }),
                 const SizedBox(height: 24),
 
                 // Action buttons

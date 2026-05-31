@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:frontend/core/config/api_config.dart';
-import 'package:frontend/core/services/local_data_source.dart';
-import 'package:frontend/core/services/service_locator.dart';
 import 'package:frontend/core/error/api_error_handler.dart';
 
 /// Model for a question bank in admin context
@@ -210,8 +207,8 @@ class AdminQuestionBankService with ChangeNotifier {
     try {
       final body = jsonEncode({
         'title': title,
-        if (description != null && description.isNotEmpty) 'description': description,
-        if (durationMinutes != null) 'duration_minutes': durationMinutes,
+        'description': ?(description?.isNotEmpty == true ? description : null),
+        'duration_minutes': ?durationMinutes,
       });
 
       final response = await client.post(
@@ -247,9 +244,9 @@ class AdminQuestionBankService with ChangeNotifier {
     _setError(null);
     try {
       final body = jsonEncode({
-        if (title != null) 'title': title,
-        if (description != null) 'description': description,
-        if (durationMinutes != null) 'duration_minutes': durationMinutes,
+        'title': ?title,
+        'description': ?description,
+        'duration_minutes': ?durationMinutes,
       });
 
       final response = await client.put(

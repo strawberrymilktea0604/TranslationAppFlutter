@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/features/sync/domain/entities/sync_entity.dart';
+import 'package:frontend/features/sync/domain/entities/sync_push_entity.dart';
 
 /// Abstract repository for UC09 — Đồng bộ dữ liệu.
 ///
@@ -15,4 +16,17 @@ abstract class SyncRepository {
   ///
   /// Returns [SyncResponseEntity] on success or [Failure] on error.
   Future<Either<Failure, SyncResponseEntity>> syncVocabulary();
+
+  /// Performs a full sync cycle using the modern push/pull protocol:
+  ///
+  /// 1. Gather all unsynced local records (vocabulary).
+  /// 2. Push them via `POST /api/v1/sync/push`.
+  /// 3. Process push results (mark synced, update backendId).
+  /// 4. Pull server changes via `GET /api/v1/sync/pull` (cursor-based).
+  /// 5. Upsert pulled items into local Isar DB.
+  /// 6. Persist the new cursor for next sync.
+  ///
+  /// Returns [SyncPushResponseEntity] summarizing the push results,
+  /// or [Failure] on error.
+  Future<Either<Failure, SyncPushResponseEntity>> fullSync();
 }

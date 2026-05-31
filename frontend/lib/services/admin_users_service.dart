@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:frontend/core/config/api_config.dart';
-import 'package:frontend/core/services/local_data_source.dart';
-import 'package:frontend/core/services/service_locator.dart';
 import 'package:frontend/core/error/api_error_handler.dart';
 
 /// User model for admin list display

@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/sync_entity.dart';
+import '../../domain/entities/sync_push_entity.dart';
 
 /// States for the SyncCubit (Background Sync Worker).
 ///
@@ -19,8 +20,17 @@ class SyncIdle extends SyncState {
 }
 
 /// A background sync is currently in progress.
+///
+/// Optionally carries a [phase] description for UI progress display.
 class SyncSyncing extends SyncState {
-  const SyncSyncing();
+  /// Human-readable description of the current phase.
+  /// e.g., 'Pushing changes…', 'Pulling updates…'
+  final String? phase;
+
+  const SyncSyncing({this.phase});
+
+  @override
+  List<Object?> get props => [phase];
 }
 
 /// The most recent sync completed successfully.
@@ -28,16 +38,29 @@ class SyncSuccess extends SyncState {
   /// Number of items that were synced.
   final int syncedCount;
 
-  /// Detailed per-item results.
+  /// Detailed per-item results (legacy sync).
   final List<SyncResultEntity> results;
 
-  const SyncSuccess({
+  /// Push response results (modern sync), if available.
+  final SyncPushResponseEntity? pushResponse;
+
+  /// Timestamp of this sync completion.
+  final DateTime completedAt;
+
+  SyncSuccess({
     required this.syncedCount,
     required this.results,
-  });
+    this.pushResponse,
+    DateTime? completedAt,
+  }) : completedAt = completedAt ?? DateTime.now();
 
   @override
-  List<Object?> get props => [syncedCount, results];
+  List<Object?> get props => [
+        syncedCount,
+        results,
+        pushResponse,
+        completedAt,
+      ];
 }
 
 /// The most recent sync failed.

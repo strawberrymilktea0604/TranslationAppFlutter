@@ -99,7 +99,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
             top: -120,
             left: -80,
             child: _GlowCircle(
-              color: const Color(0xFF6366F1).withOpacity(0.15),
+              color: const Color(0xFF6366F1).withValues(alpha: 0.15),
               size: 400,
             ),
           ),
@@ -107,7 +107,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
             bottom: -100,
             right: -60,
             child: _GlowCircle(
-              color: const Color(0xFF8B5CF6).withOpacity(0.12),
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
               size: 350,
             ),
           ),
@@ -115,7 +115,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
             top: 200,
             right: 100,
             child: _GlowCircle(
-              color: const Color(0xFF06B6D4).withOpacity(0.08),
+              color: const Color(0xFF06B6D4).withValues(alpha: 0.08),
               size: 200,
             ),
           ),
@@ -168,7 +168,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6366F1).withOpacity(0.4),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.4),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
@@ -210,7 +210,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
         border: Border.all(color: const Color(0xFF334155), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 40,
             offset: const Offset(0, 16),
           ),
@@ -304,7 +304,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
                       ? null
                       : [
                           BoxShadow(
-                            color: const Color(0xFF6366F1).withOpacity(0.35),
+                            color: const Color(0xFF6366F1).withValues(alpha: 0.35),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -421,9 +421,9 @@ class _AdminLoginPageState extends State<AdminLoginPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B).withOpacity(0.6),
+        color: const Color(0xFF1E293B).withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF334155).withOpacity(0.5)),
+        border: Border.all(color: const Color(0xFF334155).withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [

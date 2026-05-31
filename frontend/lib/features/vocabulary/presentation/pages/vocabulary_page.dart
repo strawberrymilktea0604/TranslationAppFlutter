@@ -70,17 +70,45 @@ class _VocabularyTabViewState extends State<_VocabularyTabView>
     final cs = Theme.of(context).colorScheme;
 
     return BlocListener<SyncCubit, SyncState>(
-      // Listen for SyncSuccess — both HTTP batch sync and WS push
-      // emit this state. On success, reload both tabs so isSynced
-      // badges update in realtime.
-      listenWhen: (_, current) => current is SyncSuccess,
+      // Listen for SyncSuccess and SyncFailure.
+      // On success, reload both tabs so isSynced badges update in realtime.
+      listenWhen: (previous, current) => current is SyncSuccess || current is SyncFailure,
       listener: (context, state) {
-        // Reload history list
-        context.read<HistoryCubit>().loadHistory();
-        // Reload vocabulary categories (triggers saved vocab refresh)
-        try {
-          sl<VocabularyCategoryCubit>().loadCategories();
-        } catch (_) {}
+        if (state is SyncFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi đồng bộ: ${state.message}'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+          return;
+        }
+
+        if (state is SyncSuccess) {
+          if (state.pushResponse != null && state.pushResponse!.failedCount > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Đồng bộ hoàn tất. Tuy nhiên có ${state.pushResponse!.failedCount} mục bị server từ chối.'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Đồng bộ dữ liệu thành công'),
+                backgroundColor: AppTheme.successColor,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+
+          // Reload history list
+          context.read<HistoryCubit>().loadHistory();
+          // Reload vocabulary categories (triggers saved vocab refresh)
+          try {
+            sl<VocabularyCategoryCubit>().loadCategories();
+          } catch (_) {}
+        }
       },
       child: Column(
         children: [
