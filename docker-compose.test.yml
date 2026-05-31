@@ -17,6 +17,8 @@ services:
       retries: 5
     tmpfs:
       - /var/lib/postgresql/data  # Use in-memory storage for faster tests
+    networks:
+      - test-network
 
   test-redis:
     image: redis:7-alpine
@@ -30,6 +32,8 @@ services:
       retries: 5
     tmpfs:
       - /data  # Use in-memory storage for faster tests
+    networks:
+      - test-network
 
   backend-tests:
     build:
