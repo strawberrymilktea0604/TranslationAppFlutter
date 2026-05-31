@@ -80,3 +80,84 @@ class AdminBankListResponse(BaseModel):
     total_pages: int
     has_next: bool
     has_prev: bool
+
+
+class QuestionBankCreate(BaseModel):
+    """Payload for creating a new question bank."""
+
+    title: str
+    description: Optional[str] = None
+    duration_minutes: Optional[int] = None
+
+
+class QuestionBankUpdate(BaseModel):
+    """Payload for updating an existing question bank (all fields optional)."""
+
+    title: Optional[str] = None
+    description: Optional[str] = None
+    duration_minutes: Optional[int] = None
+
+
+class QuestionBankToggleResponse(BaseModel):
+    """Response after toggling a question bank active/inactive."""
+
+    id: int
+    title: str
+    is_deleted: bool
+    message: str
+
+
+# ─────────────────────────────────────────────
+# Question schemas
+# ─────────────────────────────────────────────
+
+class QuestionCreate(BaseModel):
+    """Payload for creating a new question in a question bank."""
+
+    content: str
+    choices: dict  # e.g., {"A": "Option A", "B": "Option B", ...}
+    correct_answer: str  # e.g., "A"
+
+
+class QuestionUpdate(BaseModel):
+    """Payload for updating a question (all fields optional)."""
+
+    content: Optional[str] = None
+    choices: Optional[dict] = None
+    correct_answer: Optional[str] = None
+
+
+class AdminQuestionSummary(BaseModel):
+    """Question summary for list endpoints."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    bank_id: int
+    content: str
+    choices: dict
+    correct_answer: str
+    is_deleted: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminQuestionListResponse(BaseModel):
+    """Paginated list of questions for a bank."""
+
+    items: List[AdminQuestionSummary]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+
+class QuestionToggleResponse(BaseModel):
+    """Response after toggling a question active/inactive."""
+
+    id: int
+    bank_id: int
+    is_deleted: bool
+    message: str
