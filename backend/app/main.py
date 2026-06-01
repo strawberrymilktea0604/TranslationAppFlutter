@@ -1,23 +1,114 @@
+import asyncio
+import logging
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
-import asyncio
-import os
 
 from app.api.v1.api import api_router
+from app.api.v1.endpoints import management, quota
 from app.core.config import settings
 from app.core.logging_config import configure_logging
-from app.core.redis_client import get_redis_client, close_redis, health_check
-from app.api.v1.endpoints import quota, management
+from app.core.redis_client import close_redis, get_redis_client, health_check
+from app.services.backup_service import BackupScheduler, DatabaseBackupService
 from app.services.stt_service import STTService
-from app.services.backup_service import DatabaseBackupService, BackupScheduler
 
 configure_logging()
 logger = logging.getLogger(__name__)
 
 # Global backup scheduler
-backup_scheduler: BackupScheduler = None
+backup_scheduler: BackupScheduler | None = None
+
+
+async def ensure_default_admin_account() -> None:
+    """Create or repair the default admin account on every backend startup."""
+    from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+    from sqlalchemy.future import select
+
+    from app.core.database import async_session_maker
+    from app.core.security import hash_password
+    from app.models.user import User
+
+    max_attempts = 12
+    delay_seconds = 5
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            async with async_session_maker() as session:
+                result = await session.execute(
+                    select(User).where(User.email == settings.DEFAULT_ADMIN_EMAIL)
+                )
+                admin_user = result.scalars().first()
+
+                if admin_user is None:
+                    logger.info("Creating default admin account...")
+                    session.add(
+                        User(
+                            email=settings.DEFAULT_ADMIN_EMAIL,
+                            password_hash=hash_password(
+                                settings.DEFAULT_ADMIN_PASSWORD
+                            ),
+                            first_name="Super",
+                            last_name="Admin",
+                            role="admin",
+                            status="active",
+                        )
+                    )
+                    try:
+                        await session.commit()
+                    except IntegrityError:
+                        await session.rollback()
+                        logger.info(
+                            "Default admin was created concurrently: %s",
+                            settings.DEFAULT_ADMIN_EMAIL,
+                        )
+                    else:
+                        logger.info(
+                            "Default admin account created: %s",
+                            settings.DEFAULT_ADMIN_EMAIL,
+                        )
+                    return
+
+                changed = False
+                if admin_user.role != "admin":
+                    admin_user.role = "admin"
+                    changed = True
+                if admin_user.status != "active":
+                    admin_user.status = "active"
+                    changed = True
+
+                if changed:
+                    await session.commit()
+                    logger.info(
+                        "Default admin account repaired: %s",
+                        settings.DEFAULT_ADMIN_EMAIL,
+                    )
+                else:
+                    logger.info(
+                        "Default admin account already exists: %s",
+                        settings.DEFAULT_ADMIN_EMAIL,
+                    )
+                return
+        except SQLAlchemyError as e:
+            logger.warning(
+                "Default admin seed attempt %s/%s failed: %s",
+                attempt,
+                max_attempts,
+                e,
+            )
+        except Exception as e:
+            logger.warning(
+                "Default admin seed attempt %s/%s failed unexpectedly: %s",
+                attempt,
+                max_attempts,
+                e,
+            )
+
+        if attempt < max_attempts:
+            await asyncio.sleep(delay_seconds)
+
+    raise RuntimeError("Failed to seed default admin account after startup retries")
 
 
 # ==================== LIFESPAN MANAGEMENT ====================
@@ -28,24 +119,28 @@ async def lifespan(app: FastAPI):
     Replaces deprecated @app.on_event() syntax.
     """
     global backup_scheduler
-    
+
     # ==================== STARTUP ====================
-    logger.info("🚀 Application starting up...")
+    logger.info("Application starting up...")
+    # Create/repair the bootstrap admin before optional services. This must be
+    # reliable on the first docker up, when Postgres may still be warming up.
+    await ensure_default_admin_account()
+
     try:
         await get_redis_client()
-        logger.info("✅ Redis client initialized successfully")
+        logger.info("Redis client initialized successfully")
     except Exception as e:
-        logger.warning(f"⚠️  Redis initialization failed: {e}")
-        logger.warning("Application will continue without Redis caching (using DB fallback)")
-    
+        logger.warning("Redis initialization failed: %s", e)
+        logger.warning("Application will continue without Redis caching")
+
     try:
-        logger.info("⏳ Preloading STT Model in background thread...")
+        logger.info("Preloading STT model in background thread...")
         await asyncio.to_thread(STTService.preload_model)
-        logger.info("✅ STT Model preloaded successfully")
+        logger.info("STT model preloaded successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to preload STT Model: {e}")
+        logger.error("Failed to preload STT model: %s", e)
         logger.warning("Application will try to load the model on first request")
-    
+
     # ==================== INITIALIZE BACKUP SCHEDULER ====================
     try:
         backup_dir = os.getenv("BACKUP_DIR", "/backups/database")
@@ -55,68 +150,36 @@ async def lifespan(app: FastAPI):
             max_backups=7,
             compress=True,
         )
-        
+
         backup_scheduler = BackupScheduler(backup_service)
         backup_scheduler.initialize_scheduler()
         backup_scheduler.start()
-        logger.info("✅ Database backup scheduler initialized and started")
+        logger.info("Database backup scheduler initialized and started")
     except Exception as e:
-        logger.warning(f"⚠️  Backup scheduler initialization failed: {e}")
+        logger.warning("Backup scheduler initialization failed: %s", e)
         logger.warning("Backups can still be triggered manually via API")
 
-    # ==================== SEED DEFAULT DATA ====================
-    try:
-        from app.core.database import async_session_maker
-        from app.models.user import User
-        from app.core.security import hash_password
-        from sqlalchemy.future import select
-
-        async with async_session_maker() as session:
-            # Check if admin exists
-            result = await session.execute(select(User).where(User.email == settings.DEFAULT_ADMIN_EMAIL))
-            admin_user = result.scalars().first()
-            if not admin_user:
-                logger.info("🌱 Creating default admin account...")
-                new_admin = User(
-                    email=settings.DEFAULT_ADMIN_EMAIL,
-                    password_hash=hash_password(settings.DEFAULT_ADMIN_PASSWORD),
-                    first_name="Super",
-                    last_name="Admin",
-                    role="admin",
-                    status="active"
-                )
-                session.add(new_admin)
-                await session.commit()
-                logger.info(f"✅ Default admin account created: {settings.DEFAULT_ADMIN_EMAIL}")
-    except Exception as e:
-        logger.error(f"❌ Failed to seed default data: {e}")
-
     yield
-    
+
     # ==================== SHUTDOWN ====================
-    logger.info("🛑 Application shutting down...")
-    
-    # Stop backup scheduler
+    logger.info("Application shutting down...")
+
     if backup_scheduler:
         try:
             backup_scheduler.stop()
-            logger.info("✅ Backup scheduler stopped")
+            logger.info("Backup scheduler stopped")
         except Exception as e:
-            logger.warning(f"⚠️  Backup scheduler shutdown error: {e}")
-    
+            logger.warning("Backup scheduler shutdown error: %s", e)
+
     try:
         await close_redis()
-        logger.info("✅ Redis connection closed successfully")
+        logger.info("Redis connection closed successfully")
     except Exception as e:
-        logger.warning(f"⚠️  Redis shutdown failed: {e}")
+        logger.warning("Redis shutdown failed: %s", e)
 
 
 # ==================== APP CONFIGURATION ====================
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version="1.0.0",
-    lifespan=lifespan
-)
+app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -131,15 +194,15 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(quota.router, prefix="/api/quotas", tags=["AI Quotas"])
 app.include_router(management.router, tags=["management"])
 
+
 # ==================== HEALTH CHECK ====================
 @app.get("/health", tags=["health"])
 async def health_check_endpoint():
-    """Health check endpoint for monitoring"""
+    """Health check endpoint for monitoring."""
     redis_status = "ok" if await health_check() else "unavailable"
     return {
         "status": "ok",
         "environment": settings.ENVIRONMENT,
         "project": settings.PROJECT_NAME,
-        "redis": redis_status
+        "redis": redis_status,
     }
-

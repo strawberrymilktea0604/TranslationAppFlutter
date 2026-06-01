@@ -82,9 +82,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     depends_on:
-      - db
-      - redis
-      - log_aggregator
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      log_aggregator:
+        condition: service_started
     ports:
       - "8000:8000"
     volumes:

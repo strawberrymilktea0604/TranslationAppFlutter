@@ -15,7 +15,7 @@ extension GetSyncCursorModelCollection on Isar {
 
 const SyncCursorModelSchema = CollectionSchema(
   name: r'SyncCursorModel',
-  id: -5633630139823007711,
+  id: -((1311681731 << 32) + 2417338335),
   properties: {
     r'cursorValue': PropertySchema(
       id: 0,
