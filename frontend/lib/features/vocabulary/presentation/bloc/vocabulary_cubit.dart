@@ -26,10 +26,10 @@ class VocabularyCubit extends Cubit<VocabularyState> {
     required SaveVocabularyUseCase saveVocabularyUseCase,
     required GetVocabularyListUseCase getVocabularyListUseCase,
     required DeleteVocabularyUseCase deleteVocabularyUseCase,
-  })  : _saveVocabularyUseCase = saveVocabularyUseCase,
-        _getVocabularyListUseCase = getVocabularyListUseCase,
-        _deleteVocabularyUseCase = deleteVocabularyUseCase,
-        super(const VocabularyInitial());
+  }) : _saveVocabularyUseCase = saveVocabularyUseCase,
+       _getVocabularyListUseCase = getVocabularyListUseCase,
+       _deleteVocabularyUseCase = deleteVocabularyUseCase,
+       super(const VocabularyInitial());
 
   /// Saves a vocabulary entry to local Isar DB.
   ///
@@ -43,6 +43,7 @@ class VocabularyCubit extends Cubit<VocabularyState> {
     String category = 'Chưa phân loại',
     int? categoryId,
   }) async {
+    if (isClosed) return;
     emit(const VocabularySaving());
 
     final result = await _saveVocabularyUseCase(
@@ -55,17 +56,17 @@ class VocabularyCubit extends Cubit<VocabularyState> {
         categoryId: categoryId,
       ),
     );
+    if (isClosed) return;
 
-    result.fold(
-      (failure) => emit(VocabularyFailure(failure.message)),
-      (entity) {
-        emit(VocabularySaveSuccess(entity));
-        // Trigger background sync immediately if online
-        try {
-          sl<SyncCubit>().requestSync();
-        } catch (_) {}
-      },
-    );
+    result.fold((failure) => emit(VocabularyFailure(failure.message)), (
+      entity,
+    ) {
+      emit(VocabularySaveSuccess(entity));
+      // Trigger background sync immediately if online
+      try {
+        sl<SyncCubit>().requestSync();
+      } catch (_) {}
+    });
   }
 
   /// Loads the vocabulary list from local Isar DB.
@@ -75,14 +76,13 @@ class VocabularyCubit extends Cubit<VocabularyState> {
     String? searchQuery,
     String? category,
   }) async {
+    if (isClosed) return;
     emit(const VocabularyLoading());
 
     final result = await _getVocabularyListUseCase(
-      GetVocabularyListParams(
-        searchQuery: searchQuery,
-        category: category,
-      ),
+      GetVocabularyListParams(searchQuery: searchQuery, category: category),
     );
+    if (isClosed) return;
 
     result.fold(
       (failure) => emit(VocabularyFailure(failure.message)),
@@ -94,21 +94,20 @@ class VocabularyCubit extends Cubit<VocabularyState> {
   ///
   /// Emits: [VocabularyLoading] → [VocabularyDeleteSuccess] or [VocabularyFailure].
   Future<void> deleteVocabulary(int isarId) async {
+    if (isClosed) return;
     emit(const VocabularyLoading());
 
     final result = await _deleteVocabularyUseCase(
       DeleteVocabularyParams(isarId: isarId),
     );
+    if (isClosed) return;
 
-    result.fold(
-      (failure) => emit(VocabularyFailure(failure.message)),
-      (_) {
-        emit(const VocabularyDeleteSuccess());
-        // Trigger background sync immediately if online
-        try {
-          sl<SyncCubit>().requestSync();
-        } catch (_) {}
-      },
-    );
+    result.fold((failure) => emit(VocabularyFailure(failure.message)), (_) {
+      emit(const VocabularyDeleteSuccess());
+      // Trigger background sync immediately if online
+      try {
+        sl<SyncCubit>().requestSync();
+      } catch (_) {}
+    });
   }
 }

@@ -16,15 +16,19 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
     required CreateCategoryUseCase createCategoryUseCase,
     required UpdateCategoryUseCase updateCategoryUseCase,
     required DeleteCategoryUseCase deleteCategoryUseCase,
-  })  : _getCategoriesUseCase = getCategoriesUseCase,
-        _createCategoryUseCase = createCategoryUseCase,
-        _updateCategoryUseCase = updateCategoryUseCase,
-        _deleteCategoryUseCase = deleteCategoryUseCase,
-        super(VocabularyCategoryInitial());
+  }) : _getCategoriesUseCase = getCategoriesUseCase,
+       _createCategoryUseCase = createCategoryUseCase,
+       _updateCategoryUseCase = updateCategoryUseCase,
+       _deleteCategoryUseCase = deleteCategoryUseCase,
+       super(VocabularyCategoryInitial());
 
   Future<void> loadCategories() async {
+    if (isClosed) return;
     emit(VocabularyCategoryLoading());
+
     final result = await _getCategoriesUseCase();
+    if (isClosed) return;
+
     result.fold(
       (failure) => emit(VocabularyCategoryError(failure.message)),
       (categories) => emit(VocabularyCategoryLoaded(categories)),
@@ -33,6 +37,8 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
 
   Future<void> createCategory(String name) async {
     final result = await _createCategoryUseCase(name);
+    if (isClosed) return;
+
     result.fold(
       (failure) => emit(VocabularyCategoryError(failure.message)),
       (_) => loadCategories(),
@@ -41,6 +47,8 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
 
   Future<void> updateCategory(int id, String name) async {
     final result = await _updateCategoryUseCase(id, name);
+    if (isClosed) return;
+
     result.fold(
       (failure) => emit(VocabularyCategoryError(failure.message)),
       (_) => loadCategories(),
@@ -49,6 +57,8 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
 
   Future<void> deleteCategory(int id) async {
     final result = await _deleteCategoryUseCase(id);
+    if (isClosed) return;
+
     result.fold(
       (failure) => emit(VocabularyCategoryError(failure.message)),
       (_) => loadCategories(),
