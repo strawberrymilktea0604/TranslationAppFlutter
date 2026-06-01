@@ -135,6 +135,13 @@ class WsAudioMetadataEvent(BaseModel):
             return value.strip().lower()
         return value
 
+    @field_validator("audio_format")
+    @classmethod
+    def validate_audio_format(cls, value: AudioFormat) -> AudioFormat:
+        if value != AudioFormat.PCM_S16LE:
+            raise ValueError("audio_format must be pcm_s16le")
+        return value
+
     @field_validator("source_language", "target_language", mode="before")
     @classmethod
     def normalize_language(cls, value: object) -> object:

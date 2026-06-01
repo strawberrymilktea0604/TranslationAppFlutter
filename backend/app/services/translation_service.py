@@ -210,10 +210,7 @@ class TranslationService:
                 f"(code={primary_error.error_code}, status={primary_error.status_code})"
             )
 
-            if (
-                settings.TRANSLATION_FALLBACK_ENABLED
-                and TranslationService._is_google_service_unavailable(primary_error)
-            ):
+            if TranslationService._should_use_fallback(primary_error):
                 logger.warning(
                     "⚠️ Google Cloud Translation unavailable. Falling back to googletrans."
                 )
@@ -254,6 +251,22 @@ class TranslationService:
             "UNEXPECTED_ERROR",
         }
         return error.error_code in unavailable_error_codes
+
+    @staticmethod
+    def _should_use_fallback(error: GoogleTranslateError) -> bool:
+        """
+        Return True when googletrans fallback should handle a primary failure.
+
+        Missing Google Cloud credentials are a configuration absence, so keep
+        fallback available for that case even if the generic feature flag was
+        disabled accidentally.
+        """
+        if error.error_code == "API_KEY_NOT_CONFIGURED":
+            return True
+        return (
+            settings.TRANSLATION_FALLBACK_ENABLED
+            and TranslationService._is_google_service_unavailable(error)
+        )
 
     @staticmethod
     async def _call_googletrans_fallback(

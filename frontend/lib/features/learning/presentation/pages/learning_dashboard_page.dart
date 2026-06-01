@@ -49,8 +49,7 @@ class _LearningDashboardView extends StatelessWidget {
       builder: (context, state) {
         return switch (state) {
           LearningDashboardInitial() ||
-          LearningDashboardLoading() =>
-            const _LoadingView(),
+          LearningDashboardLoading() => const _LoadingView(),
           LearningDashboardLoaded(
             summary: final summary,
             categorySummaries: final categories,
@@ -62,10 +61,10 @@ class _LearningDashboardView extends StatelessWidget {
               questionBanks: banks,
             ),
           LearningDashboardFailure(message: final msg) => _ErrorView(
-              message: msg,
-              cs: cs,
-              textTheme: textTheme,
-            ),
+            message: msg,
+            cs: cs,
+            textTheme: textTheme,
+          ),
         };
       },
     );
@@ -106,10 +105,7 @@ class _LoadingView extends StatelessWidget {
               itemCount: 3,
               itemBuilder: (_, _) => Container(
                 width: 160,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 4,
-                ),
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 decoration: BoxDecoration(
                   color: shimmerColor,
                   borderRadius: BorderRadius.circular(16),
@@ -121,10 +117,7 @@ class _LoadingView extends StatelessWidget {
           // Bank card skeletons
           for (int i = 0; i < 3; i++)
             Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 6,
-              ),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               height: 120,
               decoration: BoxDecoration(
                 color: shimmerColor,
@@ -155,8 +148,7 @@ class _LoadedView extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return RefreshIndicator(
-      onRefresh: () =>
-          context.read<LearningDashboardCubit>().loadDashboard(),
+      onRefresh: () => context.read<LearningDashboardCubit>().loadDashboard(),
       child: ListView(
         padding: const EdgeInsets.only(top: 20, bottom: 40),
         children: [
@@ -191,16 +183,12 @@ class _LoadedView extends StatelessWidget {
               (bank) => QuestionBankCard(
                 bank: bank,
                 onStart: () {
-                  // Generate sample questions from the bank for demo.
-                  // In production, questions are loaded from the backend
-                  // via QuizCubit.loadAndStartQuiz().
-                  final sampleQuestions = _generateSampleQuestions(bank.title);
                   final durationSeconds = (bank.durationMinutes ?? 5) * 60;
 
                   context.push(
                     AppRoutes.quiz,
                     extra: {
-                      'questions': sampleQuestions,
+                      'questions': const [],
                       'durationSeconds': durationSeconds,
                       'bankId': bank.backendId,
                       'bankTitle': bank.title,
@@ -218,6 +206,7 @@ class _LoadedView extends StatelessWidget {
   ///
   /// In production, questions are fetched from the backend
   /// via [QuizCubit.loadAndStartQuiz].
+  // ignore: unused_element
   List<QuizQuestionEntity> _generateSampleQuestions(String bankTitle) {
     return [
       QuizQuestionEntity(
@@ -226,7 +215,11 @@ class _LoadedView extends StatelessWidget {
         options: [
           const QuizOptionEntity(id: 'q1a', text: 'Goodbye', isCorrect: false),
           const QuizOptionEntity(id: 'q1b', text: 'Hello', isCorrect: true),
-          const QuizOptionEntity(id: 'q1c', text: 'Thank you', isCorrect: false),
+          const QuizOptionEntity(
+            id: 'q1c',
+            text: 'Thank you',
+            isCorrect: false,
+          ),
           const QuizOptionEntity(id: 'q1d', text: 'Sorry', isCorrect: false),
         ],
       ),
@@ -245,8 +238,16 @@ class _LoadedView extends StatelessWidget {
         content: 'Choose the correct meaning of "Weather".',
         options: [
           const QuizOptionEntity(id: 'q3a', text: 'Thời tiết', isCorrect: true),
-          const QuizOptionEntity(id: 'q3b', text: 'Thời gian', isCorrect: false),
-          const QuizOptionEntity(id: 'q3c', text: 'Thời trang', isCorrect: false),
+          const QuizOptionEntity(
+            id: 'q3b',
+            text: 'Thời gian',
+            isCorrect: false,
+          ),
+          const QuizOptionEntity(
+            id: 'q3c',
+            text: 'Thời trang',
+            isCorrect: false,
+          ),
           const QuizOptionEntity(id: 'q3d', text: 'Thời đại', isCorrect: false),
         ],
       ),
@@ -254,10 +255,26 @@ class _LoadedView extends StatelessWidget {
         id: 'q4',
         content: '"Tôi yêu bạn" means:',
         options: [
-          const QuizOptionEntity(id: 'q4a', text: 'I miss you', isCorrect: false),
-          const QuizOptionEntity(id: 'q4b', text: 'I need you', isCorrect: false),
-          const QuizOptionEntity(id: 'q4c', text: 'I love you', isCorrect: true),
-          const QuizOptionEntity(id: 'q4d', text: 'I know you', isCorrect: false),
+          const QuizOptionEntity(
+            id: 'q4a',
+            text: 'I miss you',
+            isCorrect: false,
+          ),
+          const QuizOptionEntity(
+            id: 'q4b',
+            text: 'I need you',
+            isCorrect: false,
+          ),
+          const QuizOptionEntity(
+            id: 'q4c',
+            text: 'I love you',
+            isCorrect: true,
+          ),
+          const QuizOptionEntity(
+            id: 'q4d',
+            text: 'I know you',
+            isCorrect: false,
+          ),
         ],
       ),
       QuizQuestionEntity(
@@ -301,11 +318,7 @@ class _SectionHeader extends StatelessWidget {
               color: cs.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: cs.primary,
-            ),
+            child: Icon(icon, size: 18, color: cs.primary),
           ),
           const SizedBox(width: 10),
           Text(
@@ -318,10 +331,7 @@ class _SectionHeader extends StatelessWidget {
           if (subtitle != null) ...[
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: cs.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
@@ -347,10 +357,7 @@ class _EmptyExamState extends StatelessWidget {
   final ColorScheme cs;
   final TextTheme textTheme;
 
-  const _EmptyExamState({
-    required this.cs,
-    required this.textTheme,
-  });
+  const _EmptyExamState({required this.cs, required this.textTheme});
 
   @override
   Widget build(BuildContext context) {
@@ -360,9 +367,7 @@ class _EmptyExamState extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -374,9 +379,7 @@ class _EmptyExamState extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Chưa có đề thi nào',
-            style: textTheme.titleSmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: textTheme.titleSmall?.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 4),
           Text(
@@ -427,23 +430,18 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Không thể tải dữ liệu',
-              style: textTheme.titleMedium?.copyWith(
-                color: cs.onSurface,
-              ),
+              style: textTheme.titleMedium?.copyWith(color: cs.onSurface),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: () => context
-                  .read<LearningDashboardCubit>()
-                  .loadDashboard(),
+              onPressed: () =>
+                  context.read<LearningDashboardCubit>().loadDashboard(),
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Thử lại'),
             ),

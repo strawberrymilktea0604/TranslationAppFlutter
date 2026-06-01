@@ -61,7 +61,7 @@ class QuestionBankModel {
       title: json['title'] as String,
       description: json['description'] as String?,
       durationMinutes: json['duration_minutes'] as int?,
-      questionCount: questionList.length,
+      questionCount: json['question_count'] as int? ?? questionList.length,
       questions: questionList,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)

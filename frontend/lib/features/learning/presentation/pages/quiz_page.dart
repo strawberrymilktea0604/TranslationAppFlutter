@@ -44,8 +44,18 @@ class QuizPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<QuizCubit>()
-        ..startQuiz(initialQuestions, durationSeconds),
+      create: (_) {
+        final cubit = sl<QuizCubit>();
+        if (initialQuestions.isNotEmpty) {
+          cubit.startQuiz(initialQuestions, durationSeconds, bankId: bankId);
+        } else {
+          cubit.loadAndStartQuiz(
+            bankId: bankId,
+            durationSeconds: durationSeconds,
+          );
+        }
+        return cubit;
+      },
       child: _QuizView(bankTitle: bankTitle),
     );
   }
@@ -84,10 +94,7 @@ class _QuizView extends StatelessWidget {
           );
         }
 
-        return _QuizScaffold(
-          bankTitle: bankTitle,
-          state: state,
-        );
+        return _QuizScaffold(bankTitle: bankTitle, state: state);
       },
     );
   }
@@ -98,10 +105,7 @@ class _QuizScaffold extends StatelessWidget {
   final String bankTitle;
   final QuizState state;
 
-  const _QuizScaffold({
-    required this.bankTitle,
-    required this.state,
-  });
+  const _QuizScaffold({required this.bankTitle, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -156,32 +160,30 @@ class _QuizScaffold extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     // Options
-                    ...List.generate(
-                      question.options.length,
-                      (i) {
-                        final option = question.options[i];
-                        final isSelected =
-                            state.selectedAnswers[question.id] == option.id;
-                        final hasAnswered =
-                            state.selectedAnswers.containsKey(question.id);
+                    ...List.generate(question.options.length, (i) {
+                      final option = question.options[i];
+                      final isSelected =
+                          state.selectedAnswers[question.id] == option.id;
+                      final hasAnswered = state.selectedAnswers.containsKey(
+                        question.id,
+                      );
 
-                        return QuizOptionTile(
-                          option: option,
-                          index: i,
-                          isSelected: isSelected,
-                          hasAnswered: hasAnswered,
-                          onTap: hasAnswered
-                              ? null
-                              : () {
-                                  HapticFeedback.lightImpact();
-                                  context.read<QuizCubit>().selectAnswer(
-                                        question.id,
-                                        option.id,
-                                      );
-                                },
-                        );
-                      },
-                    ),
+                      return QuizOptionTile(
+                        option: option,
+                        index: i,
+                        isSelected: isSelected,
+                        hasAnswered: hasAnswered,
+                        onTap: hasAnswered
+                            ? null
+                            : () {
+                                HapticFeedback.lightImpact();
+                                context.read<QuizCubit>().selectAnswer(
+                                  question.id,
+                                  option.id,
+                                );
+                              },
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -200,9 +202,7 @@ class _QuizScaffold extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Thoát bài thi?'),
-        content: const Text(
-          'Bài làm của bạn sẽ được nộp tự động nếu thoát.',
-        ),
+        content: const Text('Bài làm của bạn sẽ được nộp tự động nếu thoát.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -230,8 +230,7 @@ class _QuizProgressBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final progress =
-        (state.currentQuestionIndex + 1) / state.questions.length;
+    final progress = (state.currentQuestionIndex + 1) / state.questions.length;
 
     return Container(
       height: 4,
@@ -245,10 +244,7 @@ class _QuizProgressBar extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  AppTheme.primaryColor,
-                  AppTheme.secondaryColor,
-                ],
+                colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
               ),
             ),
           ),
@@ -274,10 +270,7 @@ class _QuestionBadge extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                AppTheme.primaryColor,
-                AppTheme.secondaryColor,
-              ],
+              colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
             ),
             borderRadius: BorderRadius.circular(20),
           ),
@@ -293,10 +286,7 @@ class _QuestionBadge extends StatelessWidget {
         const SizedBox(width: 10),
         Text(
           '${state.answeredCount}/${state.questions.length} đã trả lời',
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: cs.onSurfaceVariant,
-          ),
+          style: GoogleFonts.inter(fontSize: 12, color: cs.onSurfaceVariant),
         ),
       ],
     );
@@ -313,8 +303,7 @@ class _BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isLast =
-        state.currentQuestionIndex >= state.questions.length - 1;
+    final isLast = state.currentQuestionIndex >= state.questions.length - 1;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -360,14 +349,12 @@ class _BottomNavBar extends StatelessWidget {
               Expanded(
                 child: isLast
                     ? FilledButton.icon(
-                        onPressed: () =>
-                            context.read<QuizCubit>().submitQuiz(),
+                        onPressed: () => context.read<QuizCubit>().submitQuiz(),
                         icon: const Icon(Icons.send_rounded, size: 18),
                         label: const Text('Nộp bài'),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppTheme.successColor,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -376,12 +363,10 @@ class _BottomNavBar extends StatelessWidget {
                     : FilledButton.icon(
                         onPressed: () =>
                             context.read<QuizCubit>().nextQuestion(),
-                        icon: const Icon(Icons.arrow_forward_rounded,
-                            size: 18),
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                         label: const Text('Tiếp'),
                         style: FilledButton.styleFrom(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

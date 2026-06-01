@@ -1,10 +1,14 @@
 import 'package:dartz/dartz.dart';
 
 import 'package:frontend/core/error/failures.dart';
+import 'package:frontend/core/network/network_info.dart';
+import 'package:frontend/features/auth/data/datasources/auth_local_datasource.dart';
+import 'package:frontend/features/learning/data/datasources/quiz_remote_datasource.dart';
 import 'package:frontend/features/learning/domain/entities/learning_summary_entity.dart';
 import 'package:frontend/features/learning/domain/entities/question_bank_entity.dart';
 import 'package:frontend/features/learning/domain/repositories/learning_repository.dart';
 import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
+import 'package:frontend/features/vocabulary/data/models/question_bank_model.dart';
 
 /// Offline-first implementation of [LearningRepository].
 ///
@@ -14,17 +18,25 @@ import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_d
 /// the same Isar database.
 class LearningRepositoryImpl implements LearningRepository {
   final VocabularyLocalDataSource _localDataSource;
+  final QuizRemoteDataSource _remoteDataSource;
+  final AuthLocalDataSource _authLocalDataSource;
+  final NetworkInfo _networkInfo;
 
   LearningRepositoryImpl({
     required VocabularyLocalDataSource localDataSource,
-  }) : _localDataSource = localDataSource;
+    required QuizRemoteDataSource remoteDataSource,
+    required AuthLocalDataSource authLocalDataSource,
+    required NetworkInfo networkInfo,
+  }) : _localDataSource = localDataSource,
+       _remoteDataSource = remoteDataSource,
+       _authLocalDataSource = authLocalDataSource,
+       _networkInfo = networkInfo;
 
   @override
   Future<Either<Failure, LearningSummaryEntity>> getLearningSummary() async {
     try {
       // Fetch vocabulary summaries for word counts.
-      final categorySummaries =
-          await _localDataSource.getCategorySummaries();
+      final categorySummaries = await _localDataSource.getCategorySummaries();
 
       final totalWords = categorySummaries.fold<int>(
         0,
@@ -40,18 +52,17 @@ class LearningRepositoryImpl implements LearningRepository {
       final quizzesCompleted = quizResults.length;
       final averageScore = quizzesCompleted == 0
           ? 0.0
-          : quizResults.fold<double>(
-                0.0,
-                (sum, r) => sum + r.score,
-              ) /
-              quizzesCompleted;
+          : quizResults.fold<double>(0.0, (sum, r) => sum + r.score) /
+                quizzesCompleted;
 
-      return Right(LearningSummaryEntity(
-        totalWords: totalWords,
-        learnedWords: learnedWords,
-        quizzesCompleted: quizzesCompleted,
-        averageScore: averageScore,
-      ));
+      return Right(
+        LearningSummaryEntity(
+          totalWords: totalWords,
+          learnedWords: learnedWords,
+          quizzesCompleted: quizzesCompleted,
+          averageScore: averageScore,
+        ),
+      );
     } catch (e) {
       return Left(CacheFailure('Failed to load learning summary: $e'));
     }
@@ -60,22 +71,58 @@ class LearningRepositoryImpl implements LearningRepository {
   @override
   Future<Either<Failure, List<QuestionBankEntity>>> getQuestionBanks() async {
     try {
+      final token = await _authLocalDataSource.getAccessToken();
+      final isConnected = await _networkInfo.isConnected;
+
+      if (isConnected && token != null && token.isNotEmpty) {
+        final remoteBanks = await _remoteDataSource.getQuestionBanks(
+          token: token,
+        );
+        await _localDataSource.saveAllBanks(
+          remoteBanks.map(_questionBankEntityToModel).toList(),
+        );
+        return Right(remoteBanks);
+      }
+
       final models = await _localDataSource.getAllBanks();
-      final entities = models
-          .map((m) => QuestionBankEntity(
-                isarId: m.id,
-                backendId: m.backendId,
-                title: m.title,
-                description: m.description,
-                durationMinutes: m.durationMinutes,
-                questionCount: m.questionCount,
-                createdAt: m.createdAt,
-                updatedAt: m.updatedAt,
-              ))
-          .toList();
+      final entities = models.map(_questionBankModelToEntity).toList();
       return Right(entities);
     } catch (e) {
-      return Left(CacheFailure('Failed to load question banks: $e'));
+      try {
+        final models = await _localDataSource.getAllBanks();
+        final entities = models.map(_questionBankModelToEntity).toList();
+        return Right(entities);
+      } catch (_) {
+        return Left(CacheFailure('Failed to load question banks: $e'));
+      }
     }
+  }
+
+  QuestionBankEntity _questionBankModelToEntity(QuestionBankModel model) {
+    return QuestionBankEntity(
+      isarId: model.id,
+      backendId: model.backendId,
+      title: model.title,
+      description: model.description,
+      durationMinutes: model.durationMinutes,
+      questionCount: model.questionCount,
+      createdAt: model.createdAt,
+      updatedAt: model.updatedAt,
+    );
+  }
+
+  QuestionBankModel _questionBankEntityToModel(QuestionBankEntity entity) {
+    return QuestionBankModel(
+      backendId: entity.backendId,
+      title: entity.title,
+      description: entity.description,
+      durationMinutes: entity.durationMinutes,
+      questionCount: entity.questionCount,
+      questions: const [],
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+      isSynced: true,
+      isDeleted: false,
+    );
   }
 }

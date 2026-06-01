@@ -351,7 +351,12 @@ Future<void> initDependenciesWeb() async {
   // ==============================
 
   sl.registerLazySingleton<LearningRepository>(
-    () => LearningRepositoryImpl(localDataSource: sl()),
+    () => LearningRepositoryImpl(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      authLocalDataSource: sl(),
+      networkInfo: sl(),
+    ),
   );
   sl.registerLazySingleton(() => GetLearningSummaryUseCase(sl()));
   sl.registerLazySingleton(() => GetQuestionBanksUseCase(sl()));

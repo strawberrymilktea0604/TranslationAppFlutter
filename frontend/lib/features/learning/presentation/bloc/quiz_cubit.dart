@@ -26,12 +26,13 @@ class QuizCubit extends Cubit<QuizState> {
   QuizCubit({
     required GetQuizQuestionsUseCase getQuizQuestionsUseCase,
     required SubmitQuizResultUseCase submitQuizResultUseCase,
-  })  : _getQuizQuestionsUseCase = getQuizQuestionsUseCase,
-        _submitQuizResultUseCase = submitQuizResultUseCase,
-        super(const QuizState());
+  }) : _getQuizQuestionsUseCase = getQuizQuestionsUseCase,
+       _submitQuizResultUseCase = submitQuizResultUseCase,
+       super(const QuizState());
 
   /// Active timer subscription — cancelled on submit or close.
   StreamSubscription<int>? _timerSubscription;
+  bool _isSubmitting = false;
 
   // ────────────────────────────────────────────────────────────
   //  Quiz Lifecycle
@@ -45,26 +46,24 @@ class QuizCubit extends Cubit<QuizState> {
     required String bankId,
     required int durationSeconds,
   }) async {
-    emit(state.copyWith(
-      status: QuizStatus.loading,
-      bankId: bankId,
-    ));
+    emit(state.copyWith(status: QuizStatus.loading, bankId: bankId));
 
     final result = await _getQuizQuestionsUseCase(
       GetQuizQuestionsParams(bankId: bankId),
     );
 
     result.fold(
-      (failure) => emit(state.copyWith(
-        status: QuizStatus.error,
-        errorMessage: failure.message,
-      )),
+      (failure) => emit(
+        state.copyWith(status: QuizStatus.error, errorMessage: failure.message),
+      ),
       (questions) {
         if (questions.isEmpty) {
-          emit(state.copyWith(
-            status: QuizStatus.error,
-            errorMessage: 'Không tìm thấy câu hỏi trong bộ đề này.',
-          ));
+          emit(
+            state.copyWith(
+              status: QuizStatus.error,
+              errorMessage: 'Không tìm thấy câu hỏi trong bộ đề này.',
+            ),
+          );
           return;
         }
         _startQuizWithQuestions(questions, durationSeconds);
@@ -74,7 +73,14 @@ class QuizCubit extends Cubit<QuizState> {
 
   /// Starts the quiz with provided questions (used when questions
   /// are already available, e.g. from local cache or passed directly).
-  void startQuiz(List<QuizQuestionEntity> questions, int durationSeconds) {
+  void startQuiz(
+    List<QuizQuestionEntity> questions,
+    int durationSeconds, {
+    String? bankId,
+  }) {
+    if (bankId != null) {
+      emit(state.copyWith(bankId: bankId));
+    }
     _startQuizWithQuestions(questions, durationSeconds);
   }
 
@@ -83,15 +89,17 @@ class QuizCubit extends Cubit<QuizState> {
     List<QuizQuestionEntity> questions,
     int durationSeconds,
   ) {
-    emit(state.copyWith(
-      questions: questions,
-      remainingSeconds: durationSeconds,
-      totalDurationSeconds: durationSeconds,
-      status: QuizStatus.running,
-      currentQuestionIndex: 0,
-      selectedAnswers: const {},
-      isAutoSubmitted: false,
-    ));
+    emit(
+      state.copyWith(
+        questions: questions,
+        remainingSeconds: durationSeconds,
+        totalDurationSeconds: durationSeconds,
+        status: QuizStatus.running,
+        currentQuestionIndex: 0,
+        selectedAnswers: const {},
+        isAutoSubmitted: false,
+      ),
+    );
 
     _startTimer();
   }
@@ -105,26 +113,21 @@ class QuizCubit extends Cubit<QuizState> {
   void _startTimer() {
     _timerSubscription?.cancel();
 
-    _timerSubscription = Stream.periodic(
-      const Duration(seconds: 1),
-      (tick) => tick,
-    ).listen((_) {
-      // Guard: only tick while quiz is running.
-      if (state.status != QuizStatus.running) return;
+    _timerSubscription =
+        Stream.periodic(const Duration(seconds: 1), (tick) => tick).listen((_) {
+          // Guard: only tick while quiz is running.
+          if (state.status != QuizStatus.running) return;
 
-      final newTime = state.remainingSeconds - 1;
+          final newTime = state.remainingSeconds - 1;
 
-      if (newTime <= 0) {
-        // Timer expired — auto-submit.
-        emit(state.copyWith(
-          remainingSeconds: 0,
-          isAutoSubmitted: true,
-        ));
-        submitQuiz();
-      } else {
-        emit(state.copyWith(remainingSeconds: newTime));
-      }
-    });
+          if (newTime <= 0) {
+            // Timer expired — auto-submit.
+            emit(state.copyWith(remainingSeconds: 0, isAutoSubmitted: true));
+            submitQuiz();
+          } else {
+            emit(state.copyWith(remainingSeconds: newTime));
+          }
+        });
   }
 
   // ────────────────────────────────────────────────────────────
@@ -150,18 +153,18 @@ class QuizCubit extends Cubit<QuizState> {
   /// Navigates to the next question.
   void nextQuestion() {
     if (state.currentQuestionIndex < state.questions.length - 1) {
-      emit(state.copyWith(
-        currentQuestionIndex: state.currentQuestionIndex + 1,
-      ));
+      emit(
+        state.copyWith(currentQuestionIndex: state.currentQuestionIndex + 1),
+      );
     }
   }
 
   /// Navigates to the previous question.
   void previousQuestion() {
     if (state.currentQuestionIndex > 0) {
-      emit(state.copyWith(
-        currentQuestionIndex: state.currentQuestionIndex - 1,
-      ));
+      emit(
+        state.copyWith(currentQuestionIndex: state.currentQuestionIndex - 1),
+      );
     }
   }
 
@@ -185,7 +188,8 @@ class QuizCubit extends Cubit<QuizState> {
   /// Locks all interaction (via [QuizStatus.submitted])
   /// and sends results to the backend via [SubmitQuizResultUseCase].
   Future<void> submitQuiz() async {
-    if (state.status == QuizStatus.submitted) return;
+    if (state.status == QuizStatus.submitted || _isSubmitting) return;
+    _isSubmitting = true;
 
     // Stop the timer immediately.
     _timerSubscription?.cancel();
@@ -204,17 +208,20 @@ class QuizCubit extends Cubit<QuizState> {
       isAutoSubmitted: state.isAutoSubmitted,
     );
 
-    // Emit submitted state first to lock UI immediately.
-    emit(state.copyWith(
-      status: QuizStatus.submitted,
-      result: quizResult,
-    ));
+    final submitResult = await _submitQuizResultUseCase(
+      SubmitQuizResultParams(result: quizResult),
+    );
+
+    final finalResult = submitResult.fold(
+      (_) => quizResult,
+      (submitted) => submitted,
+    );
+    _isSubmitting = false;
+
+    emit(state.copyWith(status: QuizStatus.submitted, result: finalResult));
 
     // Submit to backend (fire-and-forget style — result is
     // already shown to the user, backend sync can retry later).
-    await _submitQuizResultUseCase(
-      SubmitQuizResultParams(result: quizResult),
-    );
   }
 
   // ────────────────────────────────────────────────────────────
@@ -223,6 +230,7 @@ class QuizCubit extends Cubit<QuizState> {
 
   @override
   Future<void> close() {
+    _isSubmitting = false;
     _timerSubscription?.cancel();
     return super.close();
   }

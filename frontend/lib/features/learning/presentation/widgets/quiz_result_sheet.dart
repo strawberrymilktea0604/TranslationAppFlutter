@@ -20,8 +20,9 @@ class QuizResultSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final score = state.scorePercentage;
-    final correct = state.correctCount;
+    final result = state.result;
+    final score = result?.score ?? state.scorePercentage;
+    final correct = result?.correctCount ?? state.correctCount;
     final wrong = state.answeredCount - correct;
     final unanswered = state.questions.length - state.answeredCount;
 
@@ -239,10 +240,7 @@ class _StatItem extends StatelessWidget {
         ),
         Text(
           label,
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            color: cs.onSurfaceVariant,
-          ),
+          style: GoogleFonts.inter(fontSize: 12, color: cs.onSurfaceVariant),
         ),
       ],
     );

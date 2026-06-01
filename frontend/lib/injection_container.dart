@@ -429,7 +429,12 @@ Future<void> initDependencies() async {
 
   // Repository — reuses VocabularyLocalDataSource for Isar access.
   sl.registerLazySingleton<LearningRepository>(
-    () => LearningRepositoryImpl(localDataSource: sl()),
+    () => LearningRepositoryImpl(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      authLocalDataSource: sl(),
+      networkInfo: sl(),
+    ),
   );
 
   // UseCases

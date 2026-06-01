@@ -47,15 +47,35 @@ async def get_question_banks(
     limit: int = 100,
 ):
     """Return a paginated list of active question banks."""
+    active_question_count = (
+        select(func.count(Question.id))
+        .where(
+            Question.bank_id == QuestionBank.id,
+            Question.is_deleted.is_(False),
+        )
+        .correlate(QuestionBank)
+        .scalar_subquery()
+    )
     stmt = (
-        select(QuestionBank)
+        select(QuestionBank, active_question_count.label("question_count"))
         .where(QuestionBank.is_deleted.is_(False))
         .offset(skip)
         .limit(limit)
     )
     result = await db.execute(stmt)
-    banks = result.scalars().all()
-    return banks
+    rows = result.all()
+    return [
+        QuestionBankBase(
+            id=bank.id,
+            title=bank.title,
+            description=bank.description,
+            duration_minutes=bank.duration_minutes,
+            question_count=question_count or 0,
+            created_at=bank.created_at,
+            updated_at=bank.updated_at,
+        )
+        for bank, question_count in rows
+    ]
 
 
 # ──────────────────────────────────────────────────────────
