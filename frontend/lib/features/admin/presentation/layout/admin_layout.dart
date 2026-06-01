@@ -368,14 +368,17 @@ class _AdminLayoutState extends State<AdminLayout> {
                 ),
                 if (_isSidebarExpanded && !isSmallScreen) ...[
                   const SizedBox(width: 12),
-                  Text(
-                    label,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: isActive
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant,
-                      fontWeight:
-                          isActive ? FontWeight.w600 : FontWeight.normal,
+                  Expanded(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: isActive
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                        fontWeight:
+                            isActive ? FontWeight.w600 : FontWeight.normal,
+                      ),
                     ),
                   ),
                 ],

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/main.dart';
+import 'package:get_it/get_it.dart';
+import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
 import '../helpers/e2e_test_helper.dart';
-import '../helpers/e2e_seed_data.dart';
+import '../helpers/mock_repositories.dart';
 import '../helpers/mock_websocket_server.dart';
 
 void main() {
@@ -11,17 +13,16 @@ void main() {
     late MockConversationWebSocket conversationSocket;
 
     setUpAll(() async {
-      await E2ETestHelper.setupTestEnvironment();
       mockWebSocketServer = MockWebSocketServer();
       mockWebSocketServer.start();
     });
 
     tearDownAll(() async {
       mockWebSocketServer.stop();
-      await E2ETestHelper.teardownTestEnvironment();
     });
 
-    setUp(() {
+    setUp(() async {
+      await E2ETestHelper.setupTestEnvironment();
       conversationSocket = MockConversationWebSocket(
         conversationId: 1,
         targetLanguage: 'Vietnamese',
@@ -30,6 +31,7 @@ void main() {
 
     tearDown(() async {
       await conversationSocket.disconnect();
+      await E2ETestHelper.teardownTestEnvironment();
     });
 
     testWidgets(
@@ -43,7 +45,7 @@ void main() {
         await E2EAuthFlow.loginAsUser(tester);
 
         // Assert
-        expect(find.text('Home'), findsWidgets);
+        expect(find.text('Dịch thuật'), findsWidgets);
         E2ETestExpectations.expectNoError(tester);
       },
     );
@@ -59,10 +61,14 @@ void main() {
         await E2EAuthFlow.login(tester, 'invalid@test.com', 'wrongpassword');
 
         // Assert
-        E2ETestExpectations.expectErrorMessage(
-          tester,
-          'Invalid credentials',
-        );
+        // Settle error dialog
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('Email hoặc mật khẩu không đúng.'), findsOneWidget);
+        
+        // Close dialog
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
       },
     );
 
@@ -90,16 +96,26 @@ void main() {
         await E2EScreenNavigation.navigateToConversation(tester);
 
         // Act
-        // Find and tap "Start Conversation" button
-        final startButton = find.byType(ElevatedButton).first;
-        await tester.tap(startButton);
-        await tester.pumpAndSettle();
+        // Tap "Bắt đầu kết nối"
+        await tester.tap(find.text('Bắt đầu kết nối').first);
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Tap "Bắt đầu hội thoại"
+        await tester.tap(find.text('Bắt đầu hội thoại'));
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Setup mock socket
         await conversationSocket.connect();
 
         // Assert
         expect(conversationSocket.isConnected, true);
+
+        // End conversation session to stop animations and allow clean finalization
+        await tester.tap(find.byIcon(Icons.call_end_rounded));
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(find.text('Kết thúc'));
+        await tester.pump(const Duration(milliseconds: 500));
+        await conversationSocket.disconnect();
       },
     );
 
@@ -111,34 +127,33 @@ void main() {
         await E2EAuthFlow.loginAsUser(tester);
         await E2EScreenNavigation.navigateToConversation(tester);
 
-        final startButton = find.byType(ElevatedButton).first;
-        await tester.tap(startButton);
-        await tester.pumpAndSettle();
+        // Tap "Bắt đầu kết nối"
+        await tester.tap(find.text('Bắt đầu kết nối').first);
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Tap "Bắt đầu hội thoại"
+        await tester.tap(find.text('Bắt đầu hội thoại'));
+        await tester.pump(const Duration(milliseconds: 500));
 
         await conversationSocket.connect();
 
         // Act
-        // Simulate receiving translated message
-        conversationSocket.simulateReceivedMessage(
-          'Hello',
-          'Xin chào',
-          'https://example.com/audio/hello.mp3',
-        );
-
-        // Wait for message to appear in UI
-        await tester.pumpAndSettle();
+        // Simulate receiving translated message on repository
+        final repo = GetIt.instance<ConversationRepository>() as FakeConversationRepositoryImpl;
+        repo.simulateRepositoryTranslation('Hello', 'Xin chào');
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Assert
-        // Verify message appears in conversation
-        final messagesFuture = conversationSocket.messageStream.toList();
+        // Verify translation appears in the UI
+        expect(find.text('Xin chào'), findsOneWidget);
+        expect(find.text('Hello'), findsOneWidget);
         
-        // Send one message then close
-        await Future.delayed(Duration(milliseconds: 200));
+        // End conversation session to stop animations and allow clean finalization
+        await tester.tap(find.byIcon(Icons.call_end_rounded));
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(find.text('Kết thúc'));
+        await tester.pump(const Duration(milliseconds: 500));
         await conversationSocket.disconnect();
-
-        final messages = await messagesFuture;
-        expect(messages.length, 1);
-        expect(messages[0].translatedResponse, 'Xin chào');
       },
     );
 
@@ -150,30 +165,28 @@ void main() {
         await E2EAuthFlow.loginAsUser(tester);
         await E2EScreenNavigation.navigateToConversation(tester);
 
-        await conversationSocket.connect();
+        // Tap "Bắt đầu kết nối"
+        await tester.tap(find.text('Bắt đầu kết nối').first);
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Tap "Bắt đầu hội thoại"
+        await tester.tap(find.text('Bắt đầu hội thoại'));
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Act
-        conversationSocket.simulateReceivedMessage(
-          'Good morning',
-          'Chào buổi sáng',
-          'https://example.com/audio/morning.mp3',
-        );
+        final repo = GetIt.instance<ConversationRepository>() as FakeConversationRepositoryImpl;
+        repo.simulateRepositoryTranslation('Good morning', 'Chào buổi sáng');
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Assert
-        // Verify translation appears
-        await tester.pump(Duration(milliseconds: 300));
-        
-        // Check message stream has the message
-        final testMessage = ConversationMessage(
-          userMessage: 'Good morning',
-          translatedResponse: 'Chào buổi sáng',
-          speakerUrl: 'https://example.com/audio/morning.mp3',
-          timestamp: DateTime.now(),
-        );
-        
-        expect(testMessage.translatedResponse, 'Chào buổi sáng');
+        expect(find.text('Chào buổi sáng'), findsOneWidget);
+        expect(find.text('Good morning'), findsOneWidget);
 
-        await conversationSocket.disconnect();
+        // End conversation session to stop animations and allow clean finalization
+        await tester.tap(find.byIcon(Icons.call_end_rounded));
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(find.text('Kết thúc'));
+        await tester.pump(const Duration(milliseconds: 500));
       },
     );
 
@@ -185,17 +198,24 @@ void main() {
         await E2EAuthFlow.loginAsUser(tester);
         await E2EScreenNavigation.navigateToConversation(tester);
 
-        final startButton = find.byType(ElevatedButton).first;
-        await tester.tap(startButton);
-        await tester.pumpAndSettle();
+        // Tap "Bắt đầu kết nối"
+        await tester.tap(find.text('Bắt đầu kết nối').first);
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Tap "Bắt đầu hội thoại"
+        await tester.tap(find.text('Bắt đầu hội thoại'));
+        await tester.pump(const Duration(milliseconds: 500));
 
         await conversationSocket.connect();
 
         // Act
-        // Find and tap "Stop Conversation" button
-        final stopButton = find.byType(ElevatedButton).at(1);
-        await tester.tap(stopButton);
-        await tester.pumpAndSettle();
+        // Tap end button (icon call_end_rounded)
+        await tester.tap(find.byIcon(Icons.call_end_rounded));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Tap "Kết thúc" button in the confirmation dialog
+        await tester.tap(find.text('Kết thúc'));
+        await tester.pump(const Duration(milliseconds: 500));
 
         await conversationSocket.disconnect();
 
@@ -212,22 +232,20 @@ void main() {
         await E2EAuthFlow.loginAsUser(tester);
         await E2EScreenNavigation.navigateToConversation(tester);
 
-        await conversationSocket.connect();
+        // Tap "Bắt đầu kết nối"
+        await tester.tap(find.text('Bắt đầu kết nối').first);
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Act
-        // Simulate network error
-        conversationSocket.simulateError('Network error: connection lost');
-
-        await tester.pumpAndSettle();
+        // Simulate network error on the repo
+        final repo = GetIt.instance<ConversationRepository>() as FakeConversationRepositoryImpl;
+        repo.simulateRepositoryError('ws_disconnected', 'Network error: connection lost');
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Assert
-        // Error should be caught and displayed
-        E2ETestExpectations.expectErrorMessage(
-          tester,
-          'Network error',
-        );
-
-        await conversationSocket.disconnect();
+        // Error should be caught and displayed as a SnackBar
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(find.text('Network error: connection lost'), findsOneWidget);
       },
     );
 
@@ -239,9 +257,16 @@ void main() {
         await E2EAuthFlow.loginAsUser(tester);
         await E2EScreenNavigation.navigateToConversation(tester);
 
-        await conversationSocket.connect();
+        // Tap "Bắt đầu kết nối"
+        await tester.tap(find.text('Bắt đầu kết nối').first);
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Tap "Bắt đầu hội thoại"
+        await tester.tap(find.text('Bắt đầu hội thoại'));
+        await tester.pump(const Duration(milliseconds: 500));
 
         // Act
+        final repo = GetIt.instance<ConversationRepository>() as FakeConversationRepositoryImpl;
         final messages = [
           ('Hello', 'Xin chào'),
           ('Good morning', 'Chào buổi sáng'),
@@ -249,19 +274,21 @@ void main() {
         ];
 
         for (final (userMsg, translated) in messages) {
-          conversationSocket.simulateReceivedMessage(
-            userMsg,
-            translated,
-            'https://example.com/audio/${userMsg.hashCode}.mp3',
-          );
-          await Future.delayed(Duration(milliseconds: 100));
+          repo.simulateRepositoryTranslation(userMsg, translated);
+          await tester.pump(const Duration(milliseconds: 500));
         }
 
         // Assert
-        await tester.pump(Duration(milliseconds: 500));
-        expect(conversationSocket.isConnected, true);
+        for (final (userMsg, translated) in messages) {
+          expect(find.text(userMsg), findsOneWidget);
+          expect(find.text(translated), findsOneWidget);
+        }
 
-        await conversationSocket.disconnect();
+        // End conversation session to stop animations and allow clean finalization
+        await tester.tap(find.byIcon(Icons.call_end_rounded));
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(find.text('Kết thúc'));
+        await tester.pump(const Duration(milliseconds: 500));
       },
     );
 
@@ -274,6 +301,19 @@ void main() {
         await E2EScreenNavigation.navigateToConversation(tester);
 
         // Act
+        // Go back to home first by tapping the back button
+        final backButton = find.byType(BackButton);
+        if (backButton.evaluate().isNotEmpty) {
+          await tester.tap(backButton);
+          await tester.pumpAndSettle();
+        } else {
+          final backIcon = find.byIcon(Icons.arrow_back);
+          if (backIcon.evaluate().isNotEmpty) {
+            await tester.tap(backIcon);
+            await tester.pumpAndSettle();
+          }
+        }
+
         await E2EAuthFlow.logout(tester);
 
         // Assert

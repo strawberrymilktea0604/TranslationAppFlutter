@@ -1,5 +1,5 @@
-/// E2E Test Seed Data
-/// Contains predefined test users, content, and expected responses
+// E2E Test Seed Data
+// Contains predefined test users, content, and expected responses
 
 class E2ETestSeedData {
   // ==================== Users ====================

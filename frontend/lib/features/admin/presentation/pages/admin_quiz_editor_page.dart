@@ -8,6 +8,7 @@ import 'package:frontend/injection_container.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/services/admin_question_bank_service.dart';
 import 'package:frontend/services/admin_question_service.dart';
+import 'package:http/http.dart' as http;
 
 /// Admin Quiz Editor Page
 /// Manages questions within question banks: list, create, edit, toggle, delete
@@ -40,8 +41,9 @@ class _AdminQuizEditorPageState extends State<AdminQuizEditorPage> {
   }
 
   Future<void> _initServices() async {
-    _bankService = AdminQuestionBankService(baseUrl: config.apiUrl);
-    _questionService = AdminQuestionService(baseUrl: config.apiUrl);
+    final client = sl.isRegistered<http.Client>() ? sl<http.Client>() : null;
+    _bankService = AdminQuestionBankService(baseUrl: config.apiUrl, client: client);
+    _questionService = AdminQuestionService(baseUrl: config.apiUrl, client: client);
     await _loadBanks();
   }
 

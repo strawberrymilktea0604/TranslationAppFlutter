@@ -8,6 +8,7 @@ import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/error/api_error_handler.dart';
+import 'package:http/http.dart' as http;
 
 /// Admin Users Management Page
 /// Displays and manages all application users
@@ -34,7 +35,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   /// Initialize service
   Future<void> _initializeService() async {
     final apiUrl = config.apiUrl;
-    _usersService = AdminUsersService(baseUrl: apiUrl);
+    final client = sl.isRegistered<http.Client>() ? sl<http.Client>() : null;
+    _usersService = AdminUsersService(baseUrl: apiUrl, client: client);
     await _loadUsers();
   }
 
@@ -124,22 +126,24 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Quản lý Người dùng',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Quản lý Người dùng',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Quản lý tài khoản và quyền truy cập người dùng',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        Text(
+                          'Quản lý tài khoản và quyền truy cập người dùng',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   ElevatedButton.icon(
                     onPressed: () {

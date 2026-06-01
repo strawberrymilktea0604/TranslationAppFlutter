@@ -1,7 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:web_socket_mock/web_socket_mock.dart';
 
+class WebSocketMock {
+  final String url;
+  final StreamController<dynamic> streamController;
+  WebSocketMock(this.url, this.streamController);
+  void simulateOpen() {}
+  void simulateClose(int code, String reason) {}
+}
 /// Mock WebSocket Server for Conversation Testing
 /// Simulates real WebSocket communication without needing backend
 class MockWebSocketServer {
@@ -86,7 +92,7 @@ class MockWebSocketServer {
 
 /// Simulates WebSocket for message-based communication
 class MockConversationWebSocket {
-  final String conversationId;
+  final int conversationId;
   final String targetLanguage;
   late StreamController<ConversationMessage> _messageController;
   late Stream<ConversationMessage> messageStream;
@@ -102,7 +108,6 @@ class MockConversationWebSocket {
 
   /// Simulate connection
   Future<void> connect() async {
-    await Future.delayed(Duration(milliseconds: 100));
     _connected = true;
   }
 

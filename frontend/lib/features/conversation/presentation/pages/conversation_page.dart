@@ -381,7 +381,7 @@ class _ConversationViewState extends State<_ConversationView> {
     final isInitial = state is ConversationInitial;
 
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,

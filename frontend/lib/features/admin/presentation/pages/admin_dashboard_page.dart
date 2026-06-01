@@ -6,6 +6,7 @@ import 'package:frontend/features/auth/data/datasources/auth_local_datasource.da
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/core/error/api_error_handler.dart';
+import 'package:http/http.dart' as http;
 
 /// Admin Dashboard Page
 /// Main dashboard showing system overview and statistics
@@ -22,7 +23,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   @override
   void initState() {
     super.initState();
-    _dashboardService = AdminDashboardService();
+    final client = sl.isRegistered<http.Client>() ? sl<http.Client>() : null;
+    _dashboardService = AdminDashboardService(client: client);
     _loadDashboardData();
   }
 

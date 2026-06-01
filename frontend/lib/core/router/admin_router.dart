@@ -33,7 +33,7 @@ class AdminRoutes {
 /// Used for web admin dashboard interface.
 GoRouter createAdminRouter(BuildContext context) {
   return GoRouter(
-    initialLocation: AdminRoutes.dashboard,
+    initialLocation: AdminRoutes.login,
     debugLogDiagnostics: true,
 
     /// Admin redirect logic — only authenticated users can access /admin/* routes.

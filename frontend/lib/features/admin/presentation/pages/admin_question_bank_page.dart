@@ -7,6 +7,7 @@ import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/services/admin_question_bank_service.dart';
+import 'package:http/http.dart' as http;
 
 /// Admin Question Bank Management Page
 /// Full CRUD for question banks: list, create, edit, toggle active, delete
@@ -33,7 +34,8 @@ class _AdminQuestionBankPageState extends State<AdminQuestionBankPage> {
   }
 
   Future<void> _initService() async {
-    _service = AdminQuestionBankService(baseUrl: config.apiUrl);
+    final client = sl.isRegistered<http.Client>() ? sl<http.Client>() : null;
+    _service = AdminQuestionBankService(baseUrl: config.apiUrl, client: client);
     await _loadBanks();
   }
 
@@ -992,12 +994,15 @@ class _StatusBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

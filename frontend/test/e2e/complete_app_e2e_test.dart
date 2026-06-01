@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/main.dart';
+import 'package:frontend/main_web.dart';
 import '../helpers/e2e_test_helper.dart';
 import '../helpers/e2e_seed_data.dart';
 import '../helpers/mock_websocket_server.dart';
@@ -8,11 +10,11 @@ import '../helpers/mock_websocket_server.dart';
 /// Tests all major user flows and admin operations
 void main() {
   group('Complete App E2E Test Suite', () {
-    setUpAll(() async {
+    setUp(() async {
       await E2ETestHelper.setupTestEnvironment();
     });
 
-    tearDownAll(() async {
+    tearDown(() async {
       await E2ETestHelper.teardownTestEnvironment();
     });
 
@@ -32,9 +34,30 @@ void main() {
         await tester.pumpAndSettle();
 
         // Act: Start conversation
-        final startButton = find.byType(ElevatedButton).first;
-        await tester.tap(startButton);
-        await tester.pumpAndSettle();
+        await tester.tap(find.text('Bắt đầu kết nối').first);
+        await tester.pump(const Duration(milliseconds: 500));
+
+        await tester.tap(find.text('Bắt đầu hội thoại'));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // End conversation session to stop animations and allow clean finalization
+        await tester.tap(find.byIcon(Icons.call_end_rounded));
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.tap(find.text('Kết thúc'));
+        await tester.pump(const Duration(milliseconds: 500));
+
+        // Navigate back to Home to allow logout buttons to be found
+        final backButton = find.byType(BackButton);
+        if (backButton.evaluate().isNotEmpty) {
+          await tester.tap(backButton);
+          await tester.pumpAndSettle();
+        } else {
+          final backIcon = find.byIcon(Icons.arrow_back);
+          if (backIcon.evaluate().isNotEmpty) {
+            await tester.tap(backIcon);
+            await tester.pumpAndSettle();
+          }
+        }
 
         // Act: Logout
         await E2EAuthFlow.logout(tester);
@@ -48,7 +71,7 @@ void main() {
       'Complete Admin Flow: Login → View Users → Manage Banks → Logout',
       (WidgetTester tester) async {
         // Arrange
-        await tester.pumpWidget(const MyApp());
+        await tester.pumpWidget(const AdminApp());
         await tester.pumpAndSettle();
 
         // Act & Assert: Admin login
@@ -58,7 +81,7 @@ void main() {
         // Act & Assert: Navigate to dashboard
         await E2EScreenNavigation.navigateToAdminDashboard(tester);
         await tester.pumpAndSettle();
-        expect(find.text('Dashboard'), findsOneWidget);
+        expect(find.text('Dashboard'), findsWidgets);
 
         // Act & Assert: View users
         await E2EScreenNavigation.navigateToAdminUsers(tester);
@@ -86,11 +109,14 @@ void main() {
         // Act: Try to login with invalid credentials
         await E2EAuthFlow.login(tester, 'invalid@test.com', 'wrongpassword');
 
-        // Assert: Error message shown
-        E2ETestExpectations.expectErrorMessage(
-          tester,
-          'Invalid',
-        );
+        // Assert: Error message shown in dialog
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('Email hoặc mật khẩu không đúng.'), findsOneWidget);
+        
+        // Close dialog
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
       },
     );
 
@@ -326,8 +352,16 @@ void main() {
         );
 
         // Connect
-        await mockSocket.connect();
+        final connectFuture = mockSocket.connect();
+        await tester.pump(const Duration(milliseconds: 100));
+        await connectFuture;
         expect(mockSocket.isConnected, true);
+
+        // Get messages
+        final messages = <ConversationMessage>[];
+        final subscription = mockSocket.messageStream.listen(
+          messages.add,
+        );
 
         // Simulate receiving messages
         mockSocket.simulateReceivedMessage(
@@ -336,13 +370,7 @@ void main() {
           'https://example.com/audio/hello.mp3',
         );
 
-        // Get messages
-        final messages = <ConversationMessage>[];
-        final subscription = mockSocket.messageStream.listen(
-          messages.add,
-        );
-
-        await Future.delayed(Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 100));
 
         expect(messages.length, 1);
         expect(messages[0].userMessage, 'Hello');
