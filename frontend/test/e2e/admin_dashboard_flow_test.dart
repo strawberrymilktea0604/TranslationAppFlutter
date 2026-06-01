@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/main.dart';
 import 'package:frontend/main_web.dart';
+import 'package:frontend/features/admin/presentation/pages/admin_login_page.dart';
 import '../helpers/e2e_test_helper.dart';
 import '../helpers/e2e_seed_data.dart';
 
@@ -39,18 +40,14 @@ void main() {
         await tester.pumpAndSettle();
 
         // Act
-        // Try to access admin screen with regular user
         await E2EAuthFlow.loginAsUser(tester);
-
-        // Try to navigate to admin
-        await E2EScreenNavigation.navigateToAdminDashboard(tester);
+        await tester.pumpAndSettle();
 
         // Assert
-        // Should not have access
-        E2ETestExpectations.expectErrorMessage(
-          tester,
-          'Chỉ có admin mới được phép đăng nhập vào dashboard.',
-        );
+        // Non-admin login must stay on login page and never reach dashboard.
+        expect(find.byType(AdminLoginPage), findsOneWidget);
+        expect(find.text('Sign In to Dashboard'), findsOneWidget);
+        expect(find.text('Dashboard'), findsNothing);
       },
     );
 

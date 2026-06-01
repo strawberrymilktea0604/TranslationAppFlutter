@@ -75,9 +75,10 @@ class E2ETestHelper {
   /// Initialize test environment with mock repositories and all Cubits
   /// that [MyApp] requires from GetIt.
   static Future<void> setupTestEnvironment() async {
-    // Disable animations during tests to prevent pumpAndSettle() timeout
-    // Use a very small timeDilation value to speed up animations significantly
-    timeDilation = 0.0001;
+    // Keep default scheduler speed to satisfy flutter_test invariants.
+    // Using non-default values can fail tests with:
+    // "The timeDilation was changed and not reset by the test."
+    timeDilation = 1.0;
     
     // Clear previous instances
     await _getIt.reset();
