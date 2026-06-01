@@ -18,54 +18,53 @@ void main() {
       await E2ETestHelper.teardownTestEnvironment();
     });
 
-    testWidgets(
-      'Complete User Flow: Login → Conversation → Logout',
-      (WidgetTester tester) async {
-        // Arrange
-        await tester.pumpWidget(const MyApp());
+    testWidgets('Complete User Flow: Login → Conversation → Logout', (
+      WidgetTester tester,
+    ) async {
+      // Arrange
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+
+      // Act & Assert: Login
+      await E2EAuthFlow.loginAsUser(tester);
+      expect(find.byType(Scaffold), findsWidgets);
+
+      // Act & Assert: Navigate to conversation
+      await E2EScreenNavigation.navigateToConversation(tester);
+      await tester.pumpAndSettle();
+
+      // Act: Start conversation
+      await tester.tap(find.text('Bắt đầu kết nối').first);
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(find.text('Bắt đầu hội thoại'));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // End conversation session to stop animations and allow clean finalization
+      await tester.tap(find.byIcon(Icons.call_end_rounded));
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.tap(find.text('Kết thúc'));
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Navigate back to Home to allow logout buttons to be found
+      final backButton = find.byType(BackButton);
+      if (backButton.evaluate().isNotEmpty) {
+        await tester.tap(backButton);
         await tester.pumpAndSettle();
-
-        // Act & Assert: Login
-        await E2EAuthFlow.loginAsUser(tester);
-        expect(find.byType(Scaffold), findsWidgets);
-
-        // Act & Assert: Navigate to conversation
-        await E2EScreenNavigation.navigateToConversation(tester);
-        await tester.pumpAndSettle();
-
-        // Act: Start conversation
-        await tester.tap(find.text('Bắt đầu kết nối').first);
-        await tester.pump(const Duration(milliseconds: 500));
-
-        await tester.tap(find.text('Bắt đầu hội thoại'));
-        await tester.pump(const Duration(milliseconds: 500));
-
-        // End conversation session to stop animations and allow clean finalization
-        await tester.tap(find.byIcon(Icons.call_end_rounded));
-        await tester.pump(const Duration(milliseconds: 500));
-        await tester.tap(find.text('Kết thúc'));
-        await tester.pump(const Duration(milliseconds: 500));
-
-        // Navigate back to Home to allow logout buttons to be found
-        final backButton = find.byType(BackButton);
-        if (backButton.evaluate().isNotEmpty) {
-          await tester.tap(backButton);
+      } else {
+        final backIcon = find.byIcon(Icons.arrow_back);
+        if (backIcon.evaluate().isNotEmpty) {
+          await tester.tap(backIcon);
           await tester.pumpAndSettle();
-        } else {
-          final backIcon = find.byIcon(Icons.arrow_back);
-          if (backIcon.evaluate().isNotEmpty) {
-            await tester.tap(backIcon);
-            await tester.pumpAndSettle();
-          }
         }
+      }
 
-        // Act: Logout
-        await E2EAuthFlow.logout(tester);
+      // Act: Logout
+      await E2EAuthFlow.logout(tester);
 
-        // Assert: Back at login
-        E2ETestExpectations.expectNoError(tester);
-      },
-    );
+      // Assert: Back at login
+      E2ETestExpectations.expectNoError(tester);
+    });
 
     testWidgets(
       'Complete Admin Flow: Login → View Users → Manage Banks → Logout',
@@ -99,288 +98,255 @@ void main() {
       },
     );
 
-    testWidgets(
-      'Error Handling: Invalid Credentials',
-      (WidgetTester tester) async {
-        // Arrange
-        await tester.pumpWidget(const MyApp());
-        await tester.pumpAndSettle();
+    testWidgets('Error Handling: Invalid Credentials', (
+      WidgetTester tester,
+    ) async {
+      // Arrange
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
 
-        // Act: Try to login with invalid credentials
-        await E2EAuthFlow.login(tester, 'invalid@test.com', 'wrongpassword');
+      // Act: Try to login with invalid credentials
+      await E2EAuthFlow.login(tester, 'invalid@test.com', 'wrongpassword');
 
-        // Assert: Error message shown in dialog
-        await tester.pumpAndSettle();
-        expect(find.byType(AlertDialog), findsOneWidget);
-        expect(find.text('Email hoặc mật khẩu không đúng.'), findsOneWidget);
-        
-        // Close dialog
-        await tester.tap(find.text('OK'));
-        await tester.pumpAndSettle();
-      },
-    );
+      // Assert: Error message shown in dialog
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.text('Email hoặc mật khẩu không đúng.'), findsOneWidget);
 
-    testWidgets(
-      'Permission Check: Regular user cannot access admin',
-      (WidgetTester tester) async {
-        // Arrange
-        await tester.pumpWidget(const MyApp());
-        await tester.pumpAndSettle();
+      // Close dialog
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    });
 
-        // Act: Login as regular user
-        await E2EAuthFlow.loginAsUser(tester);
+    testWidgets('Permission Check: Regular user cannot access admin', (
+      WidgetTester tester,
+    ) async {
+      // Arrange
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
 
-        // Try to access admin screen
-        await E2EScreenNavigation.navigateToAdminDashboard(tester);
+      // Act: Login as regular user
+      await E2EAuthFlow.loginAsUser(tester);
 
-        // Assert: Should not have access (error shown or redirected)
-        // The actual behavior depends on implementation
-        await tester.pumpAndSettle();
-      },
-    );
+      // Try to access admin screen
+      await E2EScreenNavigation.navigateToAdminDashboard(tester);
 
-    testWidgets(
-      'Data Seed Validation: Seed data is correctly loaded',
-      (WidgetTester tester) async {
-        // Verify seed users exist
-        expect(
-          E2ETestSeedData.isValidUser(
-            'admin@test.com',
-            'password123',
-          ),
-          true,
-        );
-        expect(
-          E2ETestSeedData.isValidUser(
-            'user@test.com',
-            'password123',
-          ),
-          true,
-        );
+      // Assert: Should not have access (error shown or redirected)
+      // The actual behavior depends on implementation
+      await tester.pumpAndSettle();
+    });
 
-        // Verify seed data structures
-        expect(E2ETestSeedData.seedAdminUsers.length, 3);
-        expect(E2ETestSeedData.seedQuestionBanks.length, 3);
-        expect(E2ETestSeedData.seedQuestions.length, 3);
-        expect(E2ETestSeedData.seedVocabulary.length, 4);
+    testWidgets('Data Seed Validation: Seed data is correctly loaded', (
+      WidgetTester tester,
+    ) async {
+      // Verify seed users exist
+      expect(
+        E2ETestSeedData.isValidUser('admin@test.com', 'password123'),
+        true,
+      );
+      expect(E2ETestSeedData.isValidUser('user@test.com', 'password123'), true);
 
-        // Verify getting data by ID works
-        expect(
-          E2ETestSeedData.getQuestionBankById(1)?['title'],
-          'English Basics',
-        );
-        expect(
-          E2ETestSeedData.getQuestionsByBankId(1).length,
-          2,
-        );
-      },
-    );
+      // Verify seed data structures
+      expect(E2ETestSeedData.seedAdminUsers.length, 3);
+      expect(E2ETestSeedData.seedQuestionBanks.length, 3);
+      expect(E2ETestSeedData.seedQuestions.length, 3);
+      expect(E2ETestSeedData.seedVocabulary.length, 4);
 
-    testWidgets(
-      'Repository Mock Validation: Mocks work correctly',
-      (WidgetTester tester) async {
-        // Get auth repository
-        final authRepo = E2ETestHelper.getAuthRepository();
+      // Verify getting data by ID works
+      expect(
+        E2ETestSeedData.getQuestionBankById(1)?['title'],
+        'English Basics',
+      );
+      expect(E2ETestSeedData.getQuestionsByBankId(1).length, 2);
+    });
 
-        // Test login
-        final token = await authRepo.login('admin@test.com', 'password123');
-        expect(token, isNotNull);
+    testWidgets('Repository Mock Validation: Mocks work correctly', (
+      WidgetTester tester,
+    ) async {
+      // Get auth repository
+      final authRepo = E2ETestHelper.getAuthRepository();
 
-        // Test get token
-        final storedToken = await authRepo.getAccessToken();
-        expect(storedToken, token);
+      // Test login
+      final token = await authRepo.login('admin@test.com', 'password123');
+      expect(token, isNotNull);
 
-        // Test logout
-        await authRepo.logout();
-        final loggedOutToken = await authRepo.getAccessToken();
-        expect(loggedOutToken, null);
-      },
-    );
+      // Test get token
+      final storedToken = await authRepo.getAccessToken();
+      expect(storedToken, token);
 
-    testWidgets(
-      'Translation Repository Mock: Translation works',
-      (WidgetTester tester) async {
-        final translationRepo =
-            E2ETestHelper.getTranslationRepository();
+      // Test logout
+      await authRepo.logout();
+      final loggedOutToken = await authRepo.getAccessToken();
+      expect(loggedOutToken, null);
+    });
 
-        final result = await translationRepo.translateText(
-          'hello',
-          'English',
-          'Vietnamese',
-        );
+    testWidgets('Translation Repository Mock: Translation works', (
+      WidgetTester tester,
+    ) async {
+      final translationRepo = E2ETestHelper.getTranslationRepository();
 
-        expect(result['original_text'], 'hello');
-        expect(result['translated_text'], isNotNull);
-      },
-    );
+      final result = await translationRepo.translateText(
+        'hello',
+        'English',
+        'Vietnamese',
+      );
 
-    testWidgets(
-      'Admin Repository Mock: User management works',
-      (WidgetTester tester) async {
-        final usersRepo = E2ETestHelper.getAdminUsersRepository();
+      expect(result['original_text'], 'hello');
+      expect(result['translated_text'], isNotNull);
+    });
 
-        // Get users
-        final users = await usersRepo.getUsers(1, 20);
-        expect(users.length, greaterThan(0));
+    testWidgets('Admin Repository Mock: User management works', (
+      WidgetTester tester,
+    ) async {
+      final usersRepo = E2ETestHelper.getAdminUsersRepository();
 
-        // Ban user
-        final bannedUser = await usersRepo.banUser(1);
-        expect(bannedUser['is_banned'], true);
+      // Get users
+      final users = await usersRepo.getUsers(1, 20);
+      expect(users.length, greaterThan(0));
 
-        // Unban user
-        final unbannedUser = await usersRepo.unbanUser(1);
-        expect(unbannedUser['is_banned'], false);
-      },
-    );
+      // Ban user
+      final bannedUser = await usersRepo.banUser(1);
+      expect(bannedUser['is_banned'], true);
 
-    testWidgets(
-      'Question Bank Repository Mock: CRUD works',
-      (WidgetTester tester) async {
-        final bankRepo = E2ETestHelper.getAdminQuestionBankRepository();
+      // Unban user
+      final unbannedUser = await usersRepo.unbanUser(1);
+      expect(unbannedUser['is_banned'], false);
+    });
 
-        // Get banks
-        final banks = await bankRepo.getBanks(1, 20);
-        expect(banks.length, greaterThan(0));
+    testWidgets('Question Bank Repository Mock: CRUD works', (
+      WidgetTester tester,
+    ) async {
+      final bankRepo = E2ETestHelper.getAdminQuestionBankRepository();
 
-        // Create bank
-        final newBank = await bankRepo.createBank(
-          'New Test Bank',
-          'Test Description',
-          30,
-        );
-        expect(newBank['title'], 'New Test Bank');
+      // Get banks
+      final banks = await bankRepo.getBanks(1, 20);
+      expect(banks.length, greaterThan(0));
 
-        // Update bank
-        final updatedBank = await bankRepo.updateBank(
-          newBank['id'] as int,
-          'Updated Title',
-          'Updated Description',
-          45,
-        );
-        expect(updatedBank['title'], 'Updated Title');
+      // Create bank
+      final newBank = await bankRepo.createBank(
+        'New Test Bank',
+        'Test Description',
+        30,
+      );
+      expect(newBank['title'], 'New Test Bank');
 
-        // Toggle bank
-        final toggledBank = await bankRepo.toggleBank(
-          newBank['id'] as int,
-        );
-        expect(toggledBank['is_active'], !(newBank['is_active'] as bool));
+      // Update bank
+      final updatedBank = await bankRepo.updateBank(
+        newBank['id'] as int,
+        'Updated Title',
+        'Updated Description',
+        45,
+      );
+      expect(updatedBank['title'], 'Updated Title');
 
-        // Delete bank
-        await bankRepo.deleteBank(newBank['id'] as int);
-      },
-    );
+      // Toggle bank
+      final toggledBank = await bankRepo.toggleBank(newBank['id'] as int);
+      expect(toggledBank['is_active'], !(newBank['is_active'] as bool));
 
-    testWidgets(
-      'Question Repository Mock: Question management works',
-      (WidgetTester tester) async {
-        final questionRepo = E2ETestHelper.getAdminQuestionRepository();
+      // Delete bank
+      await bankRepo.deleteBank(newBank['id'] as int);
+    });
 
-        // Get questions
-        final questions = await questionRepo.getQuestions(1, 1, 20);
-        expect(questions.length, greaterThan(0));
+    testWidgets('Question Repository Mock: Question management works', (
+      WidgetTester tester,
+    ) async {
+      final questionRepo = E2ETestHelper.getAdminQuestionRepository();
 
-        // Create question
-        final newQuestion = await questionRepo.createQuestion(
-          1,
-          'Test question?',
-          {'A': 'Option A', 'B': 'Option B'},
-          'A',
-        );
-        expect(newQuestion['bank_id'], 1);
+      // Get questions
+      final questions = await questionRepo.getQuestions(1, 1, 20);
+      expect(questions.length, greaterThan(0));
 
-        // Update question
-        final updatedQuestion = await questionRepo.updateQuestion(
-          newQuestion['id'] as int,
-          'Updated question?',
-          {'A': 'Updated A', 'B': 'Updated B'},
-          'B',
-        );
-        expect(updatedQuestion['text'], 'Updated question?');
+      // Create question
+      final newQuestion = await questionRepo.createQuestion(
+        1,
+        'Test question?',
+        {'A': 'Option A', 'B': 'Option B'},
+        'A',
+      );
+      expect(newQuestion['bank_id'], 1);
 
-        // Toggle question
-        final toggledQuestion = await questionRepo.toggleQuestion(
-          newQuestion['id'] as int,
-        );
-        expect(
-          toggledQuestion['is_active'],
-          !(newQuestion['is_active'] as bool),
-        );
+      // Update question
+      final updatedQuestion = await questionRepo.updateQuestion(
+        newQuestion['id'] as int,
+        'Updated question?',
+        {'A': 'Updated A', 'B': 'Updated B'},
+        'B',
+      );
+      expect(updatedQuestion['text'], 'Updated question?');
 
-        // Delete question
-        await questionRepo.deleteQuestion(newQuestion['id'] as int);
-      },
-    );
+      // Toggle question
+      final toggledQuestion = await questionRepo.toggleQuestion(
+        newQuestion['id'] as int,
+      );
+      expect(toggledQuestion['is_active'], !(newQuestion['is_active'] as bool));
 
-    testWidgets(
-      'Conversation Repository Mock: Conversation works',
-      (WidgetTester tester) async {
-        final conversationRepo = E2ETestHelper.getConversationRepository();
+      // Delete question
+      await questionRepo.deleteQuestion(newQuestion['id'] as int);
+    });
 
-        // Start conversation
-        final conversation = await conversationRepo.startConversation(
-          'Vietnamese',
-        );
-        expect(conversation['target_language'], 'Vietnamese');
-        expect(conversation['status'], 'active');
+    testWidgets('Conversation Repository Mock: Conversation works', (
+      WidgetTester tester,
+    ) async {
+      final conversationRepo = E2ETestHelper.getConversationRepository();
 
-        final conversationId = conversation['id'] as int;
+      // Start conversation
+      final conversation = await conversationRepo.startConversation(
+        'Vietnamese',
+      );
+      expect(conversation['target_language'], 'Vietnamese');
+      expect(conversation['status'], 'active');
 
-        // Send message
-        final message = await conversationRepo.sendMessage(
-          conversationId,
-          'Hello',
-        );
-        expect(message['user_message'], 'Hello');
-        expect(message['translated_response'], isNotNull);
+      final conversationId = conversation['id'] as int;
 
-        // Get history
-        final history =
-            await conversationRepo.getConversationHistory(conversationId);
-        expect(history.length, 1);
+      // Send message
+      final message = await conversationRepo.sendMessage(
+        conversationId,
+        'Hello',
+      );
+      expect(message['user_message'], 'Hello');
+      expect(message['translated_response'], isNotNull);
 
-        // End conversation
-        await conversationRepo.endConversation(conversationId);
-      },
-    );
+      // Get history
+      final history = await conversationRepo.getConversationHistory(
+        conversationId,
+      );
+      expect(history.length, 1);
 
-    testWidgets(
-      'WebSocket Mock: Connection and messaging works',
-      (WidgetTester tester) async {
-        final mockSocket = MockConversationWebSocket(
-          conversationId: 1,
-          targetLanguage: 'Vietnamese',
-        );
+      // End conversation
+      await conversationRepo.endConversation(conversationId);
+    });
 
-        // Connect
-        final connectFuture = mockSocket.connect();
-        await tester.pump(const Duration(milliseconds: 100));
-        await connectFuture;
-        expect(mockSocket.isConnected, true);
+    test('WebSocket Mock: Connection and messaging works', () async {
+      final mockSocket = MockConversationWebSocket(
+        conversationId: 1,
+        targetLanguage: 'Vietnamese',
+      );
 
-        // Get messages
-        final messages = <ConversationMessage>[];
-        final subscription = mockSocket.messageStream.listen(
-          messages.add,
-        );
+      // Connect
+      await mockSocket.connect();
+      expect(mockSocket.isConnected, true);
 
-        // Simulate receiving messages
-        mockSocket.simulateReceivedMessage(
-          'Hello',
-          'Xin chào',
-          'https://example.com/audio/hello.mp3',
-        );
+      // Get messages
+      final messages = <ConversationMessage>[];
+      final subscription = mockSocket.messageStream.listen(messages.add);
 
-        await tester.pump(const Duration(milliseconds: 100));
+      // Simulate receiving messages
+      mockSocket.simulateReceivedMessage(
+        'Hello',
+        'Xin chào',
+        'https://example.com/audio/hello.mp3',
+      );
 
-        expect(messages.length, 1);
-        expect(messages[0].userMessage, 'Hello');
-        expect(messages[0].translatedResponse, 'Xin chào');
+      await Future<void>.delayed(Duration.zero);
 
-        // Disconnect
-        await subscription.cancel();
-        await mockSocket.disconnect();
-        expect(mockSocket.isConnected, false);
-      },
-    );
+      expect(messages.length, 1);
+      expect(messages[0].userMessage, 'Hello');
+      expect(messages[0].translatedResponse, 'Xin chào');
+
+      // Disconnect
+      await subscription.cancel();
+      await mockSocket.disconnect();
+      expect(mockSocket.isConnected, false);
+    });
   });
 }

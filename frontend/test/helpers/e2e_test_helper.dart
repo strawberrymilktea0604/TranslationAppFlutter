@@ -79,7 +79,7 @@ class E2ETestHelper {
     // Using non-default values can fail tests with:
     // "The timeDilation was changed and not reset by the test."
     timeDilation = 1.0;
-    
+
     // Clear previous instances
     await _getIt.reset();
 
@@ -201,9 +201,7 @@ class E2ETestHelper {
     _getIt.registerLazySingleton<AudioRecorderService>(
       () => FakeAudioRecorderService(),
     );
-    _getIt.registerFactory(
-      () => RecordingCubit(recorderService: _getIt()),
-    );
+    _getIt.registerFactory(() => RecordingCubit(recorderService: _getIt()));
 
     // ── Translation ─────────────────────────────────────────────────
     _getIt.registerLazySingleton<TranslationRepository>(
@@ -215,6 +213,11 @@ class E2ETestHelper {
     // ── Conversation ────────────────────────────────────────────────
     _getIt.registerLazySingleton<ConversationRepository>(
       () => FakeConversationRepositoryImpl(),
+      dispose: (repo) async {
+        if (repo is FakeConversationRepositoryImpl) {
+          await repo.dispose();
+        }
+      },
     );
     _getIt.registerLazySingleton(() => ConnectConversationUseCase(_getIt()));
     _getIt.registerLazySingleton(() => StartSessionUseCase(_getIt()));
@@ -267,20 +270,27 @@ class E2ETestHelper {
       try {
         // --- 1. Admin Users ---
         if (path.endsWith('/admin/users') && method == 'GET') {
-          final page = int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
-          final pageSize = int.tryParse(request.url.queryParameters['page_size'] ?? '20') ?? 20;
+          final page =
+              int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
+          final pageSize =
+              int.tryParse(request.url.queryParameters['page_size'] ?? '20') ??
+              20;
           final usersRepo = _getIt<FakeAdminUsersRepository>();
           final users = await usersRepo.getUsers(page, pageSize);
-          final itemsJson = users.map((u) => {
-            'id': u['id'],
-            'email': u['email'],
-            'first_name': u['first_name'],
-            'last_name': u['last_name'],
-            'avatar_url': u['avatar_url'],
-            'role': u['role'] ?? 'user',
-            'status': (u['is_banned'] == true) ? 'locked' : 'active',
-            'created_at': u['created_at'] ?? '2026-06-01T00:00:00.000Z',
-          }).toList();
+          final itemsJson = users
+              .map(
+                (u) => {
+                  'id': u['id'],
+                  'email': u['email'],
+                  'first_name': u['first_name'],
+                  'last_name': u['last_name'],
+                  'avatar_url': u['avatar_url'],
+                  'role': u['role'] ?? 'user',
+                  'status': (u['is_banned'] == true) ? 'locked' : 'active',
+                  'created_at': u['created_at'] ?? '2026-06-01T00:00:00.000Z',
+                },
+              )
+              .toList();
 
           return http.Response(
             jsonEncode({
@@ -294,7 +304,9 @@ class E2ETestHelper {
           );
         }
 
-        if (path.contains('/admin/users/') && path.endsWith('/ban') && method == 'PATCH') {
+        if (path.contains('/admin/users/') &&
+            path.endsWith('/ban') &&
+            method == 'PATCH') {
           final parts = path.split('/');
           final userId = int.parse(parts[parts.length - 2]);
           final usersRepo = _getIt<FakeAdminUsersRepository>();
@@ -315,7 +327,9 @@ class E2ETestHelper {
           );
         }
 
-        if (path.contains('/admin/users/') && path.endsWith('/unban') && method == 'PATCH') {
+        if (path.contains('/admin/users/') &&
+            path.endsWith('/unban') &&
+            method == 'PATCH') {
           final parts = path.split('/');
           final userId = int.parse(parts[parts.length - 2]);
           final usersRepo = _getIt<FakeAdminUsersRepository>();
@@ -338,20 +352,28 @@ class E2ETestHelper {
 
         // --- 2. Admin Question Banks ---
         if (path.endsWith('/admin/question-banks') && method == 'GET') {
-          final page = int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
-          final pageSize = int.tryParse(request.url.queryParameters['page_size'] ?? '20') ?? 20;
+          final page =
+              int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
+          final pageSize =
+              int.tryParse(request.url.queryParameters['page_size'] ?? '20') ??
+              20;
           final bankRepo = _getIt<FakeAdminQuestionBankRepository>();
           final banks = await bankRepo.getBanks(page, pageSize);
-          final itemsJson = banks.map((b) => {
-            'id': b['id'],
-            'title': b['title'],
-            'description': b['description'],
-            'duration_minutes': b['duration_minutes'] ?? b['duration'] ?? 10,
-            'is_deleted': b['is_deleted'] ?? !(b['is_active'] ?? true),
-            'question_count': b['question_count'] ?? 0,
-            'created_at': b['created_at'] ?? '2026-06-01T00:00:00.000Z',
-            'updated_at': b['updated_at'] ?? '2026-06-01T00:00:00.000Z',
-          }).toList();
+          final itemsJson = banks
+              .map(
+                (b) => {
+                  'id': b['id'],
+                  'title': b['title'],
+                  'description': b['description'],
+                  'duration_minutes':
+                      b['duration_minutes'] ?? b['duration'] ?? 10,
+                  'is_deleted': b['is_deleted'] ?? !(b['is_active'] ?? true),
+                  'question_count': b['question_count'] ?? 0,
+                  'created_at': b['created_at'] ?? '2026-06-01T00:00:00.000Z',
+                  'updated_at': b['updated_at'] ?? '2026-06-01T00:00:00.000Z',
+                },
+              )
+              .toList();
 
           return http.Response(
             jsonEncode({
@@ -374,7 +396,11 @@ class E2ETestHelper {
           final description = body['description'] as String?;
           final duration = body['duration_minutes'] as int?;
           final bankRepo = _getIt<FakeAdminQuestionBankRepository>();
-          final b = await bankRepo.createBank(title, description ?? '', duration);
+          final b = await bankRepo.createBank(
+            title,
+            description ?? '',
+            duration,
+          );
           return http.Response(
             jsonEncode({
               'id': b['id'],
@@ -399,7 +425,12 @@ class E2ETestHelper {
           final description = body['description'] as String?;
           final duration = body['duration_minutes'] as int?;
           final bankRepo = _getIt<FakeAdminQuestionBankRepository>();
-          final b = await bankRepo.updateBank(bankId, title ?? '', description ?? '', duration);
+          final b = await bankRepo.updateBank(
+            bankId,
+            title ?? '',
+            description ?? '',
+            duration,
+          );
           return http.Response(
             jsonEncode({
               'id': b['id'],
@@ -416,7 +447,9 @@ class E2ETestHelper {
           );
         }
 
-        if (path.contains('/admin/question-banks/') && path.endsWith('/toggle') && method == 'PATCH') {
+        if (path.contains('/admin/question-banks/') &&
+            path.endsWith('/toggle') &&
+            method == 'PATCH') {
           final parts = path.split('/');
           final bankId = int.parse(parts[parts.length - 2]);
           final bankRepo = _getIt<FakeAdminQuestionBankRepository>();
@@ -440,23 +473,36 @@ class E2ETestHelper {
         }
 
         // --- 3. Admin Questions ---
-        if (path.contains('/admin/question-banks/') && path.endsWith('/questions') && method == 'GET') {
+        if (path.contains('/admin/question-banks/') &&
+            path.endsWith('/questions') &&
+            method == 'GET') {
           final parts = path.split('/');
           final bankId = int.parse(parts[parts.length - 2]);
-          final page = int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
-          final pageSize = int.tryParse(request.url.queryParameters['page_size'] ?? '20') ?? 20;
+          final page =
+              int.tryParse(request.url.queryParameters['page'] ?? '1') ?? 1;
+          final pageSize =
+              int.tryParse(request.url.queryParameters['page_size'] ?? '20') ??
+              20;
           final questionRepo = _getIt<FakeAdminQuestionRepository>();
-          final questions = await questionRepo.getQuestions(bankId, page, pageSize);
-          final itemsJson = questions.map((q) => {
-            'id': q['id'],
-            'bank_id': q['bank_id'],
-            'content': q['content'] ?? q['text'] ?? '',
-            'choices': q['choices'] ?? {},
-            'correct_answer': q['correct_answer'] ?? '',
-            'is_deleted': q['is_deleted'] ?? !(q['is_active'] ?? true),
-            'created_at': q['created_at'] ?? '2026-06-01T00:00:00.000Z',
-            'updated_at': q['updated_at'] ?? '2026-06-01T00:00:00.000Z',
-          }).toList();
+          final questions = await questionRepo.getQuestions(
+            bankId,
+            page,
+            pageSize,
+          );
+          final itemsJson = questions
+              .map(
+                (q) => {
+                  'id': q['id'],
+                  'bank_id': q['bank_id'],
+                  'content': q['content'] ?? q['text'] ?? '',
+                  'choices': q['choices'] ?? {},
+                  'correct_answer': q['correct_answer'] ?? '',
+                  'is_deleted': q['is_deleted'] ?? !(q['is_active'] ?? true),
+                  'created_at': q['created_at'] ?? '2026-06-01T00:00:00.000Z',
+                  'updated_at': q['updated_at'] ?? '2026-06-01T00:00:00.000Z',
+                },
+              )
+              .toList();
 
           return http.Response(
             jsonEncode({
@@ -473,7 +519,9 @@ class E2ETestHelper {
           );
         }
 
-        if (path.contains('/admin/question-banks/') && path.endsWith('/questions') && method == 'POST') {
+        if (path.contains('/admin/question-banks/') &&
+            path.endsWith('/questions') &&
+            method == 'POST') {
           final parts = path.split('/');
           final bankId = int.parse(parts[parts.length - 2]);
           final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -481,7 +529,12 @@ class E2ETestHelper {
           final choices = Map<String, String>.from(body['choices'] as Map);
           final correctAnswer = body['correct_answer'] as String;
           final questionRepo = _getIt<FakeAdminQuestionRepository>();
-          final q = await questionRepo.createQuestion(bankId, content, choices, correctAnswer);
+          final q = await questionRepo.createQuestion(
+            bankId,
+            content,
+            choices,
+            correctAnswer,
+          );
           return http.Response(
             jsonEncode({
               'id': q['id'],
@@ -503,10 +556,17 @@ class E2ETestHelper {
           final questionId = int.parse(parts[parts.length - 1]);
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           final content = body['content'] as String?;
-          final choices = body['choices'] != null ? Map<String, String>.from(body['choices'] as Map) : null;
+          final choices = body['choices'] != null
+              ? Map<String, String>.from(body['choices'] as Map)
+              : null;
           final correctAnswer = body['correct_answer'] as String?;
           final questionRepo = _getIt<FakeAdminQuestionRepository>();
-          final q = await questionRepo.updateQuestion(questionId, content ?? '', choices ?? {}, correctAnswer ?? '');
+          final q = await questionRepo.updateQuestion(
+            questionId,
+            content ?? '',
+            choices ?? {},
+            correctAnswer ?? '',
+          );
           return http.Response(
             jsonEncode({
               'id': q['id'],
@@ -523,7 +583,9 @@ class E2ETestHelper {
           );
         }
 
-        if (path.contains('/admin/questions/') && path.endsWith('/toggle') && method == 'PATCH') {
+        if (path.contains('/admin/questions/') &&
+            path.endsWith('/toggle') &&
+            method == 'PATCH') {
           final parts = path.split('/');
           final questionId = int.parse(parts[parts.length - 2]);
           final questionRepo = _getIt<FakeAdminQuestionRepository>();
@@ -549,10 +611,7 @@ class E2ETestHelper {
         // --- 4. Other stats/dashboard requests ---
         if (path.endsWith('/api/v1/translations') && method == 'GET') {
           return http.Response(
-            jsonEncode({
-              'items': [],
-              'total': 120,
-            }),
+            jsonEncode({'items': [], 'total': 120}),
             200,
             headers: {'content-type': 'application/json'},
           );
@@ -573,8 +632,7 @@ class E2ETestHelper {
   }
 
   /// Get fake auth repository
-  static FakeAuthRepository getAuthRepository() =>
-      _getIt<FakeAuthRepository>();
+  static FakeAuthRepository getAuthRepository() => _getIt<FakeAuthRepository>();
 
   /// Get fake translation repository
   static FakeTranslationRepository getTranslationRepository() =>
@@ -622,11 +680,9 @@ class _FakeFullSyncUseCase extends FullSyncUseCase {
 
   @override
   Future<Either<Failure, SyncPushResponseEntity>> call(NoParams params) async {
-    return const Right(SyncPushResponseEntity(
-      succeededCount: 0,
-      failedCount: 0,
-      results: [],
-    ));
+    return const Right(
+      SyncPushResponseEntity(succeededCount: 0, failedCount: 0, results: []),
+    );
   }
 }
 
@@ -639,16 +695,11 @@ class _FakeSyncRepository implements SyncRepository {
 
   @override
   Future<Either<Failure, SyncPushResponseEntity>> fullSync() async {
-    return const Right(SyncPushResponseEntity(
-      succeededCount: 0,
-      failedCount: 0,
-      results: [],
-    ));
+    return const Right(
+      SyncPushResponseEntity(succeededCount: 0, failedCount: 0, results: []),
+    );
   }
 }
-
-
-
 
 /// Common test expectations and matchers
 class E2ETestExpectations {
@@ -698,9 +749,13 @@ class E2ETestExpectations {
     if (snackBarFinder.evaluate().isNotEmpty) {
       final snackBar = tester.widget<SnackBar>(snackBarFinder);
       if (snackBar.content is Text) {
-        debugPrint('DEBUG: SnackBar found with text: ${(snackBar.content as Text).data}');
+        debugPrint(
+          'DEBUG: SnackBar found with text: ${(snackBar.content as Text).data}',
+        );
       } else {
-        debugPrint('DEBUG: SnackBar found but content is not Text: ${snackBar.content}');
+        debugPrint(
+          'DEBUG: SnackBar found but content is not Text: ${snackBar.content}',
+        );
       }
     }
     expect(snackBarFinder, findsNothing);
@@ -710,10 +765,7 @@ class E2ETestExpectations {
 /// Test utilities for common operations
 class E2ETestUtils {
   /// Wait for widget to appear
-  static Future<void> waitForWidget(
-    WidgetTester tester,
-    Type widget,
-  ) async {
+  static Future<void> waitForWidget(WidgetTester tester, Type widget) async {
     await tester.pumpAndSettle();
     int tries = 0;
     while (find.byType(widget).evaluate().isEmpty && tries < 50) {
@@ -723,10 +775,7 @@ class E2ETestUtils {
   }
 
   /// Wait for text to appear
-  static Future<void> waitForText(
-    WidgetTester tester,
-    String text,
-  ) async {
+  static Future<void> waitForText(WidgetTester tester, String text) async {
     await tester.pumpAndSettle();
     int tries = 0;
     while (find.text(text).evaluate().isEmpty && tries < 50) {
@@ -758,10 +807,7 @@ class E2ETestUtils {
   }
 
   /// Scroll to widget
-  static Future<void> scrollToWidget(
-    WidgetTester tester,
-    Type widget,
-  ) async {
+  static Future<void> scrollToWidget(WidgetTester tester, Type widget) async {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byType(widget).first);
     await tester.pumpAndSettle();
@@ -769,8 +815,7 @@ class E2ETestUtils {
 
   /// Get text from widget
   static String getTextFromWidget(WidgetTester tester, String text) {
-    final textWidget =
-        find.text(text).evaluate().first.widget as Text;
+    final textWidget = find.text(text).evaluate().first.widget as Text;
     return textWidget.data ?? '';
   }
 
@@ -847,9 +892,7 @@ class E2EScreenNavigation {
   }
 
   /// Navigate to admin question banks
-  static Future<void> navigateToAdminQuestionBanks(
-    WidgetTester tester,
-  ) async {
+  static Future<void> navigateToAdminQuestionBanks(WidgetTester tester) async {
     final banksButton = find.byIcon(Icons.help_outline_rounded);
     if (banksButton.evaluate().isNotEmpty) {
       await tester.tap(banksButton);
@@ -911,7 +954,7 @@ class E2EAuthFlow {
     // Set screen size to prevent overflow or off-screen tap errors
     tester.view.physicalSize = const Size(1200, 1000);
     tester.view.devicePixelRatio = 1.0;
-    
+
     // We must call pumpAndSettle to propagate the viewport change and let GoRouter settle before checking for page type
     await tester.pumpAndSettle();
 
@@ -930,7 +973,11 @@ class E2EAuthFlow {
 
     // Find TextFormFields (login page uses TextFormField, not TextField)
     final textFormFields = find.byType(TextFormField);
-    expect(textFormFields, findsAtLeastNWidgets(2), reason: 'Expected at least two TextFormFields on the login page');
+    expect(
+      textFormFields,
+      findsAtLeastNWidgets(2),
+      reason: 'Expected at least two TextFormFields on the login page',
+    );
 
     // Enter email
     await tester.enterText(textFormFields.at(0), email);
@@ -976,7 +1023,7 @@ class E2EAuthFlow {
     if (settingsButton.evaluate().isNotEmpty) {
       await tester.tap(settingsButton);
       await tester.pumpAndSettle();
-      
+
       final logoutButton = find.text('Đăng xuất');
       if (logoutButton.evaluate().isNotEmpty) {
         await tester.tap(logoutButton);
@@ -989,7 +1036,7 @@ class E2EAuthFlow {
     if (avatarButton.evaluate().isNotEmpty) {
       await tester.tap(avatarButton);
       await tester.pumpAndSettle();
-      
+
       final logoutItem = find.text('Đăng xuất');
       if (logoutItem.evaluate().isNotEmpty) {
         await tester.tap(logoutItem);
@@ -999,4 +1046,3 @@ class E2EAuthFlow {
     }
   }
 }
-

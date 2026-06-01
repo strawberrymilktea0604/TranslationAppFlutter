@@ -16,9 +16,11 @@ import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_repo
 import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_category_repository.dart';
 import 'package:frontend/features/vocabulary/domain/entities/vocabulary_entity.dart';
 import 'package:frontend/features/vocabulary/domain/entities/vocabulary_category_entity.dart';
-import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart' show CategorySummary;
+import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart'
+    show CategorySummary;
 import 'package:frontend/core/audio_recorder/audio_recorder_service.dart';
-import 'package:frontend/features/conversation/domain/entities/conversation_entity.dart' as dom;
+import 'package:frontend/features/conversation/domain/entities/conversation_entity.dart'
+    as dom;
 import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
 import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
@@ -158,9 +160,9 @@ class FakeAuthRepositoryImpl implements AuthRepository {
     if (password != 'password123') {
       return const Left(ServerFailure('Invalid credentials'));
     }
-    
+
     final localDataSource = GetIt.instance<AuthLocalDataSource>();
-    
+
     if (email == 'admin@test.com') {
       _currentUser = _adminUser;
       await localDataSource.saveTokens(
@@ -383,7 +385,9 @@ class FakeTranslationRepository {
         'id': 2,
         'original_text': 'Good morning',
         'translated_text': 'Chào buổi sáng',
-        'timestamp': DateTime.now().subtract(Duration(hours: 1)).toIso8601String(),
+        'timestamp': DateTime.now()
+            .subtract(Duration(hours: 1))
+            .toIso8601String(),
       },
     ];
   }
@@ -428,7 +432,9 @@ class FakeVocabularyRepository {
 }
 
 class FakeAdminUsersRepository {
-  final _users = E2ETestSeedData.seedAdminUsers.map((u) => Map<String, dynamic>.from(u)).toList();
+  final _users = E2ETestSeedData.seedAdminUsers
+      .map((u) => Map<String, dynamic>.from(u))
+      .toList();
 
   Future<List<Map<String, dynamic>>> getUsers(int page, int pageSize) async {
     return _users;
@@ -448,7 +454,9 @@ class FakeAdminUsersRepository {
 }
 
 class FakeAdminQuestionBankRepository {
-  final _banks = E2ETestSeedData.seedQuestionBanks.map((b) => Map<String, dynamic>.from(b)).toList();
+  final _banks = E2ETestSeedData.seedQuestionBanks
+      .map((b) => Map<String, dynamic>.from(b))
+      .toList();
 
   Future<List<Map<String, dynamic>>> getBanks(int page, int pageSize) async {
     return _banks;
@@ -501,9 +509,18 @@ class FakeAdminQuestionBankRepository {
 
 class FakeAdminQuestionRepository {
   final _questions = <int, List<Map<String, dynamic>>>{
-    1: E2ETestSeedData.seedQuestions.where((q) => q['bank_id'] == 1).map((q) => Map<String, dynamic>.from(q)).toList(),
-    2: E2ETestSeedData.seedQuestions.where((q) => q['bank_id'] == 2).map((q) => Map<String, dynamic>.from(q)).toList(),
-    3: E2ETestSeedData.seedQuestions.where((q) => q['bank_id'] == 3).map((q) => Map<String, dynamic>.from(q)).toList(),
+    1: E2ETestSeedData.seedQuestions
+        .where((q) => q['bank_id'] == 1)
+        .map((q) => Map<String, dynamic>.from(q))
+        .toList(),
+    2: E2ETestSeedData.seedQuestions
+        .where((q) => q['bank_id'] == 2)
+        .map((q) => Map<String, dynamic>.from(q))
+        .toList(),
+    3: E2ETestSeedData.seedQuestions
+        .where((q) => q['bank_id'] == 3)
+        .map((q) => Map<String, dynamic>.from(q))
+        .toList(),
   };
 
   Future<List<Map<String, dynamic>>> getQuestions(
@@ -581,9 +598,7 @@ class FakeConversationRepository {
   int _conversationIdCounter = 1;
   int _messageIdCounter = 1;
 
-  Future<Map<String, dynamic>> startConversation(
-    String targetLanguage,
-  ) async {
+  Future<Map<String, dynamic>> startConversation(String targetLanguage) async {
     final conversationId = _conversationIdCounter++;
     _conversations[conversationId] = [];
     return {
@@ -656,14 +671,24 @@ class FakeVocabularyRepositoryImpl implements VocabularyRepository {
     }
     if (searchQuery != null && searchQuery.isNotEmpty) {
       final q = searchQuery.toLowerCase();
-      list = list.where((i) => i.word.toLowerCase().contains(q) || i.translation.toLowerCase().contains(q)).toList();
+      list = list
+          .where(
+            (i) =>
+                i.word.toLowerCase().contains(q) ||
+                i.translation.toLowerCase().contains(q),
+          )
+          .toList();
     }
     return Right(list);
   }
 
   @override
   Future<Either<Failure, List<String>>> getCategories() async {
-    final cats = _items.where((i) => !i.isDeleted).map((i) => i.category).toSet().toList();
+    final cats = _items
+        .where((i) => !i.isDeleted)
+        .map((i) => i.category)
+        .toSet()
+        .toList();
     cats.sort();
     return Right(cats);
   }
@@ -677,18 +702,24 @@ class FakeVocabularyRepositoryImpl implements VocabularyRepository {
     }
     map.forEach((cat, list) {
       final learned = list.where((w) => w.masteryLevel >= 3).length;
-      summaries.add(CategorySummary(
-        name: cat,
-        wordCount: list.length,
-        learnedCount: learned,
-      ));
+      summaries.add(
+        CategorySummary(
+          name: cat,
+          wordCount: list.length,
+          learnedCount: learned,
+        ),
+      );
     });
     return Right(summaries);
   }
 
   @override
-  Future<Either<Failure, List<VocabularyEntity>>> getByCategory(String category) async {
-    return Right(_items.where((i) => !i.isDeleted && i.category == category).toList());
+  Future<Either<Failure, List<VocabularyEntity>>> getByCategory(
+    String category,
+  ) async {
+    return Right(
+      _items.where((i) => !i.isDeleted && i.category == category).toList(),
+    );
   }
 
   @override
@@ -789,17 +820,21 @@ class FakeVocabularyRepositoryImpl implements VocabularyRepository {
   }
 }
 
-class FakeVocabularyCategoryRepositoryImpl implements VocabularyCategoryRepository {
+class FakeVocabularyCategoryRepositoryImpl
+    implements VocabularyCategoryRepository {
   final List<VocabularyCategoryEntity> _categories = [];
   int _idCounter = 1;
 
   @override
-  Future<Either<Failure, List<VocabularyCategoryEntity>>> getCategories() async {
+  Future<Either<Failure, List<VocabularyCategoryEntity>>>
+  getCategories() async {
     return Right(_categories.where((c) => !c.isDeleted).toList());
   }
 
   @override
-  Future<Either<Failure, VocabularyCategoryEntity>> createCategory(String name) async {
+  Future<Either<Failure, VocabularyCategoryEntity>> createCategory(
+    String name,
+  ) async {
     final cat = VocabularyCategoryEntity(
       id: _idCounter,
       isarId: _idCounter++,
@@ -812,7 +847,10 @@ class FakeVocabularyCategoryRepositoryImpl implements VocabularyCategoryReposito
   }
 
   @override
-  Future<Either<Failure, VocabularyCategoryEntity>> updateCategory(int id, String name) async {
+  Future<Either<Failure, VocabularyCategoryEntity>> updateCategory(
+    int id,
+    String name,
+  ) async {
     final idx = _categories.indexWhere((c) => c.id == id);
     if (idx != -1) {
       final old = _categories[idx];
@@ -910,9 +948,13 @@ class FakeAudioRecorderService implements AudioRecorderService {
   Future<void> dispose() async {}
 }
 
-class FakeConversationRepositoryImpl extends Mock implements ConversationRepository {
-  dom.WebSocketConnectionStatus _status = dom.WebSocketConnectionStatus.disconnected;
-  final StreamController<dom.ConversationEvent> _eventController = StreamController<dom.ConversationEvent>.broadcast();
+class FakeConversationRepositoryImpl extends Mock
+    implements ConversationRepository {
+  dom.WebSocketConnectionStatus _status =
+      dom.WebSocketConnectionStatus.disconnected;
+  final StreamController<dom.ConversationEvent> _eventController =
+      StreamController<dom.ConversationEvent>.broadcast();
+  final List<Timer> _pendingTimers = [];
 
   @override
   dom.WebSocketConnectionStatus get connectionStatus => _status;
@@ -920,9 +962,13 @@ class FakeConversationRepositoryImpl extends Mock implements ConversationReposit
   @override
   Stream<dom.ConversationEvent> connect(String accessToken) {
     _status = dom.WebSocketConnectionStatus.connected;
-    Future.delayed(const Duration(milliseconds: 100), () {
+    _schedule(const Duration(milliseconds: 100), () {
       if (!_eventController.isClosed) {
-        _eventController.add(const dom.ConversationConnectionChanged(status: dom.WebSocketConnectionStatus.connected));
+        _eventController.add(
+          const dom.ConversationConnectionChanged(
+            status: dom.WebSocketConnectionStatus.connected,
+          ),
+        );
       }
     });
     return _eventController.stream;
@@ -934,9 +980,14 @@ class FakeConversationRepositoryImpl extends Mock implements ConversationReposit
     required String targetLanguage,
     dom.ConversationSpeaker speaker = dom.ConversationSpeaker.speakerA,
   }) {
-    Future.delayed(const Duration(milliseconds: 100), () {
+    _schedule(const Duration(milliseconds: 100), () {
       if (!_eventController.isClosed) {
-        _eventController.add(const dom.ConversationSessionStarted(sessionId: 'fake_session', status: 'active'));
+        _eventController.add(
+          const dom.ConversationSessionStarted(
+            sessionId: 'fake_session',
+            status: 'active',
+          ),
+        );
       }
     });
   }
@@ -955,19 +1006,21 @@ class FakeConversationRepositoryImpl extends Mock implements ConversationReposit
 
   @override
   void endUtterance() {
-    Future.delayed(const Duration(milliseconds: 200), () {
+    _schedule(const Duration(milliseconds: 200), () {
       if (!_eventController.isClosed) {
-        _eventController.add(dom.ConversationTranslationReceived(
-          message: dom.ConversationMessage(
-            id: 'fake_msg_id',
-            speaker: dom.ConversationSpeaker.speakerA,
-            sourceText: 'Test input',
-            translatedText: 'Xin chào',
-            sourceLanguage: 'English',
-            targetLanguage: 'Vietnamese',
-            timestamp: DateTime.now(),
+        _eventController.add(
+          dom.ConversationTranslationReceived(
+            message: dom.ConversationMessage(
+              id: 'fake_msg_id',
+              speaker: dom.ConversationSpeaker.speakerA,
+              sourceText: 'Test input',
+              translatedText: 'Xin chào',
+              sourceLanguage: 'English',
+              targetLanguage: 'Vietnamese',
+              timestamp: DateTime.now(),
+            ),
           ),
-        ));
+        );
       }
     });
   }
@@ -978,38 +1031,67 @@ class FakeConversationRepositoryImpl extends Mock implements ConversationReposit
   @override
   void endSession() {
     if (!_eventController.isClosed) {
-      _eventController.add(const dom.ConversationConnectionChanged(status: dom.WebSocketConnectionStatus.disconnected));
+      _eventController.add(
+        const dom.ConversationConnectionChanged(
+          status: dom.WebSocketConnectionStatus.disconnected,
+        ),
+      );
     }
   }
 
   void simulateRepositoryTranslation(String sourceText, String translatedText) {
     if (!_eventController.isClosed) {
-      _eventController.add(dom.ConversationTranslationReceived(
-        message: dom.ConversationMessage(
-          id: 'fake_msg_id_${DateTime.now().microsecondsSinceEpoch}',
-          speaker: dom.ConversationSpeaker.speakerA,
-          sourceText: sourceText,
-          translatedText: translatedText,
-          sourceLanguage: 'English',
-          targetLanguage: 'Vietnamese',
-          timestamp: DateTime.now(),
+      _eventController.add(
+        dom.ConversationTranslationReceived(
+          message: dom.ConversationMessage(
+            id: 'fake_msg_id_${DateTime.now().microsecondsSinceEpoch}',
+            speaker: dom.ConversationSpeaker.speakerA,
+            sourceText: sourceText,
+            translatedText: translatedText,
+            sourceLanguage: 'English',
+            targetLanguage: 'Vietnamese',
+            timestamp: DateTime.now(),
+          ),
         ),
-      ));
+      );
     }
   }
 
   void simulateRepositoryError(String code, String message) {
     if (!_eventController.isClosed) {
-      _eventController.add(dom.ConversationErrorEvent(
-        code: code,
-        message: message,
-      ));
+      _eventController.add(
+        dom.ConversationErrorEvent(code: code, message: message),
+      );
     }
   }
 
   @override
   void disconnect() {
+    _cancelPendingTimers();
     _status = dom.WebSocketConnectionStatus.disconnected;
+  }
+
+  Future<void> dispose() async {
+    _cancelPendingTimers();
+    if (!_eventController.isClosed) {
+      await _eventController.close();
+    }
+  }
+
+  void _schedule(Duration duration, void Function() callback) {
+    late final Timer timer;
+    timer = Timer(duration, () {
+      _pendingTimers.remove(timer);
+      callback();
+    });
+    _pendingTimers.add(timer);
+  }
+
+  void _cancelPendingTimers() {
+    for (final timer in _pendingTimers) {
+      timer.cancel();
+    }
+    _pendingTimers.clear();
   }
 }
 

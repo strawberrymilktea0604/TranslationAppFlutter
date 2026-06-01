@@ -8,6 +8,7 @@ class WebSocketMock {
   void simulateOpen() {}
   void simulateClose(int code, String reason) {}
 }
+
 /// Mock WebSocket Server for Conversation Testing
 /// Simulates real WebSocket communication without needing backend
 class MockWebSocketServer {
@@ -81,8 +82,7 @@ class MockWebSocketServer {
   bool hasConnection(String url) => _connections.containsKey(url);
 
   /// Get all active connections
-  Map<String, WebSocketMock> getActiveConnections() =>
-      Map.from(_connections);
+  Map<String, WebSocketMock> getActiveConnections() => Map.from(_connections);
 
   /// Get connection count
   int getConnectionCount() => _connections.length;
@@ -97,6 +97,7 @@ class MockConversationWebSocket {
   late StreamController<ConversationMessage> _messageController;
   late Stream<ConversationMessage> messageStream;
   bool _connected = false;
+  bool _closed = false;
 
   MockConversationWebSocket({
     required this.conversationId,
@@ -108,13 +109,21 @@ class MockConversationWebSocket {
 
   /// Simulate connection
   Future<void> connect() async {
+    if (_closed) {
+      _messageController = StreamController<ConversationMessage>.broadcast();
+      messageStream = _messageController.stream;
+      _closed = false;
+    }
     _connected = true;
   }
 
   /// Simulate disconnect
   Future<void> disconnect() async {
     _connected = false;
-    await _messageController.close();
+    if (!_closed) {
+      _closed = true;
+      await _messageController.close();
+    }
   }
 
   /// Simulate receiving a translated message
@@ -123,7 +132,7 @@ class MockConversationWebSocket {
     String translatedResponse,
     String speakerUrl,
   ) {
-    if (_connected) {
+    if (_connected && !_closed) {
       _messageController.add(
         ConversationMessage(
           userMessage: userMessage,
@@ -137,7 +146,7 @@ class MockConversationWebSocket {
 
   /// Simulate receiving an error
   void simulateError(String error) {
-    if (_connected) {
+    if (_connected && !_closed) {
       _messageController.addError(Exception(error));
     }
   }
@@ -146,8 +155,8 @@ class MockConversationWebSocket {
   bool get isConnected => _connected;
 
   /// Close the stream
-  void close() {
-    _messageController.close();
+  Future<void> close() async {
+    await disconnect();
   }
 }
 
@@ -199,15 +208,14 @@ class MockWebSocketResponses {
     String userMessage,
     String translatedResponse,
     String speakerUrl,
-  ) =>
-      {
-        'type': 'message_received',
-        'conversation_id': conversationId,
-        'user_message': userMessage,
-        'translated_response': translatedResponse,
-        'speaker_url': speakerUrl,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+  ) => {
+    'type': 'message_received',
+    'conversation_id': conversationId,
+    'user_message': userMessage,
+    'translated_response': translatedResponse,
+    'speaker_url': speakerUrl,
+    'timestamp': DateTime.now().toIso8601String(),
+  };
 
   /// Mock response for conversation ended
   static Map<String, dynamic> conversationEnded(int conversationId) => {
@@ -218,10 +226,7 @@ class MockWebSocketResponses {
   };
 
   /// Mock error response
-  static Map<String, dynamic> errorResponse(
-    String errorCode,
-    String message,
-  ) =>
+  static Map<String, dynamic> errorResponse(String errorCode, String message) =>
       {
         'type': 'error',
         'error_code': errorCode,
@@ -298,9 +303,7 @@ class MockConversationScenarios {
   }
 
   /// Simulate timeout
-  static Future<void> simulateTimeout(
-    MockConversationWebSocket socket,
-  ) async {
+  static Future<void> simulateTimeout(MockConversationWebSocket socket) async {
     await Future.delayed(Duration(seconds: 2));
     socket.simulateError('Request timeout after 30 seconds');
   }

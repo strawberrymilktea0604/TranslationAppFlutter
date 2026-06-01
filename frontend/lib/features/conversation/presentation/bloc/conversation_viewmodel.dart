@@ -74,15 +74,15 @@ class ConversationViewModel extends Cubit<ConversationState> {
     required ConversationRepository repository,
     required AuthLocalDataSource authLocalDataSource,
     required AudioRecorderService audioRecorderService,
-  })  : _connectUseCase = connectUseCase,
-        _startSessionUseCase = startSessionUseCase,
-        _sendAudioChunkUseCase = sendAudioChunkUseCase,
-        _switchSpeakerUseCase = switchSpeakerUseCase,
-        _endSessionUseCase = endSessionUseCase,
-        _repository = repository,
-        _authLocalDataSource = authLocalDataSource,
-        _audioRecorderService = audioRecorderService,
-        super(const ConversationInitial());
+  }) : _connectUseCase = connectUseCase,
+       _startSessionUseCase = startSessionUseCase,
+       _sendAudioChunkUseCase = sendAudioChunkUseCase,
+       _switchSpeakerUseCase = switchSpeakerUseCase,
+       _endSessionUseCase = endSessionUseCase,
+       _repository = repository,
+       _authLocalDataSource = authLocalDataSource,
+       _audioRecorderService = audioRecorderService,
+       super(const ConversationInitial());
 
   // ---------------------------------------------------------------------------
   // Connection
@@ -601,6 +601,9 @@ class ConversationViewModel extends Cubit<ConversationState> {
       await _audioRecorderService.stopStreamRecording();
     }
     await _eventSubscription?.cancel();
+    _audioBuffer.clear();
+    _currentSessionId = null;
+    _repository.disconnect();
     return super.close();
   }
 }
