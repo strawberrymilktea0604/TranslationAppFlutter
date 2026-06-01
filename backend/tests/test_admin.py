@@ -501,3 +501,159 @@ def test_admin_analytics_summary_empty_data_returns_zeroes(admin_client):
         "total_ai_requests": 0,
         "average_quiz_score": 0.0,
     }
+
+
+def test_admin_service_summary_endpoint(admin_client):
+    client, _ = admin_client
+    payload = {
+        "total_translations": 10,
+        "today_translations": 2,
+        "week_translations": 7,
+        "month_translations": 10,
+        "by_type": [{"type": "text", "count": 8, "percentage": 80.0}],
+    }
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.service_summary",
+        new_callable=AsyncMock,
+    ) as mock_summary:
+        mock_summary.return_value = payload
+        resp = client.get("/api/v1/admin/services/summary")
+
+    assert resp.status_code == 200
+    assert resp.json() == payload
+
+
+def test_admin_can_list_translation_services(admin_client):
+    client, _ = admin_client
+    item = {
+        "id": 1000,
+        "user_id": 1,
+        "user_email": "u1@example.com",
+        "user_name": "Test User",
+        "source_language": "vi",
+        "target_language": "en",
+        "source_text": "xin chao",
+        "translated_text": "hello",
+        "translation_type": "text",
+        "is_deleted": False,
+        "created_at": _NOW.isoformat(),
+        "updated_at": _NOW.isoformat(),
+    }
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.list_translations",
+        new_callable=AsyncMock,
+    ) as mock_list:
+        mock_list.return_value = ([item], 1)
+        resp = client.get("/api/v1/admin/services/translations?page=1&page_size=20")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 1
+    assert data["items"][0]["translation_type"] == "text"
+    assert data["items"][0]["user_email"] == "u1@example.com"
+
+
+def test_admin_analytics_overview_endpoint(admin_client):
+    client, _ = admin_client
+    payload = {
+        "days": 7,
+        "average_translations_per_day": {
+            "value": 12.0,
+            "previous_value": 10.0,
+            "change_percent": 20.0,
+        },
+        "active_users": {"value": 5.0, "previous_value": 4.0, "change_percent": 25.0},
+        "average_response_time_ms": {
+            "value": 245.0,
+            "previous_value": 260.0,
+            "change_percent": -5.77,
+        },
+        "translation_accuracy_percent": {
+            "value": 94.2,
+            "previous_value": 93.0,
+            "change_percent": 1.29,
+        },
+    }
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.analytics_overview",
+        new_callable=AsyncMock,
+    ) as mock_overview:
+        mock_overview.return_value = payload
+        resp = client.get("/api/v1/admin/analytics/overview?days=7")
+
+    assert resp.status_code == 200
+    assert resp.json() == payload
+
+
+def test_admin_recent_activities_endpoint(admin_client):
+    client, _ = admin_client
+    payload = {
+        "items": [
+            {
+                "type": "translation",
+                "title": "Translation created",
+                "description": "xin chao",
+                "actor_id": 1,
+                "actor_email": "u1@example.com",
+                "created_at": _NOW.isoformat(),
+                "metadata": {"translation_id": 1000},
+            }
+        ]
+    }
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.recent_activities",
+        new_callable=AsyncMock,
+    ) as mock_activities:
+        mock_activities.return_value = payload
+        resp = client.get("/api/v1/admin/activities/recent?limit=5")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["items"][0]["type"] == "translation"
+    assert data["items"][0]["metadata"]["translation_id"] == 1000
+
+
+def test_admin_can_create_user(admin_client):
+    client, _ = admin_client
+    created_user = _make_user(user_id=123, email="new@example.com")
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.create_user",
+        new_callable=AsyncMock,
+    ) as mock_create:
+        mock_create.return_value = created_user
+        resp = client.post(
+            "/api/v1/admin/users",
+            json={
+                "email": "new@example.com",
+                "password": "secret123",
+                "first_name": "New",
+                "last_name": "User",
+                "role": "user",
+                "status": "active",
+            },
+        )
+
+    assert resp.status_code == 201
+    assert resp.json()["email"] == "new@example.com"
+    assert mock_create.await_count == 1
+
+
+def test_admin_create_user_duplicate_email_returns_409(admin_client):
+    client, _ = admin_client
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.create_user",
+        new_callable=AsyncMock,
+    ) as mock_create:
+        mock_create.side_effect = ValueError("Email already exists.")
+        resp = client.post(
+            "/api/v1/admin/users",
+            json={"email": "dupe@example.com", "password": "secret123"},
+        )
+
+    assert resp.status_code == 409

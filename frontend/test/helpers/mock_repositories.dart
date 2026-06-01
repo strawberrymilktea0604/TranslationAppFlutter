@@ -733,7 +733,7 @@ class FakeVocabularyRepositoryImpl implements VocabularyRepository {
     int? translationId,
   }) async {
     final entity = VocabularyEntity(
-      id: 'local_${_idCounter}',
+      id: 'local_$_idCounter',
       isarId: _idCounter++,
       word: word,
       translation: translation,

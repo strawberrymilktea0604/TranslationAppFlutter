@@ -44,6 +44,17 @@ class AdminUserListResponse(BaseModel):
     has_prev: bool
 
 
+class AdminUserCreateRequest(BaseModel):
+    """Request body for creating a user from the admin panel."""
+
+    email: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=6, max_length=128)
+    first_name: Optional[str] = Field(None, max_length=100)
+    last_name: Optional[str] = Field(None, max_length=100)
+    role: str = Field("user", pattern="^(user|admin)$")
+    status: str = Field("active", pattern="^(active|locked)$")
+
+
 class BanUserResponse(BaseModel):
     """Response after successfully banning a user."""
 
@@ -63,6 +74,131 @@ class AdminAnalyticsSummaryResponse(BaseModel):
 # ─────────────────────────────────────────────
 # Question-bank schemas
 # ─────────────────────────────────────────────
+
+class AdminServiceTypeCount(BaseModel):
+    """Translation count grouped by translation service type."""
+
+    type: str
+    count: int
+    percentage: float
+
+
+class AdminServiceSummaryResponse(BaseModel):
+    """Aggregate counters for the admin service-management screen."""
+
+    total_translations: int
+    today_translations: int
+    week_translations: int
+    month_translations: int
+    by_type: List[AdminServiceTypeCount]
+
+
+class AdminTranslationServiceItem(BaseModel):
+    """Translation row for the admin service-management table."""
+
+    id: int
+    user_id: int
+    user_email: Optional[str] = None
+    user_name: Optional[str] = None
+    source_language: str
+    target_language: str
+    source_text: str
+    translated_text: str
+    translation_type: Optional[str] = None
+    is_deleted: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+
+class AdminTranslationServiceListResponse(BaseModel):
+    """Paginated translation list for admin service management."""
+
+    items: List[AdminTranslationServiceItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+
+class AdminMetricCard(BaseModel):
+    """Current-period metric plus comparison against the previous period."""
+
+    value: float
+    previous_value: float
+    change_percent: float
+
+
+class AdminAnalyticsOverviewResponse(BaseModel):
+    """Period-based metrics for the analytics dashboard cards."""
+
+    days: int
+    average_translations_per_day: AdminMetricCard
+    active_users: AdminMetricCard
+    average_response_time_ms: AdminMetricCard
+    translation_accuracy_percent: AdminMetricCard
+
+
+class AdminTranslationTypeBreakdownResponse(BaseModel):
+    """Translation type breakdown for the analytics dashboard."""
+
+    days: int
+    items: List[AdminServiceTypeCount]
+
+
+class AdminLanguageUsageItem(BaseModel):
+    """Language usage grouped by source or target language."""
+
+    language: str
+    count: int
+    percentage: float
+
+
+class AdminLanguageUsageResponse(BaseModel):
+    """Popular source/target languages for the analytics dashboard."""
+
+    days: int
+    source_languages: List[AdminLanguageUsageItem]
+    target_languages: List[AdminLanguageUsageItem]
+
+
+class AdminServiceMetricItem(BaseModel):
+    """API/service request metrics grouped by endpoint and AI model."""
+
+    endpoint: str
+    ai_model: Optional[str] = None
+    total_requests: int
+    successful_requests: int
+    failed_requests: int
+    average_response_time_ms: float
+    total_tokens_used: int
+
+
+class AdminServiceMetricsResponse(BaseModel):
+    """Service-level API metrics for the analytics dashboard."""
+
+    days: int
+    items: List[AdminServiceMetricItem]
+
+
+class AdminRecentActivityItem(BaseModel):
+    """Derived activity item for the admin dashboard feed."""
+
+    type: str
+    title: str
+    description: Optional[str] = None
+    actor_id: Optional[int] = None
+    actor_email: Optional[str] = None
+    created_at: datetime
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AdminRecentActivitiesResponse(BaseModel):
+    """Recent admin dashboard activity feed."""
+
+    items: List[AdminRecentActivityItem]
+
 
 class AdminBankSummary(BaseModel):
     """Question-bank summary for the admin bank-list endpoint."""

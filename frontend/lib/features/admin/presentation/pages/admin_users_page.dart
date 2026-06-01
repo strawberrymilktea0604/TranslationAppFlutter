@@ -45,16 +45,20 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     try {
       final token = await sl<AuthLocalDataSource>().getAccessToken();
       if (token == null) {
-        _handleAuthError('Token not found in local storage. Please login again.');
+        _handleAuthError(
+          'Token not found in local storage. Please login again.',
+        );
         return;
       }
       _accessToken = token;
-      
+
       await _usersService.fetchUsers(
         page: page,
         pageSize: _pageSize,
-        search: _searchController.text.isNotEmpty ? _searchController.text : null,
-        accessToken: _accessToken, 
+        search: _searchController.text.isNotEmpty
+            ? _searchController.text
+            : null,
+        accessToken: _accessToken,
       );
       setState(() => _currentPage = page);
     } catch (e) {
@@ -72,6 +76,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     try {
       await _usersService.banUser(user.id, _accessToken!);
       if (mounted) {
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Đã khóa tài khoản ${user.displayName}'),
@@ -94,6 +99,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     try {
       await _usersService.unbanUser(user.id, _accessToken!);
       if (mounted) {
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Đã mở khóa tài khoản ${user.displayName}'),
@@ -103,6 +109,229 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       }
     } catch (e) {
       _handleError(e);
+    }
+  }
+
+  /// Show dialog for creating a user through the admin API.
+  Future<void> _showCreateUserDialog() async {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final firstNameController = TextEditingController();
+    final lastNameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var role = 'user';
+    var status = 'active';
+    var isSubmitting = false;
+    var shouldResetSubmitting = true;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: const Text('Thêm người dùng'),
+                content: SizedBox(
+                  width: 480,
+                  child: Form(
+                    key: formKey,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TextFormField(
+                            controller: emailController,
+                            decoration: const InputDecoration(
+                              labelText: 'Email',
+                              prefixIcon: Icon(Icons.email_outlined),
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Vui lòng nhập email';
+                              }
+                              if (!value.contains('@')) {
+                                return 'Email không hợp lệ';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: passwordController,
+                            decoration: const InputDecoration(
+                              labelText: 'Mật khẩu',
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ),
+                            obscureText: true,
+                            validator: (value) {
+                              if (value == null || value.length < 6) {
+                                return 'Mật khẩu tối thiểu 6 ký tự';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: firstNameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Tên',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: lastNameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Họ',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: role,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Vai trò',
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'user',
+                                      child: Text('Người dùng'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'admin',
+                                      child: Text('Admin'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() => role = value);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: status,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Trạng thái',
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'active',
+                                      child: Text('Hoạt động'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'locked',
+                                      child: Text('Đã khóa'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDialogState(() => status = value);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.of(dialogContext).pop(),
+                    child: const Text('Hủy'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (!formKey.currentState!.validate()) {
+                              return;
+                            }
+                            final token =
+                                _accessToken ??
+                                await sl<AuthLocalDataSource>()
+                                    .getAccessToken();
+                            if (token == null) {
+                              _handleAuthError(
+                                'Token not found. Please login again.',
+                              );
+                              return;
+                            }
+                            setDialogState(() => isSubmitting = true);
+                            try {
+                              await _usersService.createUser(
+                                email: emailController.text,
+                                password: passwordController.text,
+                                firstName: firstNameController.text,
+                                lastName: lastNameController.text,
+                                role: role,
+                                status: status,
+                                accessToken: token,
+                              );
+                              if (!dialogContext.mounted ||
+                                  !this.context.mounted) {
+                                return;
+                              }
+                              if (mounted) {
+                                setState(() {});
+                                shouldResetSubmitting = false;
+                                Navigator.of(dialogContext).pop();
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Đã tạo người dùng'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (error) {
+                              if (mounted) {
+                                _handleError(error);
+                              }
+                            } finally {
+                              if (shouldResetSubmitting &&
+                                  dialogContext.mounted) {
+                                setDialogState(() => isSubmitting = false);
+                              }
+                            }
+                          },
+                    icon: isSubmitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.person_add),
+                    label: const Text('Tạo'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      emailController.dispose();
+      passwordController.dispose();
+      firstNameController.dispose();
+      lastNameController.dispose();
     }
   }
 
@@ -132,24 +361,34 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       children: [
                         Text(
                           'Quản lý Người dùng',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         Text(
                           'Quản lý tài khoản và quyền truy cập người dùng',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ],
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed: () {
+                      if (mounted) {
+                        _showCreateUserDialog();
+                        return;
+                      }
                       // TODO: Add new user dialog
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Tính năng thêm người dùng sắp được cập nhật')),
+                        const SnackBar(
+                          content: Text(
+                            'Tính năng thêm người dùng sắp được cập nhật',
+                          ),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.person_add),
@@ -171,12 +410,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            _loadUsers(page: 1);
-                          },
-                        )
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _loadUsers(page: 1);
+                                },
+                              )
                             : null,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -294,10 +533,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               // Table Header
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primaryContainer
-                      .withValues(alpha: 0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     topRight: Radius.circular(12),
@@ -313,9 +551,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       flex: 2,
                       child: Text(
                         'Tên',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
+                        style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -323,27 +559,21 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       flex: 2,
                       child: Text(
                         'Email',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
+                        style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     Expanded(
                       child: Text(
                         'Vai trò',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
+                        style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
                     Expanded(
                       child: Text(
                         'Trạng thái',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
+                        style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -351,9 +581,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                       width: 120,
                       child: Text(
                         'Hành động',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
+                        style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -436,11 +664,15 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   backgroundImage: user.avatarUrl != null
                       ? NetworkImage(user.avatarUrl!)
                       : null,
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
                   child: user.avatarUrl == null
-                      ? Text(user.displayName.isNotEmpty
-                          ? user.displayName[0].toUpperCase()
-                          : 'U')
+                      ? Text(
+                          user.displayName.isNotEmpty
+                              ? user.displayName[0].toUpperCase()
+                              : 'U',
+                        )
                       : null,
                 ),
                 const SizedBox(width: 12),
@@ -487,7 +719,9 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 user.isBanned ? 'Đã khóa' : 'Hoạt động',
                 style: const TextStyle(fontSize: 12),
               ),
-              backgroundColor: _getStatusColor(user.isBanned).withValues(alpha: 0.1),
+              backgroundColor: _getStatusColor(
+                user.isBanned,
+              ).withValues(alpha: 0.1),
               labelStyle: TextStyle(
                 color: _getStatusColor(user.isBanned),
                 fontSize: 12,
@@ -580,10 +814,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   void _handleAuthError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
       );
       // Redirect to login
       Future.delayed(const Duration(seconds: 1), () {

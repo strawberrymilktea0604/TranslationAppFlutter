@@ -22,11 +22,19 @@ from app.models.system import ApiMetric
 from app.models.user import User, UserToken
 from app.repositories.question_bank_repository import QuestionBankRepository
 from app.schemas.admin import (
+    AdminAnalyticsOverviewResponse,
     AdminAnalyticsSummaryResponse,
     AdminBankListResponse,
     AdminBankSummary,
+    AdminLanguageUsageResponse,
     AdminQuestionListResponse,
     AdminQuestionSummary,
+    AdminRecentActivitiesResponse,
+    AdminServiceMetricsResponse,
+    AdminServiceSummaryResponse,
+    AdminTranslationTypeBreakdownResponse,
+    AdminTranslationServiceListResponse,
+    AdminUserCreateRequest,
     AdminUserListResponse,
     AdminUserRead,
     BanUserResponse,
@@ -40,6 +48,7 @@ from app.schemas.admin import (
     QuestionUpdateRequest,
 )
 from app.schemas.learning import QuestionAdminSchema, QuestionBankAdminDetail
+from app.services.admin_dashboard_service import AdminDashboardService
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +106,147 @@ async def admin_analytics_summary(
     )
 
 
+@router.get(
+    "/activities/recent",
+    response_model=AdminRecentActivitiesResponse,
+    summary="[Admin] Recent dashboard activities",
+)
+async def admin_recent_activities(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+    limit: int = Query(20, ge=1, le=100, description="Maximum activity rows"),
+):
+    """Return a merged recent-activity feed derived from existing tables."""
+    return await AdminDashboardService.recent_activities(db, limit=limit)
+
+
+@router.get(
+    "/services/summary",
+    response_model=AdminServiceSummaryResponse,
+    summary="[Admin] Translation service counters",
+)
+async def admin_service_summary(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+):
+    """Return total/today/week/month translation counters and type breakdown."""
+    return await AdminDashboardService.service_summary(db)
+
+
+@router.get(
+    "/services/translations",
+    response_model=AdminTranslationServiceListResponse,
+    summary="[Admin] List translation service records",
+)
+async def admin_list_translation_services(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Rows per page"),
+    search: Optional[str] = Query(None, description="Search text, translation, or user"),
+    translation_type: Optional[str] = Query(None, description="text, voice, image, ..."),
+    source_language: Optional[str] = Query(None, description="Source language code"),
+    target_language: Optional[str] = Query(None, description="Target language code"),
+    user_id: Optional[int] = Query(None, ge=1, description="Filter by user id"),
+    include_deleted: bool = Query(False, description="Include soft-deleted translations"),
+):
+    """Return paginated translations for the admin service-management screen."""
+    items, total = await AdminDashboardService.list_translations(
+        db,
+        page=page,
+        page_size=page_size,
+        search=search,
+        translation_type=translation_type,
+        source_language=source_language,
+        target_language=target_language,
+        user_id=user_id,
+        include_deleted=include_deleted,
+    )
+    return AdminTranslationServiceListResponse(
+        items=items,
+        **_paginate(total, page, page_size),
+    )
+
+
+@router.get(
+    "/analytics/overview",
+    response_model=AdminAnalyticsOverviewResponse,
+    summary="[Admin] Period analytics overview",
+)
+async def admin_analytics_overview(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+    days: int = Query(7, ge=1, le=365, description="Current period length in days"),
+):
+    """Return analytics cards for the current period vs the previous period."""
+    return await AdminDashboardService.analytics_overview(db, days=days)
+
+
+@router.get(
+    "/analytics/translation-types",
+    response_model=AdminTranslationTypeBreakdownResponse,
+    summary="[Admin] Translation type breakdown",
+)
+async def admin_translation_type_breakdown(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+    days: int = Query(7, ge=1, le=365, description="Current period length in days"),
+):
+    """Return translation counts grouped by service type."""
+    return await AdminDashboardService.translation_type_breakdown(db, days=days)
+
+
+@router.get(
+    "/analytics/languages",
+    response_model=AdminLanguageUsageResponse,
+    summary="[Admin] Popular source and target languages",
+)
+async def admin_language_usage(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+    days: int = Query(7, ge=1, le=365, description="Current period length in days"),
+):
+    """Return source and target language usage for the analytics dashboard."""
+    return await AdminDashboardService.language_usage(db, days=days)
+
+
+@router.get(
+    "/analytics/services",
+    response_model=AdminServiceMetricsResponse,
+    summary="[Admin] API service metrics",
+)
+async def admin_service_metrics(
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+    days: int = Query(7, ge=1, le=365, description="Current period length in days"),
+):
+    """Return API metrics grouped by endpoint and AI model."""
+    return await AdminDashboardService.service_metrics(db, days=days)
+
+
 # GET /admin/users
+
+@router.post(
+    "/users",
+    response_model=AdminUserRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="[Admin] Create user",
+)
+async def admin_create_user(
+    payload: AdminUserCreateRequest,
+    db: DBSession,
+    _admin: Annotated[User, Depends(get_admin_user)],
+):
+    """Create a user account from the admin panel."""
+    try:
+        user = await AdminDashboardService.create_user(db, payload)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
+    return AdminUserRead.model_validate(user)
+
 
 @router.get("/users", response_model=AdminUserListResponse, summary="[Admin] List users")
 async def admin_list_users(

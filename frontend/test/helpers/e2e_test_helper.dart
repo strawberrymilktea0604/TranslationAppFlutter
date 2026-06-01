@@ -38,7 +38,6 @@ import 'package:frontend/main.dart' show config;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'dart:convert';
-import 'package:frontend/main_web.dart' show AdminApp;
 import 'package:frontend/features/admin/presentation/pages/admin_login_page.dart';
 
 import 'package:frontend/features/vocabulary/domain/repositories/vocabulary_repository.dart';
@@ -609,6 +608,172 @@ class E2ETestHelper {
         }
 
         // --- 4. Other stats/dashboard requests ---
+        if (path.endsWith('/admin/services/summary') && method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'total_translations': 120,
+              'today_translations': 12,
+              'week_translations': 48,
+              'month_translations': 120,
+              'by_type': [
+                {'type': 'text', 'count': 80, 'percentage': 66.67},
+                {'type': 'image', 'count': 25, 'percentage': 20.83},
+                {'type': 'voice', 'count': 15, 'percentage': 12.5},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (path.endsWith('/admin/activities/recent') && method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'items': [
+                {
+                  'type': 'translation',
+                  'title': 'Translation created',
+                  'description': 'Hello, how are you today?',
+                  'actor_id': 1,
+                  'actor_email': 'user1@test.com',
+                  'created_at': '2026-06-01T10:00:00.000Z',
+                  'metadata': {
+                    'translation_id': 1000,
+                    'translation_type': 'text',
+                  },
+                },
+                {
+                  'type': 'user_created',
+                  'title': 'User created',
+                  'description': 'user2@test.com',
+                  'actor_id': 2,
+                  'actor_email': 'user2@test.com',
+                  'created_at': '2026-06-01T09:30:00.000Z',
+                  'metadata': {'role': 'user', 'status': 'active'},
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (path.endsWith('/admin/services/translations') && method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'items': [
+                {
+                  'id': 1000,
+                  'user_id': 1,
+                  'user_email': 'user1@test.com',
+                  'user_name': 'User One',
+                  'source_language': 'en',
+                  'target_language': 'vi',
+                  'source_text': 'Hello, how are you today?',
+                  'translated_text': 'Xin chào, hôm nay bạn khỏe không?',
+                  'translation_type': 'text',
+                  'is_deleted': false,
+                  'created_at': '2026-06-01T10:00:00.000Z',
+                  'updated_at': '2026-06-01T10:00:00.000Z',
+                },
+              ],
+              'total': 1,
+              'page': 1,
+              'page_size': 20,
+              'total_pages': 1,
+              'has_next': false,
+              'has_prev': false,
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (path.endsWith('/admin/analytics/overview') && method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'days': 7,
+              'average_translations_per_day': {
+                'value': 17.14,
+                'previous_value': 12.0,
+                'change_percent': 42.86,
+              },
+              'active_users': {
+                'value': 3.0,
+                'previous_value': 2.0,
+                'change_percent': 50.0,
+              },
+              'average_response_time_ms': {
+                'value': 245.0,
+                'previous_value': 260.0,
+                'change_percent': -5.77,
+              },
+              'translation_accuracy_percent': {
+                'value': 94.2,
+                'previous_value': 93.0,
+                'change_percent': 1.29,
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (path.endsWith('/admin/analytics/translation-types') &&
+            method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'days': 7,
+              'items': [
+                {'type': 'text', 'count': 80, 'percentage': 66.67},
+                {'type': 'image', 'count': 25, 'percentage': 20.83},
+                {'type': 'voice', 'count': 15, 'percentage': 12.5},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (path.endsWith('/admin/analytics/languages') && method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'days': 7,
+              'source_languages': [
+                {'language': 'en', 'count': 70, 'percentage': 58.33},
+                {'language': 'vi', 'count': 50, 'percentage': 41.67},
+              ],
+              'target_languages': [
+                {'language': 'vi', 'count': 85, 'percentage': 70.83},
+                {'language': 'en', 'count': 35, 'percentage': 29.17},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (path.endsWith('/admin/analytics/services') && method == 'GET') {
+          return http.Response(
+            jsonEncode({
+              'days': 7,
+              'items': [
+                {
+                  'endpoint': 'translation/text',
+                  'ai_model': 'google-translate',
+                  'total_requests': 120,
+                  'successful_requests': 118,
+                  'failed_requests': 2,
+                  'average_response_time_ms': 245.0,
+                  'total_tokens_used': 0,
+                },
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
         if (path.endsWith('/api/v1/translations') && method == 'GET') {
           return http.Response(
             jsonEncode({'items': [], 'total': 120}),

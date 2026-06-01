@@ -90,10 +90,8 @@ class AdminUsersService with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
-  AdminUsersService({
-    required this.baseUrl,
-    http.Client? client,
-  }) : client = client ?? http.Client();
+  AdminUsersService({required this.baseUrl, http.Client? client})
+    : client = client ?? http.Client();
 
   // ==================== GETTERS ====================
   List<AdminUser> get users => _users;
@@ -133,8 +131,9 @@ class AdminUsersService with ChangeNotifier {
         if (search != null && search.isNotEmpty) 'search': search,
       };
 
-      final uri = Uri.parse('$baseUrl/admin/users')
-          .replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '$baseUrl/admin/users',
+      ).replace(queryParameters: queryParams);
 
       final response = await client.get(
         uri,
@@ -158,6 +157,52 @@ class AdminUsersService with ChangeNotifier {
     }
   }
 
+  /// Create a user from the admin page.
+  Future<AdminUser> createUser({
+    required String email,
+    required String password,
+    required String accessToken,
+    String? firstName,
+    String? lastName,
+    String role = 'user',
+    String status = 'active',
+  }) async {
+    try {
+      final response = await client.post(
+        Uri.parse('$baseUrl/admin/users'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email.trim(),
+          'password': password,
+          'first_name': firstName?.trim().isEmpty == true
+              ? null
+              : firstName?.trim(),
+          'last_name': lastName?.trim().isEmpty == true
+              ? null
+              : lastName?.trim(),
+          'role': role,
+          'status': status,
+        }),
+      );
+
+      _handleHttpErrors(response);
+
+      final user = AdminUser.fromJson(
+        jsonDecode(response.body) as Map<String, dynamic>,
+      );
+      _users.insert(0, user);
+      _totalCount += 1;
+      notifyListeners();
+      return user;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    }
+  }
+
   /// Ban a user
   Future<void> banUser(int userId, String accessToken) async {
     try {
@@ -171,8 +216,9 @@ class AdminUsersService with ChangeNotifier {
       // Update local user
       final userIndex = _users.indexWhere((u) => u.id == userId);
       if (userIndex >= 0) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         final updatedUser = AdminUser.fromJson(
-          jsonDecode(response.body) as Map<String, dynamic>,
+          data['user'] as Map<String, dynamic>? ?? data,
         );
         _users[userIndex] = updatedUser;
         notifyListeners();
