@@ -303,6 +303,34 @@ class E2ETestHelper {
           );
         }
 
+        if (path.endsWith('/admin/users') && method == 'POST') {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final usersRepo = _getIt<FakeAdminUsersRepository>();
+          final u = await usersRepo.createUser(
+            email: body['email'] as String,
+            firstName: body['first_name'] as String?,
+            lastName: body['last_name'] as String?,
+            role: body['role'] as String? ?? 'user',
+            status: body['status'] as String? ?? 'active',
+          );
+          return http.Response(
+            jsonEncode({
+              'id': u['id'],
+              'email': u['email'],
+              'first_name': u['first_name'],
+              'last_name': u['last_name'],
+              'avatar_url': u['avatar_url'],
+              'role': u['role'] ?? 'user',
+              'status': (u['is_banned'] == true) ? 'locked' : 'active',
+              'is_deleted': false,
+              'created_at': u['created_at'] ?? '2026-06-01T00:00:00.000Z',
+              'updated_at': u['updated_at'] ?? '2026-06-01T00:00:00.000Z',
+            }),
+            201,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
         if (path.contains('/admin/users/') &&
             path.endsWith('/ban') &&
             method == 'PATCH') {
@@ -1070,6 +1098,24 @@ class E2EScreenNavigation {
     final editorButton = find.byIcon(Icons.quiz_rounded);
     if (editorButton.evaluate().isNotEmpty) {
       await tester.tap(editorButton);
+      await tester.pumpAndSettle();
+    }
+  }
+
+  /// Navigate to admin translation service-management page
+  static Future<void> navigateToAdminTranslations(WidgetTester tester) async {
+    final translationsButton = find.byIcon(Icons.translate_outlined);
+    if (translationsButton.evaluate().isNotEmpty) {
+      await tester.tap(translationsButton);
+      await tester.pumpAndSettle();
+    }
+  }
+
+  /// Navigate to admin analytics page
+  static Future<void> navigateToAdminAnalytics(WidgetTester tester) async {
+    final analyticsButton = find.byIcon(Icons.analytics_outlined);
+    if (analyticsButton.evaluate().isNotEmpty) {
+      await tester.tap(analyticsButton);
       await tester.pumpAndSettle();
     }
   }

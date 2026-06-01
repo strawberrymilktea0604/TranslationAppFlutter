@@ -124,215 +124,207 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     var isSubmitting = false;
     var shouldResetSubmitting = true;
 
-    try {
-      await showDialog<void>(
-        context: context,
-        builder: (dialogContext) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                title: const Text('Thêm người dùng'),
-                content: SizedBox(
-                  width: 480,
-                  child: Form(
-                    key: formKey,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TextFormField(
-                            controller: emailController,
-                            decoration: const InputDecoration(
-                              labelText: 'Email',
-                              prefixIcon: Icon(Icons.email_outlined),
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Thêm người dùng'),
+              content: SizedBox(
+                width: 480,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: emailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Vui lòng nhập email';
+                            }
+                            if (!value.contains('@')) {
+                              return 'Email không hợp lệ';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: passwordController,
+                          decoration: const InputDecoration(
+                            labelText: 'Mật khẩu',
+                            prefixIcon: Icon(Icons.lock_outline),
+                          ),
+                          obscureText: true,
+                          validator: (value) {
+                            if (value == null || value.length < 6) {
+                              return 'Mật khẩu tối thiểu 6 ký tự';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: firstNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tên',
+                                ),
+                              ),
                             ),
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Vui lòng nhập email';
-                              }
-                              if (!value.contains('@')) {
-                                return 'Email không hợp lệ';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: passwordController,
-                            decoration: const InputDecoration(
-                              labelText: 'Mật khẩu',
-                              prefixIcon: Icon(Icons.lock_outline),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: lastNameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Họ',
+                                ),
+                              ),
                             ),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value == null || value.length < 6) {
-                                return 'Mật khẩu tối thiểu 6 ký tự';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: firstNameController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Tên',
-                                  ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: role,
+                                decoration: const InputDecoration(
+                                  labelText: 'Vai trò',
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: lastNameController,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Họ',
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'user',
+                                    child: Text('Người dùng'),
                                   ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: role,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Vai trò',
+                                  DropdownMenuItem(
+                                    value: 'admin',
+                                    child: Text('Admin'),
                                   ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'user',
-                                      child: Text('Người dùng'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'admin',
-                                      child: Text('Admin'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setDialogState(() => role = value);
-                                    }
-                                  },
-                                ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setDialogState(() => role = value);
+                                  }
+                                },
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: status,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Trạng thái',
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: status,
+                                decoration: const InputDecoration(
+                                  labelText: 'Trạng thái',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'active',
+                                    child: Text('Hoạt động'),
                                   ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'active',
-                                      child: Text('Hoạt động'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'locked',
-                                      child: Text('Đã khóa'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setDialogState(() => status = value);
-                                    }
-                                  },
-                                ),
+                                  DropdownMenuItem(
+                                    value: 'locked',
+                                    child: Text('Đã khóa'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setDialogState(() => status = value);
+                                  }
+                                },
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () => Navigator.of(dialogContext).pop(),
-                    child: const Text('Hủy'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: isSubmitting
-                        ? null
-                        : () async {
-                            if (!formKey.currentState!.validate()) {
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Hủy'),
+                ),
+                FilledButton.icon(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) {
+                            return;
+                          }
+                          final token =
+                              _accessToken ??
+                              await sl<AuthLocalDataSource>().getAccessToken();
+                          if (token == null) {
+                            _handleAuthError(
+                              'Token not found. Please login again.',
+                            );
+                            return;
+                          }
+                          setDialogState(() => isSubmitting = true);
+                          try {
+                            await _usersService.createUser(
+                              email: emailController.text,
+                              password: passwordController.text,
+                              firstName: firstNameController.text,
+                              lastName: lastNameController.text,
+                              role: role,
+                              status: status,
+                              accessToken: token,
+                            );
+                            if (!dialogContext.mounted ||
+                                !this.context.mounted) {
                               return;
                             }
-                            final token =
-                                _accessToken ??
-                                await sl<AuthLocalDataSource>()
-                                    .getAccessToken();
-                            if (token == null) {
-                              _handleAuthError(
-                                'Token not found. Please login again.',
+                            if (mounted) {
+                              setState(() {});
+                              shouldResetSubmitting = false;
+                              Navigator.of(dialogContext).pop();
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Đã tạo người dùng'),
+                                  backgroundColor: Colors.green,
+                                ),
                               );
-                              return;
                             }
-                            setDialogState(() => isSubmitting = true);
-                            try {
-                              await _usersService.createUser(
-                                email: emailController.text,
-                                password: passwordController.text,
-                                firstName: firstNameController.text,
-                                lastName: lastNameController.text,
-                                role: role,
-                                status: status,
-                                accessToken: token,
-                              );
-                              if (!dialogContext.mounted ||
-                                  !this.context.mounted) {
-                                return;
-                              }
-                              if (mounted) {
-                                setState(() {});
-                                shouldResetSubmitting = false;
-                                Navigator.of(dialogContext).pop();
-                                ScaffoldMessenger.of(this.context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Đã tạo người dùng'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                              }
-                            } catch (error) {
-                              if (mounted) {
-                                _handleError(error);
-                              }
-                            } finally {
-                              if (shouldResetSubmitting &&
-                                  dialogContext.mounted) {
-                                setDialogState(() => isSubmitting = false);
-                              }
+                          } catch (error) {
+                            if (mounted) {
+                              _handleError(error);
                             }
-                          },
-                    icon: isSubmitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.person_add),
-                    label: const Text('Tạo'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-    } finally {
-      emailController.dispose();
-      passwordController.dispose();
-      firstNameController.dispose();
-      lastNameController.dispose();
-    }
+                          } finally {
+                            if (shouldResetSubmitting &&
+                                dialogContext.mounted) {
+                              setDialogState(() => isSubmitting = false);
+                            }
+                          }
+                        },
+                  icon: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.person_add),
+                  label: const Text('Tạo'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override

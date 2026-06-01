@@ -217,10 +217,13 @@ jobs:
 
       - name: Run E2E tests
         run: |
+          mkdir -p backend/coverage
+          echo "E2E test run started at $(date -u +%Y-%m-%dT%H:%M:%SZ)" > backend/coverage/e2e-run.txt
           if [ -d "backend/tests/e2e" ] && [ "$(ls -A backend/tests/e2e)" ]; then
-            docker compose -f docker-compose.test.yml run --rm backend-tests pytest tests/e2e/ -v --cov=app --cov-append --cov-report=term-missing --timeout=300
+            docker compose -f docker-compose.test.yml run --rm backend-tests pytest tests/e2e/ -v --cov=app --cov-append --cov-report=html:/app/coverage --cov-report=xml:/app/coverage/e2e-coverage.xml --cov-report=term-missing --junitxml=/app/coverage/e2e-junit.xml --timeout=300
           else
             echo "No E2E tests found, skipping E2E test run"
+            echo "No E2E tests found" > backend/coverage/e2e-skipped.txt
           fi
 
       - name: Upload E2E test results

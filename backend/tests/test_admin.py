@@ -588,6 +588,71 @@ def test_admin_analytics_overview_endpoint(admin_client):
     assert resp.json() == payload
 
 
+def test_admin_translation_type_breakdown_endpoint(admin_client):
+    client, _ = admin_client
+    payload = {
+        "days": 7,
+        "items": [{"type": "text", "count": 8, "percentage": 80.0}],
+    }
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.translation_type_breakdown",
+        new_callable=AsyncMock,
+    ) as mock_breakdown:
+        mock_breakdown.return_value = payload
+        resp = client.get("/api/v1/admin/analytics/translation-types?days=7")
+
+    assert resp.status_code == 200
+    assert resp.json() == payload
+
+
+def test_admin_language_usage_endpoint(admin_client):
+    client, _ = admin_client
+    payload = {
+        "days": 7,
+        "source_languages": [{"language": "en", "count": 8, "percentage": 80.0}],
+        "target_languages": [{"language": "vi", "count": 8, "percentage": 80.0}],
+    }
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.language_usage",
+        new_callable=AsyncMock,
+    ) as mock_languages:
+        mock_languages.return_value = payload
+        resp = client.get("/api/v1/admin/analytics/languages?days=7")
+
+    assert resp.status_code == 200
+    assert resp.json() == payload
+
+
+def test_admin_service_metrics_endpoint(admin_client):
+    client, _ = admin_client
+    payload = {
+        "days": 7,
+        "items": [
+            {
+                "endpoint": "translation/text",
+                "ai_model": "test-model",
+                "total_requests": 3,
+                "successful_requests": 2,
+                "failed_requests": 1,
+                "average_response_time_ms": 245.0,
+                "total_tokens_used": 30,
+            }
+        ],
+    }
+
+    with patch(
+        "app.api.v1.endpoints.admin.AdminDashboardService.service_metrics",
+        new_callable=AsyncMock,
+    ) as mock_metrics:
+        mock_metrics.return_value = payload
+        resp = client.get("/api/v1/admin/analytics/services?days=7")
+
+    assert resp.status_code == 200
+    assert resp.json() == payload
+
+
 def test_admin_recent_activities_endpoint(admin_client):
     client, _ = admin_client
     payload = {

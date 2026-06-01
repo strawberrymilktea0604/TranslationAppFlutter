@@ -440,6 +440,26 @@ class FakeAdminUsersRepository {
     return _users;
   }
 
+  Future<Map<String, dynamic>> createUser({
+    required String email,
+    String? firstName,
+    String? lastName,
+    String role = 'user',
+    String status = 'active',
+  }) async {
+    final user = {
+      'id': _users.length + 1,
+      'email': email,
+      'first_name': firstName,
+      'last_name': lastName,
+      'role': role,
+      'is_banned': status == 'locked',
+      'created_at': '2026-06-01T00:00:00.000Z',
+    };
+    _users.insert(0, user);
+    return user;
+  }
+
   Future<Map<String, dynamic>> banUser(int userId) async {
     final user = _users.firstWhere((u) => u['id'] == userId);
     user['is_banned'] = true;

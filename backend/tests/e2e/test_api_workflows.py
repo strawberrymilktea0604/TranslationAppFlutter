@@ -146,3 +146,93 @@ class TestErrorHandling:
             headers={"Authorization": "Bearer invalid-token"}
         )
         assert response.status_code == 401
+
+
+@pytest.mark.e2e
+class TestAdminDashboardWorkflow:
+    """E2E coverage for admin service-management and analytics endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_admin_service_management_endpoints(
+        self,
+        client: TestClient,
+        test_factory,
+        db_session: AsyncSession,
+        test_user,
+        admin_headers: dict,
+    ):
+        """Admin can read service counters and translation rows from real data."""
+        await test_factory.create_test_translation(
+            db_session,
+            user_id=test_user.id,
+            source_text="Hello",
+            translation_type="text",
+        )
+        await test_factory.create_test_translation(
+            db_session,
+            user_id=test_user.id,
+            source_text="Image text",
+            translation_type="image",
+        )
+
+        summary = client.get("/api/v1/admin/services/summary", headers=admin_headers)
+        translations = client.get(
+            "/api/v1/admin/services/translations",
+            headers=admin_headers,
+        )
+
+        assert summary.status_code == 200
+        assert summary.json()["total_translations"] == 2
+        assert summary.json()["by_type"][0]["count"] >= 1
+        assert translations.status_code == 200
+        assert translations.json()["total"] == 2
+        assert translations.json()["items"][0]["user_email"] == test_user.email
+
+    @pytest.mark.asyncio
+    async def test_admin_analytics_endpoints(
+        self,
+        client: TestClient,
+        test_factory,
+        db_session: AsyncSession,
+        test_user,
+        admin_headers: dict,
+    ):
+        """Admin analytics endpoints aggregate translations and API metrics."""
+        await test_factory.create_test_translation(
+            db_session,
+            user_id=test_user.id,
+            translation_type="text",
+        )
+        await test_factory.create_api_metric(db_session, user_id=test_user.id)
+        await test_factory.create_api_metric(
+            db_session,
+            user_id=test_user.id,
+            status_code=500,
+            response_time_ms=500,
+        )
+
+        overview = client.get(
+            "/api/v1/admin/analytics/overview?days=7",
+            headers=admin_headers,
+        )
+        type_breakdown = client.get(
+            "/api/v1/admin/analytics/translation-types?days=7",
+            headers=admin_headers,
+        )
+        languages = client.get(
+            "/api/v1/admin/analytics/languages?days=7",
+            headers=admin_headers,
+        )
+        services = client.get(
+            "/api/v1/admin/analytics/services?days=7",
+            headers=admin_headers,
+        )
+
+        assert overview.status_code == 200
+        assert overview.json()["active_users"]["value"] == 1.0
+        assert type_breakdown.status_code == 200
+        assert type_breakdown.json()["items"][0]["type"] == "text"
+        assert languages.status_code == 200
+        assert languages.json()["target_languages"][0]["language"] == "vi"
+        assert services.status_code == 200
+        assert services.json()["items"][0]["total_requests"] == 2

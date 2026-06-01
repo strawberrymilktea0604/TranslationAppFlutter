@@ -112,6 +112,27 @@ void main() {
       );
     });
 
+    testWidgets('A15: Admin can create a user', (WidgetTester tester) async {
+      await tester.pumpWidget(const AdminApp());
+      await E2EAuthFlow.loginAsAdmin(tester);
+      await E2EScreenNavigation.navigateToAdminUsers(tester);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.person_add).first);
+      await tester.pumpAndSettle();
+
+      final formFields = find.byType(TextFormField);
+      await tester.enterText(formFields.at(0), 'new-admin-user@test.com');
+      await tester.enterText(formFields.at(1), 'password123');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Tạo').last);
+      await tester.pumpAndSettle();
+
+      E2ETestExpectations.expectSuccessMessage(tester, 'Đã tạo người dùng');
+      expect(find.text('new-admin-user@test.com'), findsOneWidget);
+    });
+
     testWidgets('A6: Admin can unban a user', (WidgetTester tester) async {
       // Arrange
       await tester.pumpWidget(const AdminApp());
@@ -163,6 +184,32 @@ void main() {
         tester,
         'Đã mở khóa tài khoản User One',
       );
+    });
+
+    testWidgets('A16: Admin can view translation service management', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const AdminApp());
+      await E2EAuthFlow.loginAsAdmin(tester);
+      await E2EScreenNavigation.navigateToAdminTranslations(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Translation #1000'), findsOneWidget);
+      expect(find.text('User One'), findsOneWidget);
+      expect(find.text('120'), findsWidgets);
+    });
+
+    testWidgets('A17: Admin can view analytics dashboard', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(const AdminApp());
+      await E2EAuthFlow.loginAsAdmin(tester);
+      await E2EScreenNavigation.navigateToAdminAnalytics(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('94.2%'), findsOneWidget);
+      expect(find.text('translation/text'), findsOneWidget);
+      expect(find.text('120 requests'), findsOneWidget);
     });
 
     testWidgets('A7: Admin can view question banks', (

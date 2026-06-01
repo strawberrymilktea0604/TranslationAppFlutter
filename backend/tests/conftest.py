@@ -20,6 +20,7 @@ from app.core.database import get_db  # noqa: E402
 from app.core.security import create_access_token, hash_password  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.base import Base  # noqa: E402
+from app.models.system import ApiMetric  # noqa: E402
 from app.models.translation import Translation  # noqa: E402
 from app.models.user import User, UserToken  # noqa: E402
 
@@ -43,6 +44,7 @@ async def db_session():
                     User.__table__,
                     UserToken.__table__,
                     Translation.__table__,
+                    ApiMetric.__table__,
                 ],
             )
         )
@@ -108,6 +110,7 @@ class TestDataFactory:
         user_id: int,
         source_text: str = "Hello",
         target_language: str = "vi",
+        translation_type: str = "text",
     ) -> Translation:
         translation = Translation(
             id=time.time_ns(),
@@ -116,13 +119,36 @@ class TestDataFactory:
             translated_text="Xin chao",
             target_language=target_language,
             source_language="en",
-            translation_type="text",
+            translation_type=translation_type,
             is_deleted=False,
         )
         session.add(translation)
         await session.commit()
         await session.refresh(translation)
         return translation
+
+    @staticmethod
+    async def create_api_metric(
+        session: AsyncSession,
+        user_id: int | None = None,
+        endpoint: str = "translation/text",
+        status_code: int = 200,
+        response_time_ms: int = 245,
+        is_ai_request: bool = True,
+    ) -> ApiMetric:
+        metric = ApiMetric(
+            user_id=user_id,
+            endpoint=endpoint,
+            response_time_ms=response_time_ms,
+            status_code=status_code,
+            is_ai_request=is_ai_request,
+            ai_model="test-model",
+            ai_tokens_used=10,
+        )
+        session.add(metric)
+        await session.commit()
+        await session.refresh(metric)
+        return metric
 
 
 @pytest.fixture
@@ -141,4 +167,21 @@ async def test_user(db_session: AsyncSession, test_factory: TestDataFactory) -> 
 def auth_headers(test_user: User) -> dict[str, str]:
     """Create an access token for the standard E2E user."""
     token, _ = create_access_token(data={"sub": str(test_user.id)})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def admin_user(db_session: AsyncSession, test_factory: TestDataFactory) -> User:
+    """Create an authenticated admin used by admin E2E workflows."""
+    return await test_factory.create_test_user(
+        db_session,
+        email="admin@example.com",
+        role="admin",
+    )
+
+
+@pytest.fixture
+def admin_headers(admin_user: User) -> dict[str, str]:
+    """Create an access token for the admin E2E user."""
+    token, _ = create_access_token(data={"sub": str(admin_user.id)})
     return {"Authorization": f"Bearer {token}"}
