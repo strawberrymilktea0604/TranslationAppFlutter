@@ -103,6 +103,32 @@ def test_google_translate_failure_still_records_metric(monkeypatch):
     assert record_mock.await_args.kwargs["status_code"] == 503
 
 
+def test_google_translate_400_api_key_error_is_classified_as_invalid_key(monkeypatch):
+    monkeypatch.setattr(settings, "GOOGLE_CLOUD_API_KEY", "test-key")
+    response = SimpleNamespace(
+        status_code=400,
+        json=lambda: {
+            "error": {
+                "message": "API key not valid. Please pass a valid API key."
+            }
+        },
+    )
+
+    with patch(
+        "app.services.google_translate_service.httpx.AsyncClient",
+        return_value=_FakeHttpClient(response=response),
+    ), patch.object(
+        ApiMetricService,
+        "record_ai_request",
+        new=AsyncMock(),
+    ):
+        with pytest.raises(GoogleTranslateError) as exc_info:
+            _run(GoogleTranslateService.translate_text("Hello", "vi", "en"))
+
+    assert exc_info.value.error_code == "API_KEY_INVALID"
+    assert exc_info.value.status_code == 400
+
+
 def test_primary_failure_then_fallback_records_two_metrics(monkeypatch):
     monkeypatch.setattr(settings, "GOOGLE_CLOUD_API_KEY", "test-key")
     monkeypatch.setattr(settings, "TRANSLATION_FALLBACK_ENABLED", True)

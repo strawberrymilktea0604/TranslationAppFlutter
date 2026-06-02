@@ -3,8 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/core/usecases/usecase.dart';
 import 'package:frontend/features/learning/domain/entities/learning_summary_entity.dart';
 import 'package:frontend/features/learning/domain/entities/question_bank_entity.dart';
+import 'package:frontend/features/learning/domain/entities/recent_quiz_result_entity.dart';
 import 'package:frontend/features/learning/domain/usecases/get_learning_summary_usecase.dart';
 import 'package:frontend/features/learning/domain/usecases/get_question_banks_usecase.dart';
+import 'package:frontend/features/learning/domain/usecases/get_recent_quiz_results_usecase.dart';
 import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
 import 'package:frontend/features/vocabulary/domain/usecases/get_vocabulary_list_usecase.dart'
     show GetCategorySummariesUseCase;
@@ -22,15 +24,18 @@ class LearningDashboardCubit extends Cubit<LearningDashboardState> {
   final GetLearningSummaryUseCase _getLearningSummaryUseCase;
   final GetQuestionBanksUseCase _getQuestionBanksUseCase;
   final GetCategorySummariesUseCase _getCategorySummariesUseCase;
+  final GetRecentQuizResultsUseCase _getRecentQuizResultsUseCase;
 
   LearningDashboardCubit({
     required GetLearningSummaryUseCase getLearningSummaryUseCase,
     required GetQuestionBanksUseCase getQuestionBanksUseCase,
     required GetCategorySummariesUseCase getCategorySummariesUseCase,
-  })  : _getLearningSummaryUseCase = getLearningSummaryUseCase,
-        _getQuestionBanksUseCase = getQuestionBanksUseCase,
-        _getCategorySummariesUseCase = getCategorySummariesUseCase,
-        super(const LearningDashboardInitial());
+    required GetRecentQuizResultsUseCase getRecentQuizResultsUseCase,
+  }) : _getLearningSummaryUseCase = getLearningSummaryUseCase,
+       _getQuestionBanksUseCase = getQuestionBanksUseCase,
+       _getCategorySummariesUseCase = getCategorySummariesUseCase,
+       _getRecentQuizResultsUseCase = getRecentQuizResultsUseCase,
+       super(const LearningDashboardInitial());
 
   /// Loads all dashboard data.
   ///
@@ -40,36 +45,28 @@ class LearningDashboardCubit extends Cubit<LearningDashboardState> {
     emit(const LearningDashboardLoading());
 
     // Fetch summary.
-    final summaryResult = await _getLearningSummaryUseCase(
-      const NoParams(),
-    );
+    final summaryResult = await _getLearningSummaryUseCase(const NoParams());
 
     LearningSummaryEntity? summary;
-    final summaryFailure = summaryResult.fold(
-      (failure) => failure.message,
-      (data) {
-        summary = data;
-        return null;
-      },
-    );
+    final summaryFailure = summaryResult.fold((failure) => failure.message, (
+      data,
+    ) {
+      summary = data;
+      return null;
+    });
     if (summaryFailure != null) {
       emit(LearningDashboardFailure(summaryFailure));
       return;
     }
 
     // Fetch question banks.
-    final banksResult = await _getQuestionBanksUseCase(
-      const NoParams(),
-    );
+    final banksResult = await _getQuestionBanksUseCase(const NoParams());
 
     List<QuestionBankEntity>? banks;
-    final banksFailure = banksResult.fold(
-      (failure) => failure.message,
-      (data) {
-        banks = data;
-        return null;
-      },
-    );
+    final banksFailure = banksResult.fold((failure) => failure.message, (data) {
+      banks = data;
+      return null;
+    });
     if (banksFailure != null) {
       emit(LearningDashboardFailure(banksFailure));
       return;
@@ -93,10 +90,30 @@ class LearningDashboardCubit extends Cubit<LearningDashboardState> {
       return;
     }
 
-    emit(LearningDashboardLoaded(
-      summary: summary!,
-      categorySummaries: categories!,
-      questionBanks: banks!,
-    ));
+    // Fetch recent quiz attempts.
+    final recentResult = await _getRecentQuizResultsUseCase(
+      const GetRecentQuizResultsParams(limit: 5),
+    );
+
+    List<RecentQuizResultEntity>? recentQuizResults;
+    final recentFailure = recentResult.fold((failure) => failure.message, (
+      data,
+    ) {
+      recentQuizResults = data;
+      return null;
+    });
+    if (recentFailure != null) {
+      emit(LearningDashboardFailure(recentFailure));
+      return;
+    }
+
+    emit(
+      LearningDashboardLoaded(
+        summary: summary!,
+        categorySummaries: categories!,
+        questionBanks: banks!,
+        recentQuizResults: recentQuizResults!,
+      ),
+    );
   }
 }

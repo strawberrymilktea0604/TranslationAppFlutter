@@ -86,6 +86,7 @@ import 'package:frontend/features/learning/data/repositories/learning_repository
 import 'package:frontend/features/learning/domain/repositories/learning_repository.dart';
 import 'package:frontend/features/learning/domain/usecases/get_learning_summary_usecase.dart';
 import 'package:frontend/features/learning/domain/usecases/get_question_banks_usecase.dart';
+import 'package:frontend/features/learning/domain/usecases/get_recent_quiz_results_usecase.dart';
 import 'package:frontend/features/learning/presentation/bloc/learning_dashboard_cubit.dart';
 import 'package:frontend/features/learning/data/datasources/quiz_remote_datasource.dart';
 import 'package:frontend/features/learning/data/repositories/quiz_repository_impl.dart';
@@ -122,8 +123,7 @@ Future<void> initDependenciesWeb() async {
     () => NetworkInfoImpl(InternetConnection()),
   );
 
-  sl.registerLazySingleton<NetworkCubit>(
-      () => NetworkCubit(networkInfo: sl()));
+  sl.registerLazySingleton<NetworkCubit>(() => NetworkCubit(networkInfo: sl()));
 
   sl.registerLazySingleton<RealtimeSyncService>(
     () => RealtimeSyncService(baseApiUrl: config.apiUrl),
@@ -134,15 +134,17 @@ Future<void> initDependenciesWeb() async {
   sl.registerLazySingleton<TtsService>(() => TtsServiceImpl());
   sl.registerLazySingleton<TtsCubit>(() => TtsCubit(ttsService: sl()));
 
-  sl.registerLazySingleton<ImagePickerService>(
-      () => ImagePickerServiceImpl());
+  sl.registerLazySingleton<ImagePickerService>(() => ImagePickerServiceImpl());
   sl.registerLazySingleton<ImageCompressService>(
-      () => const ImageCompressServiceImpl());
+    () => const ImageCompressServiceImpl(),
+  );
   sl.registerLazySingleton<ImageCropService>(() => ImageCropServiceImpl());
   sl.registerLazySingleton<AudioRecorderService>(
-      () => AudioRecorderServiceImpl());
+    () => AudioRecorderServiceImpl(),
+  );
   sl.registerFactory<RecordingCubit>(
-      () => RecordingCubit(recorderService: sl()));
+    () => RecordingCubit(recorderService: sl()),
+  );
 
   // ==============================
   //  Feature: Auth
@@ -189,8 +191,7 @@ Future<void> initDependenciesWeb() async {
   // ==============================
 
   sl.registerLazySingleton<TranslationRemoteDataSource>(
-    () => TranslationRemoteDataSourceImpl(
-        client: sl(), baseUrl: config.apiUrl),
+    () => TranslationRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
   );
   sl.registerLazySingleton<TranslationRepository>(
     () => TranslationRepositoryImpl(
@@ -210,8 +211,7 @@ Future<void> initDependenciesWeb() async {
     () => const WebVocabularyLocalDataSource(),
   );
   sl.registerLazySingleton<VocabularyRemoteDataSource>(
-    () => VocabularyRemoteDataSourceImpl(
-        client: sl(), baseUrl: config.apiUrl),
+    () => VocabularyRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
   );
   sl.registerLazySingleton<VocabularyRepository>(
     () => VocabularyRepositoryImpl(localDataSource: sl()),
@@ -230,7 +230,9 @@ Future<void> initDependenciesWeb() async {
   );
   sl.registerLazySingleton<VocabularyCategoryRemoteDataSource>(
     () => VocabularyCategoryRemoteDataSourceImpl(
-        client: sl(), baseUrl: config.apiUrl),
+      client: sl(),
+      baseUrl: config.apiUrl,
+    ),
   );
   sl.registerLazySingleton<VocabularyCategoryRepository>(
     () => VocabularyCategoryRepositoryImpl(
@@ -244,17 +246,21 @@ Future<void> initDependenciesWeb() async {
   sl.registerLazySingleton(() => CreateCategoryUseCase(sl()));
   sl.registerLazySingleton(() => UpdateCategoryUseCase(sl()));
   sl.registerLazySingleton(() => DeleteCategoryUseCase(sl()));
-  sl.registerFactory(() => VocabularyCategoryCubit(
-        getCategoriesUseCase: sl(),
-        createCategoryUseCase: sl(),
-        updateCategoryUseCase: sl(),
-        deleteCategoryUseCase: sl(),
-      ));
-  sl.registerFactory(() => VocabularyCubit(
-        saveVocabularyUseCase: sl(),
-        getVocabularyListUseCase: sl(),
-        deleteVocabularyUseCase: sl(),
-      ));
+  sl.registerFactory(
+    () => VocabularyCategoryCubit(
+      getCategoriesUseCase: sl(),
+      createCategoryUseCase: sl(),
+      updateCategoryUseCase: sl(),
+      deleteCategoryUseCase: sl(),
+    ),
+  );
+  sl.registerFactory(
+    () => VocabularyCubit(
+      saveVocabularyUseCase: sl(),
+      getVocabularyListUseCase: sl(),
+      deleteVocabularyUseCase: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: History — Web stub
@@ -269,11 +275,13 @@ Future<void> initDependenciesWeb() async {
   sl.registerLazySingleton(() => GetHistoryUseCase(sl()));
   sl.registerLazySingleton(() => DeleteHistoryUseCase(sl()));
   sl.registerLazySingleton(() => ClearHistoryUseCase(sl()));
-  sl.registerFactory(() => HistoryCubit(
-        getHistoryUseCase: sl(),
-        deleteHistoryUseCase: sl(),
-        clearHistoryUseCase: sl(),
-      ));
+  sl.registerFactory(
+    () => HistoryCubit(
+      getHistoryUseCase: sl(),
+      deleteHistoryUseCase: sl(),
+      clearHistoryUseCase: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Speech (STT)
@@ -292,10 +300,9 @@ Future<void> initDependenciesWeb() async {
   );
   sl.registerLazySingleton(() => SpeechTranslateUseCase(sl()));
   sl.registerLazySingleton(() => RetranslateVoiceTextUseCase(sl()));
-  sl.registerFactory(() => SpeechCubit(
-        speechTranslateUseCase: sl(),
-        retranslateUseCase: sl(),
-      ));
+  sl.registerFactory(
+    () => SpeechCubit(speechTranslateUseCase: sl(), retranslateUseCase: sl()),
+  );
 
   // ==============================
   //  Feature: OCR
@@ -314,13 +321,15 @@ Future<void> initDependenciesWeb() async {
   );
   sl.registerLazySingleton(() => OcrTranslateUseCase(sl()));
   sl.registerLazySingleton(() => RetranslateOcrTextUseCase(sl()));
-  sl.registerFactory(() => OcrCubit(
-        ocrTranslateUseCase: sl(),
-        retranslateUseCase: sl(),
-        imagePickerService: sl(),
-        imageCompressService: sl(),
-        imageCropService: sl(),
-      ));
+  sl.registerFactory(
+    () => OcrCubit(
+      ocrTranslateUseCase: sl(),
+      retranslateUseCase: sl(),
+      imagePickerService: sl(),
+      imageCompressService: sl(),
+      imageCropService: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Sync
@@ -339,12 +348,14 @@ Future<void> initDependenciesWeb() async {
     ),
   );
   sl.registerLazySingleton(() => SyncDataUseCase(sl()));
-  sl.registerLazySingleton(() => SyncCubit(
-        syncDataUseCase: sl(),
-        fullSyncUseCase: sl(),
-        networkCubit: sl(),
-        realtimeSyncService: sl(),
-      ));
+  sl.registerLazySingleton(
+    () => SyncCubit(
+      syncDataUseCase: sl(),
+      fullSyncUseCase: sl(),
+      networkCubit: sl(),
+      realtimeSyncService: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Learning Dashboard
@@ -360,11 +371,15 @@ Future<void> initDependenciesWeb() async {
   );
   sl.registerLazySingleton(() => GetLearningSummaryUseCase(sl()));
   sl.registerLazySingleton(() => GetQuestionBanksUseCase(sl()));
-  sl.registerFactory(() => LearningDashboardCubit(
-        getLearningSummaryUseCase: sl(),
-        getQuestionBanksUseCase: sl(),
-        getCategorySummariesUseCase: sl(),
-      ));
+  sl.registerLazySingleton(() => GetRecentQuizResultsUseCase(sl()));
+  sl.registerFactory(
+    () => LearningDashboardCubit(
+      getLearningSummaryUseCase: sl(),
+      getQuestionBanksUseCase: sl(),
+      getCategorySummariesUseCase: sl(),
+      getRecentQuizResultsUseCase: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Quiz Engine
@@ -378,14 +393,15 @@ Future<void> initDependenciesWeb() async {
       remoteDataSource: sl(),
       authLocalDataSource: sl(),
       networkInfo: sl(),
+      localDataSource: sl(),
     ),
   );
   sl.registerLazySingleton(() => GetQuizQuestionsUseCase(sl()));
   sl.registerLazySingleton(() => SubmitQuizResultUseCase(sl()));
-  sl.registerFactory(() => QuizCubit(
-        getQuizQuestionsUseCase: sl(),
-        submitQuizResultUseCase: sl(),
-      ));
+  sl.registerFactory(
+    () =>
+        QuizCubit(getQuizQuestionsUseCase: sl(), submitQuizResultUseCase: sl()),
+  );
 
   // ==============================
   //  Feature: Conversation
@@ -395,24 +411,24 @@ Future<void> initDependenciesWeb() async {
     () => ConversationRemoteDataSourceImpl(),
   );
   sl.registerLazySingleton<ConversationRepository>(
-    () => ConversationRepositoryImpl(
-      dataSource: sl(),
-      baseApiUrl: config.apiUrl,
-    ),
+    () =>
+        ConversationRepositoryImpl(dataSource: sl(), baseApiUrl: config.apiUrl),
   );
   sl.registerLazySingleton(() => ConnectConversationUseCase(sl()));
   sl.registerLazySingleton(() => StartSessionUseCase(sl()));
   sl.registerLazySingleton(() => SendAudioChunkUseCase(sl()));
   sl.registerLazySingleton(() => EndSessionUseCase(sl()));
   sl.registerLazySingleton(() => SwitchSpeakerUseCase(sl()));
-  sl.registerFactory(() => ConversationViewModel(
-        connectUseCase: sl(),
-        startSessionUseCase: sl(),
-        sendAudioChunkUseCase: sl(),
-        switchSpeakerUseCase: sl(),
-        endSessionUseCase: sl(),
-        repository: sl(),
-        authLocalDataSource: sl(),
-        audioRecorderService: sl(),
-      ));
+  sl.registerFactory(
+    () => ConversationViewModel(
+      connectUseCase: sl(),
+      startSessionUseCase: sl(),
+      sendAudioChunkUseCase: sl(),
+      switchSpeakerUseCase: sl(),
+      endSessionUseCase: sl(),
+      repository: sl(),
+      authLocalDataSource: sl(),
+      audioRecorderService: sl(),
+    ),
+  );
 }

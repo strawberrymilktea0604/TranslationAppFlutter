@@ -6,6 +6,9 @@ import 'package:equatable/equatable.dart';
 /// and the time taken. This is what gets submitted to the backend
 /// after the user finishes (or auto-submits on timer expiry).
 class QuizResultEntity extends Equatable {
+  /// Server-side quiz attempt ID, or a local generated ID before sync.
+  final String? backendId;
+
   /// The question bank ID this quiz belongs to.
   final String bankId;
 
@@ -27,7 +30,14 @@ class QuizResultEntity extends Equatable {
   /// Whether the quiz was auto-submitted due to timer expiry.
   final bool isAutoSubmitted;
 
+  /// Backend/local status for the attempt.
+  final String status;
+
+  /// Completion timestamp.
+  final DateTime? completedAt;
+
   const QuizResultEntity({
+    this.backendId,
     required this.bankId,
     required this.correctCount,
     required this.totalQuestions,
@@ -35,16 +45,21 @@ class QuizResultEntity extends Equatable {
     required this.timeTakenSeconds,
     required this.selectedAnswers,
     this.isAutoSubmitted = false,
+    this.status = 'completed',
+    this.completedAt,
   });
 
   @override
   List<Object?> get props => [
-        bankId,
-        correctCount,
-        totalQuestions,
-        score,
-        timeTakenSeconds,
-        selectedAnswers,
-        isAutoSubmitted,
-      ];
+    backendId,
+    bankId,
+    correctCount,
+    totalQuestions,
+    score,
+    timeTakenSeconds,
+    selectedAnswers,
+    isAutoSubmitted,
+    status,
+    completedAt,
+  ];
 }

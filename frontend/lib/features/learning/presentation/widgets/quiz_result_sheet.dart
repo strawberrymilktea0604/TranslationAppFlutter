@@ -176,8 +176,9 @@ class QuizResultSheet extends StatelessWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () {
-                  Navigator.pop(context); // Close sheet
-                  Navigator.pop(context); // Go back to dashboard
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
+                  navigator.pop(true);
                 },
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),

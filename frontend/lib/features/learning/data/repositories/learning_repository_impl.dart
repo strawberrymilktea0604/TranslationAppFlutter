@@ -6,6 +6,7 @@ import 'package:frontend/features/auth/data/datasources/auth_local_datasource.da
 import 'package:frontend/features/learning/data/datasources/quiz_remote_datasource.dart';
 import 'package:frontend/features/learning/domain/entities/learning_summary_entity.dart';
 import 'package:frontend/features/learning/domain/entities/question_bank_entity.dart';
+import 'package:frontend/features/learning/domain/entities/recent_quiz_result_entity.dart';
 import 'package:frontend/features/learning/domain/repositories/learning_repository.dart';
 import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
 import 'package:frontend/features/vocabulary/data/models/question_bank_model.dart';
@@ -95,6 +96,36 @@ class LearningRepositoryImpl implements LearningRepository {
       } catch (_) {
         return Left(CacheFailure('Failed to load question banks: $e'));
       }
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<RecentQuizResultEntity>>> getRecentQuizResults({
+    int limit = 5,
+  }) async {
+    try {
+      final models = await _localDataSource.getQuizResults(limit: limit);
+      return Right(
+        models
+            .map(
+              (model) => RecentQuizResultEntity(
+                localId: model.id,
+                backendId: model.backendId,
+                bankId: model.bankBackendId,
+                bankTitle: model.bankTitle,
+                totalQuestions: model.totalQuestions,
+                correctAnswers: model.correctAnswers,
+                score: model.score,
+                durationSeconds: model.durationSeconds,
+                status: model.status,
+                completedAt: model.completedAt,
+                isSynced: model.isSynced,
+              ),
+            )
+            .toList(),
+      );
+    } catch (e) {
+      return Left(CacheFailure('Failed to load recent quiz results: $e'));
     }
   }
 

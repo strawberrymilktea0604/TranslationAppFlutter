@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import 'package:frontend/features/learning/domain/entities/learning_summary_entity.dart';
 import 'package:frontend/features/learning/domain/entities/question_bank_entity.dart';
+import 'package:frontend/features/learning/domain/entities/recent_quiz_result_entity.dart';
 import 'package:frontend/features/learning/presentation/bloc/learning_dashboard_cubit.dart';
 import 'package:frontend/features/learning/presentation/bloc/learning_dashboard_state.dart';
 import 'package:frontend/features/learning/presentation/widgets/learning_summary_card.dart';
@@ -54,11 +56,13 @@ class _LearningDashboardView extends StatelessWidget {
             summary: final summary,
             categorySummaries: final categories,
             questionBanks: final banks,
+            recentQuizResults: final recentQuizResults,
           ) =>
             _LoadedView(
               summary: summary,
               categories: categories,
               questionBanks: banks,
+              recentQuizResults: recentQuizResults,
             ),
           LearningDashboardFailure(message: final msg) => _ErrorView(
             message: msg,
@@ -135,11 +139,13 @@ class _LoadedView extends StatelessWidget {
   final LearningSummaryEntity summary;
   final List<CategorySummary> categories;
   final List<QuestionBankEntity> questionBanks;
+  final List<RecentQuizResultEntity> recentQuizResults;
 
   const _LoadedView({
     required this.summary,
     required this.categories,
     required this.questionBanks,
+    required this.recentQuizResults,
   });
 
   @override
@@ -156,6 +162,18 @@ class _LoadedView extends StatelessWidget {
           LearningSummaryCard(summary: summary),
 
           const SizedBox(height: 24),
+
+          _SectionHeader(
+            icon: Icons.history_rounded,
+            title: 'Bài làm gần đây',
+            subtitle: recentQuizResults.isEmpty
+                ? '0 bài'
+                : '${recentQuizResults.length} bài mới',
+          ),
+          const SizedBox(height: 8),
+          RecentQuizResultsList(results: recentQuizResults),
+
+          const SizedBox(height: 28),
 
           // === 2. Vocabulary Categories ===
           _SectionHeader(
@@ -182,10 +200,10 @@ class _LoadedView extends StatelessWidget {
             ...questionBanks.map(
               (bank) => QuestionBankCard(
                 bank: bank,
-                onStart: () {
+                onStart: () async {
                   final durationSeconds = (bank.durationMinutes ?? 5) * 60;
 
-                  context.push(
+                  final didComplete = await context.push<bool>(
                     AppRoutes.quiz,
                     extra: {
                       'questions': const <QuizQuestionEntity>[],
@@ -194,6 +212,9 @@ class _LoadedView extends StatelessWidget {
                       'bankTitle': bank.title,
                     },
                   );
+                  if (didComplete == true && context.mounted) {
+                    context.read<LearningDashboardCubit>().loadDashboard();
+                  }
                 },
               ),
             ),
@@ -288,6 +309,167 @@ class _LoadedView extends StatelessWidget {
         ],
       ),
     ];
+  }
+}
+
+class RecentQuizResultsList extends StatelessWidget {
+  final List<RecentQuizResultEntity> results;
+
+  const RecentQuizResultsList({super.key, required this.results});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    if (results.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 18),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.assignment_turned_in_outlined,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Chưa có bài làm gần đây',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: results
+          .map((result) => _RecentQuizResultCard(result: result))
+          .toList(),
+    );
+  }
+}
+
+class _RecentQuizResultCard extends StatelessWidget {
+  final RecentQuizResultEntity result;
+
+  const _RecentQuizResultCard({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final scoreColor = result.score >= 80
+        ? Colors.green
+        : result.score >= 60
+        ? Colors.orange
+        : cs.error;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 54,
+            height: 54,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: (result.score / 100).clamp(0.0, 1.0),
+                  strokeWidth: 5,
+                  strokeCap: StrokeCap.round,
+                  backgroundColor: scoreColor.withValues(alpha: 0.16),
+                  valueColor: AlwaysStoppedAnimation(scoreColor),
+                ),
+                Text(
+                  '${result.score.round()}%',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: scoreColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  result.bankTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${result.correctAnswers}/${result.totalQuestions} đúng • ${_formatDuration(result.durationSeconds)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                DateFormat('dd/MM HH:mm').format(result.completedAt),
+                style: textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Icon(
+                result.isSynced
+                    ? Icons.cloud_done_rounded
+                    : Icons.cloud_upload_outlined,
+                size: 17,
+                color: result.isSynced
+                    ? Colors.green
+                    : cs.onSurfaceVariant.withValues(alpha: 0.65),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDuration(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    if (minutes == 0) {
+      return '${remainingSeconds}s';
+    }
+    return '${minutes}p ${remainingSeconds}s';
   }
 }
 

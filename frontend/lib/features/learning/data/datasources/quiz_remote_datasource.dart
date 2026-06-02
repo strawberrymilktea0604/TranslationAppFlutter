@@ -124,6 +124,7 @@ class QuizRemoteDataSourceImpl implements QuizRemoteDataSource {
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     return QuizResultEntity(
+      backendId: data['quiz_id']?.toString(),
       bankId: (data['bank_id'] ?? result.bankId).toString(),
       correctCount:
           data['correct_count'] as int? ??
@@ -137,6 +138,11 @@ class QuizRemoteDataSourceImpl implements QuizRemoteDataSource {
           result.timeTakenSeconds,
       selectedAnswers: result.selectedAnswers,
       isAutoSubmitted: result.isAutoSubmitted,
+      status: data['status'] as String? ?? result.status,
+      completedAt:
+          _parseDate(data['submitted_at']) ??
+          _parseDate(data['created_at']) ??
+          result.completedAt,
     );
   }
 
@@ -185,6 +191,24 @@ class QuizRemoteDataSourceImpl implements QuizRemoteDataSource {
         }
         return QuizOptionEntity(
           id: raw.toString(),
+          text: raw.toString(),
+          isCorrect: false,
+        );
+      }).toList();
+    }
+    if (rawOptions is Map) {
+      return rawOptions.entries.map((entry) {
+        final key = entry.key.toString();
+        final raw = entry.value;
+        if (raw is Map<String, dynamic>) {
+          return QuizOptionEntity(
+            id: raw['id']?.toString() ?? key,
+            text: raw['text']?.toString() ?? raw['label']?.toString() ?? '',
+            isCorrect: raw['is_correct'] as bool? ?? false,
+          );
+        }
+        return QuizOptionEntity(
+          id: key,
           text: raw.toString(),
           isCorrect: false,
         );

@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import 'package:frontend/features/learning/domain/entities/learning_summary_entity.dart';
 import 'package:frontend/features/learning/domain/entities/question_bank_entity.dart';
+import 'package:frontend/features/learning/domain/entities/recent_quiz_result_entity.dart';
 import 'package:frontend/features/vocabulary/data/datasources/vocabulary_local_datasource.dart';
 
 /// States for the LearningDashboardCubit.
@@ -36,14 +37,23 @@ class LearningDashboardLoaded extends LearningDashboardState {
   /// Available exam sets.
   final List<QuestionBankEntity> questionBanks;
 
+  /// Recent quiz attempts, newest first.
+  final List<RecentQuizResultEntity> recentQuizResults;
+
   const LearningDashboardLoaded({
     required this.summary,
     required this.categorySummaries,
     required this.questionBanks,
+    required this.recentQuizResults,
   });
 
   @override
-  List<Object?> get props => [summary, categorySummaries, questionBanks];
+  List<Object?> get props => [
+    summary,
+    categorySummaries,
+    questionBanks,
+    recentQuizResults,
+  ];
 }
 
 /// An error occurred while loading dashboard data.

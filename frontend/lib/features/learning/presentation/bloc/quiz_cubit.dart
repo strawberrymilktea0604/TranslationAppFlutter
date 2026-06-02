@@ -206,6 +206,8 @@ class QuizCubit extends Cubit<QuizState> {
       timeTakenSeconds: timeTaken,
       selectedAnswers: state.selectedAnswers,
       isAutoSubmitted: state.isAutoSubmitted,
+      status: state.isAutoSubmitted ? 'timeout' : 'completed',
+      completedAt: DateTime.now(),
     );
 
     final submitResult = await _submitQuizResultUseCase(

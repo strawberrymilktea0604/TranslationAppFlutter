@@ -141,6 +141,12 @@ class GoogleTranslateService:
 
                 elif response.status_code == 400:
                     error_detail = response.json().get("error", {}).get("message", "Bad Request")
+                    if GoogleTranslateService._is_api_key_error(error_detail):
+                        raise GoogleTranslateError(
+                            message="Google API Key is invalid or quota exceeded",
+                            status_code=400,
+                            error_code="API_KEY_INVALID"
+                        )
                     raise GoogleTranslateError(
                         message=f"Invalid request: {error_detail}",
                         status_code=400,
@@ -207,6 +213,15 @@ class GoogleTranslateService:
                     status_code=metric_status_code,
                     user_id=user_id,
                 )
+
+    @staticmethod
+    def _is_api_key_error(message: str) -> bool:
+        normalized = message.lower()
+        return (
+            "api key not valid" in normalized
+            or "key is invalid" in normalized
+            or "api_key_invalid" in normalized
+        )
 
     @staticmethod
     async def detect_language(text: str) -> dict:

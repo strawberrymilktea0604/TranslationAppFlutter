@@ -75,6 +75,7 @@ import 'package:frontend/features/learning/data/repositories/learning_repository
 import 'package:frontend/features/learning/domain/repositories/learning_repository.dart';
 import 'package:frontend/features/learning/domain/usecases/get_learning_summary_usecase.dart';
 import 'package:frontend/features/learning/domain/usecases/get_question_banks_usecase.dart';
+import 'package:frontend/features/learning/domain/usecases/get_recent_quiz_results_usecase.dart';
 import 'package:frontend/features/learning/presentation/bloc/learning_dashboard_cubit.dart';
 import 'package:frontend/features/learning/data/datasources/quiz_remote_datasource.dart';
 import 'package:frontend/features/learning/data/repositories/quiz_repository_impl.dart';
@@ -138,15 +139,11 @@ Future<void> initDependencies() async {
   // Text-to-Speech engine — shared singleton so only one voice
   // plays at a time across the entire app.
   sl.registerLazySingleton<TtsService>(() => TtsServiceImpl());
-  sl.registerLazySingleton<TtsCubit>(
-    () => TtsCubit(ttsService: sl()),
-  );
+  sl.registerLazySingleton<TtsCubit>(() => TtsCubit(ttsService: sl()));
 
   // Image picker — wraps the image_picker plugin behind an interface
   // so Cubits/UseCases don't depend on the Flutter plugin directly.
-  sl.registerLazySingleton<ImagePickerService>(
-    () => ImagePickerServiceImpl(),
-  );
+  sl.registerLazySingleton<ImagePickerService>(() => ImagePickerServiceImpl());
 
   // Image compression — wraps flutter_image_compress behind an interface.
   sl.registerLazySingleton<ImageCompressService>(
@@ -155,9 +152,7 @@ Future<void> initDependencies() async {
 
   // Image cropping — wraps image_cropper behind an interface.
   // Allows user to select text region in a photo before OCR (UC06).
-  sl.registerLazySingleton<ImageCropService>(
-    () => ImageCropServiceImpl(),
-  );
+  sl.registerLazySingleton<ImageCropService>(() => ImageCropServiceImpl());
 
   // Audio recorder — wraps the `record` plugin behind an interface
   // so Cubits/UseCases don't depend on the Flutter plugin directly.
@@ -267,7 +262,10 @@ Future<void> initDependencies() async {
     () => VocabularyCategoryLocalDataSourceImpl(database: isarDatabase),
   );
   sl.registerLazySingleton<VocabularyCategoryRemoteDataSource>(
-    () => VocabularyCategoryRemoteDataSourceImpl(client: sl(), baseUrl: config.apiUrl),
+    () => VocabularyCategoryRemoteDataSourceImpl(
+      client: sl(),
+      baseUrl: config.apiUrl,
+    ),
   );
   sl.registerLazySingleton<VocabularyCategoryRepository>(
     () => VocabularyCategoryRepositoryImpl(
@@ -277,25 +275,29 @@ Future<void> initDependencies() async {
       authLocalDataSource: sl(),
     ),
   );
-  
+
   sl.registerLazySingleton(() => GetCategoriesUseCase(sl()));
   sl.registerLazySingleton(() => CreateCategoryUseCase(sl()));
   sl.registerLazySingleton(() => UpdateCategoryUseCase(sl()));
   sl.registerLazySingleton(() => DeleteCategoryUseCase(sl()));
 
-  sl.registerFactory(() => VocabularyCategoryCubit(
-    getCategoriesUseCase: sl(),
-    createCategoryUseCase: sl(),
-    updateCategoryUseCase: sl(),
-    deleteCategoryUseCase: sl(),
-  ));
+  sl.registerFactory(
+    () => VocabularyCategoryCubit(
+      getCategoriesUseCase: sl(),
+      createCategoryUseCase: sl(),
+      updateCategoryUseCase: sl(),
+      deleteCategoryUseCase: sl(),
+    ),
+  );
 
   // Cubit — factory: new instance per screen that provides it.
-  sl.registerFactory(() => VocabularyCubit(
-    saveVocabularyUseCase: sl(),
-    getVocabularyListUseCase: sl(),
-    deleteVocabularyUseCase: sl(),
-  ));
+  sl.registerFactory(
+    () => VocabularyCubit(
+      saveVocabularyUseCase: sl(),
+      getVocabularyListUseCase: sl(),
+      deleteVocabularyUseCase: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: History (UC08 — Offline-first with Isar)
@@ -317,11 +319,13 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => ClearHistoryUseCase(sl()));
 
   // Cubit — factory: new instance per screen that provides it.
-  sl.registerFactory(() => HistoryCubit(
-    getHistoryUseCase: sl(),
-    deleteHistoryUseCase: sl(),
-    clearHistoryUseCase: sl(),
-  ));
+  sl.registerFactory(
+    () => HistoryCubit(
+      getHistoryUseCase: sl(),
+      deleteHistoryUseCase: sl(),
+      clearHistoryUseCase: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Speech (STT)
@@ -347,10 +351,9 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => RetranslateVoiceTextUseCase(sl()));
 
   // Cubit — factory: new instance per screen that provides it.
-  sl.registerFactory(() => SpeechCubit(
-    speechTranslateUseCase: sl(),
-    retranslateUseCase: sl(),
-  ));
+  sl.registerFactory(
+    () => SpeechCubit(speechTranslateUseCase: sl(), retranslateUseCase: sl()),
+  );
 
   // ==============================
   //  Feature: OCR
@@ -376,13 +379,15 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => RetranslateOcrTextUseCase(sl()));
 
   // Cubit — factory: new instance per screen that provides it.
-  sl.registerFactory(() => OcrCubit(
-    ocrTranslateUseCase: sl(),
-    retranslateUseCase: sl(),
-    imagePickerService: sl(),
-    imageCompressService: sl(),
-    imageCropService: sl(),
-  ));
+  sl.registerFactory(
+    () => OcrCubit(
+      ocrTranslateUseCase: sl(),
+      retranslateUseCase: sl(),
+      imagePickerService: sl(),
+      imageCompressService: sl(),
+      imageCropService: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Sync (UC09 — Background Sync Worker)
@@ -416,12 +421,14 @@ Future<void> initDependencies() async {
 
   // Cubit — registered as lazy singleton (global, lives for app lifetime).
   // Listens to NetworkCubit to auto-trigger sync when online.
-  sl.registerLazySingleton(() => SyncCubit(
-    syncDataUseCase: sl(),
-    fullSyncUseCase: sl(),
-    networkCubit: sl(),
-    realtimeSyncService: sl(),
-  ));
+  sl.registerLazySingleton(
+    () => SyncCubit(
+      syncDataUseCase: sl(),
+      fullSyncUseCase: sl(),
+      networkCubit: sl(),
+      realtimeSyncService: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Learning Dashboard
@@ -440,13 +447,17 @@ Future<void> initDependencies() async {
   // UseCases
   sl.registerLazySingleton(() => GetLearningSummaryUseCase(sl()));
   sl.registerLazySingleton(() => GetQuestionBanksUseCase(sl()));
+  sl.registerLazySingleton(() => GetRecentQuizResultsUseCase(sl()));
 
   // Cubit — factory: new instance per screen that provides it.
-  sl.registerFactory(() => LearningDashboardCubit(
-    getLearningSummaryUseCase: sl(),
-    getQuestionBanksUseCase: sl(),
-    getCategorySummariesUseCase: sl(),
-  ));
+  sl.registerFactory(
+    () => LearningDashboardCubit(
+      getLearningSummaryUseCase: sl(),
+      getQuestionBanksUseCase: sl(),
+      getCategorySummariesUseCase: sl(),
+      getRecentQuizResultsUseCase: sl(),
+    ),
+  );
 
   // ==============================
   //  Feature: Quiz Engine
@@ -463,6 +474,7 @@ Future<void> initDependencies() async {
       remoteDataSource: sl(),
       authLocalDataSource: sl(),
       networkInfo: sl(),
+      localDataSource: sl(),
     ),
   );
 
@@ -471,10 +483,10 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => SubmitQuizResultUseCase(sl()));
 
   // Cubit — factory: new instance per quiz session.
-  sl.registerFactory(() => QuizCubit(
-    getQuizQuestionsUseCase: sl(),
-    submitQuizResultUseCase: sl(),
-  ));
+  sl.registerFactory(
+    () =>
+        QuizCubit(getQuizQuestionsUseCase: sl(), submitQuizResultUseCase: sl()),
+  );
 
   // ==============================
   //  Feature: Conversation (Real-time Voice Translation)
@@ -487,10 +499,8 @@ Future<void> initDependencies() async {
 
   // Repository — maps raw WS messages to domain ConversationEvents.
   sl.registerLazySingleton<ConversationRepository>(
-    () => ConversationRepositoryImpl(
-      dataSource: sl(),
-      baseApiUrl: config.apiUrl,
-    ),
+    () =>
+        ConversationRepositoryImpl(dataSource: sl(), baseApiUrl: config.apiUrl),
   );
 
   // UseCases — one use case per business action.
@@ -501,14 +511,16 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton(() => SwitchSpeakerUseCase(sl()));
 
   // ViewModel (MVVM) — factory: new instance per conversation screen.
-  sl.registerFactory(() => ConversationViewModel(
-    connectUseCase: sl(),
-    startSessionUseCase: sl(),
-    sendAudioChunkUseCase: sl(),
-    switchSpeakerUseCase: sl(),
-    endSessionUseCase: sl(),
-    repository: sl(),
-    authLocalDataSource: sl(),
-    audioRecorderService: sl(),
-  ));
+  sl.registerFactory(
+    () => ConversationViewModel(
+      connectUseCase: sl(),
+      startSessionUseCase: sl(),
+      sendAudioChunkUseCase: sl(),
+      switchSpeakerUseCase: sl(),
+      endSessionUseCase: sl(),
+      repository: sl(),
+      authLocalDataSource: sl(),
+      audioRecorderService: sl(),
+    ),
+  );
 }

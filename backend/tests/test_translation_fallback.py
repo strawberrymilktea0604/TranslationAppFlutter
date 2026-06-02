@@ -101,6 +101,32 @@ def test_translation_falls_back_when_google_api_key_missing(monkeypatch):
     fallback_mock.assert_awaited_once()
 
 
+def test_translation_falls_back_when_google_api_key_invalid(monkeypatch):
+    """Invalid Google Cloud key should use fallback provider."""
+    monkeypatch.setattr(settings, "TRANSLATION_FALLBACK_ENABLED", True, raising=False)
+
+    with patch.object(
+        GoogleTranslateService,
+        "translate_text",
+        new=AsyncMock(
+            side_effect=GoogleTranslateError(
+                message="Google API Key is invalid or quota exceeded",
+                status_code=400,
+                error_code="API_KEY_INVALID",
+            )
+        ),
+    ) as primary_mock, patch.object(
+        GoogleTransFallbackService,
+        "translate_text",
+        new=AsyncMock(return_value={"translated_text": "Xin chao fallback"}),
+    ) as fallback_mock:
+        result = _run(TranslationService._call_translation_api(_build_request()))
+
+    assert result == "Xin chao fallback"
+    primary_mock.assert_awaited_once()
+    fallback_mock.assert_awaited_once()
+
+
 def test_translation_does_not_fallback_for_invalid_request(monkeypatch):
     """Should preserve client-side errors without fallback attempts."""
     monkeypatch.setattr(settings, "TRANSLATION_FALLBACK_ENABLED", True, raising=False)
