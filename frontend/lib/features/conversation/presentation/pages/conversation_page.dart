@@ -147,8 +147,7 @@ class _ConversationViewState extends State<_ConversationView> {
           action: SnackBarAction(
             label: 'Thử lại',
             textColor: Colors.white,
-            onPressed: () =>
-                context.read<ConversationViewModel>().connect(),
+            onPressed: () => context.read<ConversationViewModel>().connect(),
           ),
         );
 
@@ -193,18 +192,13 @@ class _ConversationViewState extends State<_ConversationView> {
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                message,
-                style: GoogleFonts.inter(fontSize: 13),
-              ),
+              child: Text(message, style: GoogleFonts.inter(fontSize: 13)),
             ),
           ],
         ),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         action: action,
         duration: const Duration(seconds: 4),
       ),
@@ -233,10 +227,7 @@ class _ConversationViewState extends State<_ConversationView> {
           ),
           title: Text(
             'Cần quyền truy cập Microphone',
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           content: Text(
             'Ứng dụng cần quyền truy cập microphone để ghi âm '
@@ -270,22 +261,23 @@ class _ConversationViewState extends State<_ConversationView> {
     return AppBar(
       title: Text(
         'Phiên dịch hội thoại',
-        style: GoogleFonts.inter(
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
-        ),
+        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18),
       ),
       actions: [
         // Connection status indicator
         Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: BlocSelector<ConversationViewModel, ConversationState,
-              WebSocketConnectionStatus>(
-            selector: (state) => state.connectionStatus,
-            builder: (context, status) {
-              return ConnectionStatusIndicator(status: status);
-            },
-          ),
+          child:
+              BlocSelector<
+                ConversationViewModel,
+                ConversationState,
+                WebSocketConnectionStatus
+              >(
+                selector: (state) => state.connectionStatus,
+                builder: (context, status) {
+                  return ConnectionStatusIndicator(status: status);
+                },
+              ),
         ),
       ],
     );
@@ -328,8 +320,7 @@ class _ConversationViewState extends State<_ConversationView> {
             ),
           ),
           TextButton.icon(
-            onPressed: () =>
-                context.read<ConversationViewModel>().connect(),
+            onPressed: () => context.read<ConversationViewModel>().connect(),
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Thử lại'),
             style: TextButton.styleFrom(
@@ -363,10 +354,7 @@ class _ConversationViewState extends State<_ConversationView> {
         if (index == messages.length && state is ConversationProcessing) {
           return _buildProcessingBubble(context);
         }
-        return MessageBubble(
-          message: messages[index],
-          index: index,
-        );
+        return MessageBubble(message: messages[index], index: index);
       },
     );
   }
@@ -392,10 +380,7 @@ class _ConversationViewState extends State<_ConversationView> {
               duration: const Duration(milliseconds: 800),
               curve: Curves.easeOutBack,
               builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: child,
-                );
+                return Transform.scale(scale: value, child: child);
               },
               child: Container(
                 width: 96,
@@ -405,14 +390,8 @@ class _ConversationViewState extends State<_ConversationView> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: isDark
-                        ? [
-                            const Color(0xFF1565C0),
-                            const Color(0xFF00695C),
-                          ]
-                        : [
-                            const Color(0xFF42A5F5),
-                            const Color(0xFF26A69A),
-                          ],
+                        ? [const Color(0xFF1565C0), const Color(0xFF00695C)]
+                        : [const Color(0xFF42A5F5), const Color(0xFF26A69A)],
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
@@ -433,9 +412,7 @@ class _ConversationViewState extends State<_ConversationView> {
             const SizedBox(height: 24),
 
             Text(
-              isConnected
-                  ? 'Sẵn sàng phiên dịch'
-                  : 'Phiên dịch hội thoại',
+              isConnected ? 'Sẵn sàng phiên dịch' : 'Phiên dịch hội thoại',
               style: GoogleFonts.inter(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -447,9 +424,9 @@ class _ConversationViewState extends State<_ConversationView> {
             Text(
               isConnected
                   ? 'Nhấn Bắt đầu hội thoại để bắt đầu.\n'
-                      'Ứng dụng sẽ tự động ghi âm và dịch liên tục.'
+                        'Ứng dụng sẽ tự động ghi âm và dịch liên tục.'
                   : 'Kết nối để bắt đầu phiên dịch\n'
-                      'hội thoại real-time giữa hai người.',
+                        'hội thoại real-time giữa hai người.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
@@ -478,9 +455,7 @@ class _ConversationViewState extends State<_ConversationView> {
         margin: const EdgeInsets.only(left: 12, right: 48, bottom: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark
-              ? const Color(0xFF2A2A2A)
-              : const Color(0xFFF5F5F5),
+          color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -515,11 +490,13 @@ class _ConversationViewState extends State<_ConversationView> {
   Widget _buildBottomBar(BuildContext context, ConversationState state) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final isConnected = state is ConversationConnected ||
+    final isConnected =
+        state is ConversationConnected ||
         state is ConversationRecording ||
         state is ConversationProcessing;
     final isRecording = state is ConversationRecording;
-    final hasActiveSession = isRecording ||
+    final hasActiveSession =
+        isRecording ||
         state is ConversationProcessing ||
         (state is ConversationConnected && state.sessionId != null);
 
@@ -558,9 +535,12 @@ class _ConversationViewState extends State<_ConversationView> {
             const SizedBox(height: 12),
           ],
 
-          // Controls row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          // Controls
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 10,
             children: [
               // Speaker toggle (only when connected)
               if (isConnected)
@@ -571,22 +551,15 @@ class _ConversationViewState extends State<_ConversationView> {
                   enabled: true,
                 ),
 
-              if (isConnected) const SizedBox(width: 16),
-
               // Start button (when connected but no session)
               if (state is ConversationConnected && state.sessionId == null)
                 _buildStartSessionButton(context),
 
-              if (state is ConversationConnected && state.sessionId == null)
-                const SizedBox(width: 16),
-
               // End session button
-              if (hasActiveSession)
-                _buildEndButton(context),
+              if (hasActiveSession) _buildEndButton(context),
 
               // Connect button (when not connected)
-              if (state is ConversationInitial)
-                _buildConnectButton(context),
+              if (state is ConversationInitial) _buildConnectButton(context),
             ],
           ),
 
@@ -632,8 +605,9 @@ class _ConversationViewState extends State<_ConversationView> {
               color: Theme.of(context).colorScheme.primary,
             ),
             style: IconButton.styleFrom(
-              backgroundColor:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -663,14 +637,10 @@ class _ConversationViewState extends State<_ConversationView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: isDark
-            ? const Color(0xFF2A2A2A)
-            : const Color(0xFFF5F5F5),
+        color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFF5F5F5),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDark
-              ? const Color(0xFF3A3A3A)
-              : const Color(0xFFE0E0E0),
+          color: isDark ? const Color(0xFF3A3A3A) : const Color(0xFFE0E0E0),
         ),
       ),
       child: DropdownButtonHideUnderline(
@@ -685,10 +655,7 @@ class _ConversationViewState extends State<_ConversationView> {
             color: isDark ? Colors.white : Colors.black87,
           ),
           items: _languages.entries.map((entry) {
-            return DropdownMenuItem(
-              value: entry.key,
-              child: Text(entry.value),
-            );
+            return DropdownMenuItem(value: entry.key, child: Text(entry.value));
           }).toList(),
           onChanged: (v) {
             if (v != null) onChanged(v);
@@ -711,9 +678,7 @@ class _ConversationViewState extends State<_ConversationView> {
       style: FilledButton.styleFrom(
         backgroundColor: const Color(0xFF4CAF50),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -727,9 +692,7 @@ class _ConversationViewState extends State<_ConversationView> {
       style: IconButton.styleFrom(
         backgroundColor: const Color(0xFFF44336).withValues(alpha: 0.1),
         foregroundColor: const Color(0xFFF44336),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.all(12),
       ),
     );
@@ -744,9 +707,7 @@ class _ConversationViewState extends State<_ConversationView> {
       label: const Text('Bắt đầu kết nối'),
       style: FilledButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

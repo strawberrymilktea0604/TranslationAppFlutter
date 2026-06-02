@@ -18,6 +18,7 @@ class QuizOptionTile extends StatelessWidget {
   final int index;
   final bool isSelected;
   final bool hasAnswered;
+  final bool showFeedback;
   final VoidCallback? onTap;
 
   const QuizOptionTile({
@@ -26,6 +27,7 @@ class QuizOptionTile extends StatelessWidget {
     required this.index,
     required this.isSelected,
     required this.hasAnswered,
+    this.showFeedback = false,
     this.onTap,
   });
 
@@ -45,7 +47,25 @@ class QuizOptionTile extends StatelessWidget {
     IconData? trailingIcon;
     Color? trailingColor;
 
-    if (hasAnswered) {
+    if (hasAnswered && !showFeedback) {
+      if (isSelected) {
+        backgroundColor = AppTheme.primaryColor.withValues(alpha: 0.1);
+        borderColor = AppTheme.primaryColor;
+        labelBgColor = AppTheme.primaryColor;
+        labelTextColor = Colors.white;
+        trailingIcon = Icons.radio_button_checked_rounded;
+        trailingColor = AppTheme.primaryColor;
+      } else {
+        backgroundColor = isDark
+            ? Colors.white.withValues(alpha: 0.03)
+            : Colors.grey.withValues(alpha: 0.04);
+        borderColor = Colors.grey.withValues(alpha: 0.18);
+        labelBgColor = Colors.grey.withValues(alpha: 0.1);
+        labelTextColor = Colors.grey;
+        trailingIcon = null;
+        trailingColor = null;
+      }
+    } else if (hasAnswered) {
       if (isSelected && option.isCorrect) {
         // Selected & correct → green.
         backgroundColor = AppTheme.successColor.withValues(alpha: 0.1);
@@ -150,7 +170,10 @@ class QuizOptionTile extends StatelessWidget {
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.w400,
-                      color: hasAnswered && !isSelected && !option.isCorrect
+                      color:
+                          hasAnswered &&
+                              !isSelected &&
+                              (!showFeedback || !option.isCorrect)
                           ? cs.onSurface.withValues(alpha: 0.4)
                           : cs.onSurface,
                     ),

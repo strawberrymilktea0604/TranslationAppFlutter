@@ -491,6 +491,22 @@ class ConversationViewModel extends Cubit<ConversationState> {
         _autoResumeListening();
 
       case ConversationErrorEvent(:final code, :final message):
+        if (code == 'STT_NO_TEXT_EXTRACTED') {
+          emit(
+            ConversationConnected(
+              messages: state.messages,
+              currentSpeaker: state.currentSpeaker,
+              connectionStatus: WebSocketConnectionStatus.connected,
+              sourceLanguage: state.sourceLanguage,
+              targetLanguage: state.targetLanguage,
+              sessionId: _currentSessionId,
+              sessionLifecycle: SessionLifecycleStatus.ready,
+            ),
+          );
+          _autoResumeListening();
+          break;
+        }
+
         emit(
           ConversationFailure(
             message: '[$code] $message',
