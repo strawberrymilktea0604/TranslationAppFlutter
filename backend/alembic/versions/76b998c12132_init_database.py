@@ -1,8 +1,8 @@
 """init_database
 
-Revision ID: c6b71cb1cffb
+Revision ID: 76b998c12132
 Revises: 
-Create Date: 2026-06-02 10:06:03.916805
+Create Date: 2026-06-02 20:12:27.760390
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'c6b71cb1cffb'
+revision: str = '76b998c12132'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

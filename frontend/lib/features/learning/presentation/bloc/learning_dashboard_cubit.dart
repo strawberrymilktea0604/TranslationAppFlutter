@@ -42,10 +42,12 @@ class LearningDashboardCubit extends Cubit<LearningDashboardState> {
   /// Emits: [LearningDashboardLoading] →
   ///   [LearningDashboardLoaded] or [LearningDashboardFailure].
   Future<void> loadDashboard() async {
+    if (isClosed) return;
     emit(const LearningDashboardLoading());
 
     // Fetch summary.
     final summaryResult = await _getLearningSummaryUseCase(const NoParams());
+    if (isClosed) return;
 
     LearningSummaryEntity? summary;
     final summaryFailure = summaryResult.fold((failure) => failure.message, (
@@ -61,6 +63,7 @@ class LearningDashboardCubit extends Cubit<LearningDashboardState> {
 
     // Fetch question banks.
     final banksResult = await _getQuestionBanksUseCase(const NoParams());
+    if (isClosed) return;
 
     List<QuestionBankEntity>? banks;
     final banksFailure = banksResult.fold((failure) => failure.message, (data) {
@@ -76,6 +79,7 @@ class LearningDashboardCubit extends Cubit<LearningDashboardState> {
     final categoriesResult = await _getCategorySummariesUseCase(
       const NoParams(),
     );
+    if (isClosed) return;
 
     List<CategorySummary>? categories;
     final categoriesFailure = categoriesResult.fold(
@@ -94,6 +98,7 @@ class LearningDashboardCubit extends Cubit<LearningDashboardState> {
     final recentResult = await _getRecentQuizResultsUseCase(
       const GetRecentQuizResultsParams(limit: 5),
     );
+    if (isClosed) return;
 
     List<RecentQuizResultEntity>? recentQuizResults;
     final recentFailure = recentResult.fold((failure) => failure.message, (
