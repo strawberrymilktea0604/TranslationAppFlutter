@@ -246,7 +246,10 @@ GoRouter createRouter(BuildContext context) {
         name: 'quiz',
         pageBuilder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
-          final questions = extra['questions'] as List<QuizQuestionEntity>? ?? [];
+          final rawQuestions = extra['questions'];
+          final questions = rawQuestions is List
+              ? rawQuestions.whereType<QuizQuestionEntity>().toList()
+              : <QuizQuestionEntity>[];
           final duration = extra['durationSeconds'] as int? ?? 300;
           final bankId = extra['bankId'] as String? ?? '';
           final bankTitle = extra['bankTitle'] as String? ?? 'Quiz';
@@ -289,9 +292,7 @@ Widget _slideUpFade(
   final slide = Tween<Offset>(
     begin: const Offset(0, 0.05),
     end: Offset.zero,
-  ).animate(
-    CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-  );
+  ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
   return SlideTransition(
     position: slide,
     child: FadeTransition(opacity: fade, child: child),

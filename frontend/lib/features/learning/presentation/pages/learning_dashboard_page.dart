@@ -188,7 +188,7 @@ class _LoadedView extends StatelessWidget {
                   context.push(
                     AppRoutes.quiz,
                     extra: {
-                      'questions': const [],
+                      'questions': const <QuizQuestionEntity>[],
                       'durationSeconds': durationSeconds,
                       'bankId': bank.backendId,
                       'bankTitle': bank.title,
