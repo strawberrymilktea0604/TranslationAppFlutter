@@ -55,7 +55,9 @@ class ConversationViewModel extends Cubit<ConversationState> {
 
   StreamSubscription<ConversationEvent>? _eventSubscription;
   StreamSubscription<Uint8List>? _audioSubscription;
+  bool _isStartingSession = false;
   bool _isStartingRecording = false;
+  bool _hasSentAudioForUtterance = false;
 
   /// Audio chunk buffer — accumulates raw PCM and flushes 2-second chunks.
   final AudioChunkBuffer _audioBuffer = AudioChunkBuffer();
@@ -99,6 +101,10 @@ class ConversationViewModel extends Cubit<ConversationState> {
   /// Emits [ConversationConnecting] → [ConversationConnected]
   /// or [ConversationFailure] on error.
   Future<void> connect() async {
+    _currentSessionId = null;
+    _isStartingSession = false;
+    _hasSentAudioForUtterance = false;
+
     emit(
       ConversationConnecting(
         messages: state.messages,
@@ -188,6 +194,20 @@ class ConversationViewModel extends Cubit<ConversationState> {
     required String sourceLanguage,
     required String targetLanguage,
   }) {
+    if (isClosed) return;
+    if (_isStartingSession) return;
+
+    if (_currentSessionId != null ||
+        state.sessionLifecycle == SessionLifecycleStatus.ready ||
+        state.sessionLifecycle == SessionLifecycleStatus.recording ||
+        state.sessionLifecycle == SessionLifecycleStatus.processing) {
+      if (state is ConversationConnected) {
+        startListening();
+      }
+      return;
+    }
+
+    _isStartingSession = true;
     _startSessionUseCase(
       StartSessionParams(
         sourceLanguage: sourceLanguage,
@@ -249,6 +269,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
 
       _silenceStartTime = null;
       _audioBuffer.clear();
+      _hasSentAudioForUtterance = false;
 
       _audioSubscription?.cancel();
       _audioSubscription = stream.listen(
@@ -306,6 +327,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
       if (state is ConversationRecording) {
         final sent = _sendAudioChunkUseCase(chunkToSend);
         if (sent) {
+          _hasSentAudioForUtterance = true;
           developer.log(
             'Sent 2s audio chunk (${chunkToSend.length} bytes)',
             name: 'ConversationVM',
@@ -369,6 +391,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
     if (remaining != null) {
       final sent = _sendAudioChunkUseCase(remaining);
       if (sent) {
+        _hasSentAudioForUtterance = true;
         developer.log(
           'Sent remaining audio (${remaining.length} bytes)',
           name: 'ConversationVM',
@@ -377,7 +400,24 @@ class ConversationViewModel extends Cubit<ConversationState> {
     }
 
     if (finalizeUtterance) {
+      if (!_hasSentAudioForUtterance) {
+        _audioBuffer.clear();
+        emit(
+          ConversationConnected(
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            connectionStatus: WebSocketConnectionStatus.connected,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+            sessionId: _currentSessionId,
+            sessionLifecycle: SessionLifecycleStatus.ready,
+          ),
+        );
+        return;
+      }
+
       _repository.endUtterance();
+      _hasSentAudioForUtterance = false;
       emit(
         ConversationProcessing(
           messages: state.messages,
@@ -396,6 +436,8 @@ class ConversationViewModel extends Cubit<ConversationState> {
   /// state with the updated speaker.
   void switchSpeaker() {
     if (isClosed) return;
+    if (state.sessionLifecycle == SessionLifecycleStatus.processing) return;
+
     final newSpeaker = state.currentSpeaker == ConversationSpeaker.speakerA
         ? ConversationSpeaker.speakerB
         : ConversationSpeaker.speakerA;
@@ -409,9 +451,13 @@ class ConversationViewModel extends Cubit<ConversationState> {
   /// Delegates to [EndSessionUseCase].
   Future<void> endSession() async {
     if (isClosed) return;
+    if (state.sessionLifecycle == SessionLifecycleStatus.processing) return;
+
     await stopListening(finalizeUtterance: false);
+    _hasSentAudioForUtterance = false;
     _endSessionUseCase();
     _currentSessionId = null;
+    _isStartingSession = false;
     emit(
       ConversationConnected(
         messages: state.messages,
@@ -427,6 +473,8 @@ class ConversationViewModel extends Cubit<ConversationState> {
   /// Disconnects and resets to initial state.
   Future<void> disconnect() async {
     _isStartingRecording = false;
+    _isStartingSession = false;
+    _hasSentAudioForUtterance = false;
     await _audioSubscription?.cancel();
     _audioSubscription = null;
 
@@ -458,6 +506,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
         connectionStatus: state.connectionStatus,
         sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
+        sessionId: _currentSessionId,
         sessionLifecycle: state.sessionLifecycle,
       ),
     );
@@ -473,6 +522,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
         connectionStatus: state.connectionStatus,
         sourceLanguage: state.sourceLanguage,
         targetLanguage: state.targetLanguage,
+        sessionId: _currentSessionId,
         sessionLifecycle: state.sessionLifecycle,
       ),
     );
@@ -488,6 +538,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
     switch (event) {
       case ConversationSessionStarted(:final sessionId):
         _currentSessionId = sessionId;
+        _isStartingSession = false;
         emit(
           ConversationConnected(
             messages: state.messages,
@@ -525,7 +576,11 @@ class ConversationViewModel extends Cubit<ConversationState> {
         _autoResumeListening();
 
       case ConversationErrorEvent(:final code, :final message):
-        if (code == 'STT_NO_TEXT_EXTRACTED') {
+        if (code == 'STT_NO_TEXT_EXTRACTED' ||
+            code == 'EMPTY_AUDIO_BUFFER' ||
+            code == 'SESSION_ALREADY_ACTIVE') {
+          _isStartingSession = false;
+          _hasSentAudioForUtterance = false;
           emit(
             ConversationConnected(
               messages: state.messages,
@@ -559,6 +614,9 @@ class ConversationViewModel extends Cubit<ConversationState> {
       case ConversationConnectionChanged(:final status):
         if (status == WebSocketConnectionStatus.disconnected ||
             status == WebSocketConnectionStatus.error) {
+          _isStartingSession = false;
+          _hasSentAudioForUtterance = false;
+          _currentSessionId = null;
           emit(
             ConversationDisconnected(
               messages: state.messages,
@@ -571,6 +629,9 @@ class ConversationViewModel extends Cubit<ConversationState> {
             ),
           );
         } else if (status == WebSocketConnectionStatus.reconnecting) {
+          _isStartingSession = false;
+          _hasSentAudioForUtterance = false;
+          _currentSessionId = null;
           emit(
             ConversationConnecting(
               messages: state.messages,
@@ -578,6 +639,17 @@ class ConversationViewModel extends Cubit<ConversationState> {
               connectionStatus: WebSocketConnectionStatus.reconnecting,
               sourceLanguage: state.sourceLanguage,
               targetLanguage: state.targetLanguage,
+            ),
+          );
+        } else if (status == WebSocketConnectionStatus.connected) {
+          emit(
+            ConversationConnected(
+              messages: state.messages,
+              currentSpeaker: state.currentSpeaker,
+              connectionStatus: WebSocketConnectionStatus.connected,
+              sourceLanguage: state.sourceLanguage,
+              targetLanguage: state.targetLanguage,
+              sessionLifecycle: SessionLifecycleStatus.idle,
             ),
           );
         }
@@ -619,7 +691,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
       translatedText: message.translatedText,
       sourceLanguage: message.sourceLanguage,
       targetLanguage: message.targetLanguage,
-      createdAt: message.timestamp,
+      createdAt: message.timestamp.toLocal(),
       updatedAt: now,
       isSynced: true,
     );
@@ -646,6 +718,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
             sessionLifecycle: state.sessionLifecycle,
+            sessionId: _currentSessionId,
           ),
         );
       case ConversationRecording():
@@ -666,6 +739,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
             connectionStatus: state.connectionStatus,
             sourceLanguage: state.sourceLanguage,
             targetLanguage: state.targetLanguage,
+            sessionId: _currentSessionId,
             sessionLifecycle: state.sessionLifecycle,
           ),
         );
@@ -679,6 +753,8 @@ class ConversationViewModel extends Cubit<ConversationState> {
   @override
   Future<void> close() async {
     _isStartingRecording = false;
+    _isStartingSession = false;
+    _hasSentAudioForUtterance = false;
     await _audioSubscription?.cancel();
     if (_audioRecorderService.isRecording) {
       await _audioRecorderService.stopStreamRecording();

@@ -73,7 +73,7 @@ class ConversationMessageModel {
       translatedText: translatedText,
       sourceLanguage: sourceLanguage,
       targetLanguage: targetLanguage,
-      timestamp: timestamp ?? DateTime.now(),
+      timestamp: timestamp?.toLocal() ?? DateTime.now(),
       isCached: isCached,
       responseTimeMs: responseTimeMs,
     );

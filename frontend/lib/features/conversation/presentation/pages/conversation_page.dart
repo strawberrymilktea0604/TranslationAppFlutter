@@ -366,7 +366,12 @@ class _ConversationViewState extends State<_ConversationView> {
   ) {
     final theme = Theme.of(context);
     final isConnected = state is ConversationConnected;
-    final isInitial = state is ConversationInitial;
+    final canReconnect =
+        state is ConversationInitial ||
+        state is ConversationDisconnected ||
+        (state is ConversationFailure &&
+            state.errorType != ConversationErrorType.authRequired &&
+            state.errorType != ConversationErrorType.micPermissionDenied);
 
     return Center(
       child: SingleChildScrollView(
@@ -435,7 +440,7 @@ class _ConversationViewState extends State<_ConversationView> {
               ),
             ),
 
-            if (isInitial) ...[
+            if (canReconnect) ...[
               const SizedBox(height: 28),
               _buildConnectButton(context),
             ],
@@ -495,10 +500,14 @@ class _ConversationViewState extends State<_ConversationView> {
         state is ConversationRecording ||
         state is ConversationProcessing;
     final isRecording = state is ConversationRecording;
+    final isProcessing =
+        state is ConversationProcessing ||
+        state.sessionLifecycle == SessionLifecycleStatus.processing;
     final hasActiveSession =
         isRecording ||
         state is ConversationProcessing ||
         (state is ConversationConnected && state.sessionId != null);
+    final canUseControls = !isProcessing;
 
     return Container(
       padding: EdgeInsets.only(
@@ -523,7 +532,7 @@ class _ConversationViewState extends State<_ConversationView> {
         children: [
           // Language selector row
           if (isConnected || state is ConversationInitial)
-            _buildLanguageRow(context, state),
+            _buildLanguageRow(context, state, enabled: canUseControls),
           const SizedBox(height: 12),
 
           // Session status indicator (visible during active session)
@@ -548,7 +557,7 @@ class _ConversationViewState extends State<_ConversationView> {
                   currentSpeaker: state.currentSpeaker,
                   onToggle: () =>
                       context.read<ConversationViewModel>().switchSpeaker(),
-                  enabled: true,
+                  enabled: canUseControls,
                 ),
 
               // Start button (when connected but no session)
@@ -556,10 +565,14 @@ class _ConversationViewState extends State<_ConversationView> {
                 _buildStartSessionButton(context),
 
               // End session button
-              if (hasActiveSession) _buildEndButton(context),
+              if (hasActiveSession)
+                _buildEndButton(context, enabled: canUseControls),
 
               // Connect button (when not connected)
-              if (state is ConversationInitial) _buildConnectButton(context),
+              if (state is ConversationInitial ||
+                  state is ConversationDisconnected ||
+                  state is ConversationFailure)
+                _buildConnectButton(context),
             ],
           ),
 
@@ -573,7 +586,11 @@ class _ConversationViewState extends State<_ConversationView> {
     );
   }
 
-  Widget _buildLanguageRow(BuildContext context, ConversationState state) {
+  Widget _buildLanguageRow(
+    BuildContext context,
+    ConversationState state, {
+    required bool enabled,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Row(
@@ -584,6 +601,7 @@ class _ConversationViewState extends State<_ConversationView> {
           context,
           value: _srcLang,
           isDark: isDark,
+          enabled: enabled,
           onChanged: (lang) {
             setState(() => _srcLang = lang);
           },
@@ -593,13 +611,15 @@ class _ConversationViewState extends State<_ConversationView> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: IconButton(
-            onPressed: () {
-              setState(() {
-                final temp = _srcLang;
-                _srcLang = _tgtLang;
-                _tgtLang = temp;
-              });
-            },
+            onPressed: enabled
+                ? () {
+                    setState(() {
+                      final temp = _srcLang;
+                      _srcLang = _tgtLang;
+                      _tgtLang = temp;
+                    });
+                  }
+                : null,
             icon: Icon(
               Icons.swap_horiz_rounded,
               color: Theme.of(context).colorScheme.primary,
@@ -620,6 +640,7 @@ class _ConversationViewState extends State<_ConversationView> {
           context,
           value: _tgtLang,
           isDark: isDark,
+          enabled: enabled,
           onChanged: (lang) {
             setState(() => _tgtLang = lang);
           },
@@ -632,6 +653,7 @@ class _ConversationViewState extends State<_ConversationView> {
     BuildContext context, {
     required String value,
     required bool isDark,
+    required bool enabled,
     required ValueChanged<String> onChanged,
   }) {
     return Container(
@@ -657,9 +679,11 @@ class _ConversationViewState extends State<_ConversationView> {
           items: _languages.entries.map((entry) {
             return DropdownMenuItem(value: entry.key, child: Text(entry.value));
           }).toList(),
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
+          onChanged: enabled
+              ? (v) {
+                  if (v != null) onChanged(v);
+                }
+              : null,
         ),
       ),
     );
@@ -683,11 +707,13 @@ class _ConversationViewState extends State<_ConversationView> {
     );
   }
 
-  Widget _buildEndButton(BuildContext context) {
+  Widget _buildEndButton(BuildContext context, {required bool enabled}) {
     return IconButton(
-      onPressed: () {
-        _showEndSessionDialog(context);
-      },
+      onPressed: enabled
+          ? () {
+              _showEndSessionDialog(context);
+            }
+          : null,
       icon: const Icon(Icons.call_end_rounded),
       style: IconButton.styleFrom(
         backgroundColor: const Color(0xFFF44336).withValues(alpha: 0.1),
