@@ -18,11 +18,7 @@ class QuestionBankCard extends StatelessWidget {
   /// Called when the user taps "Bắt đầu" to start the quiz.
   final VoidCallback? onStart;
 
-  const QuestionBankCard({
-    super.key,
-    required this.bank,
-    this.onStart,
-  });
+  const QuestionBankCard({super.key, required this.bank, this.onStart});
 
   @override
   Widget build(BuildContext context) {
@@ -60,10 +56,7 @@ class QuestionBankCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      AppTheme.primaryColor,
-                      AppTheme.secondaryColor,
-                    ],
+                    colors: [AppTheme.primaryColor, AppTheme.secondaryColor],
                   ),
                 ),
               ),
@@ -128,7 +121,10 @@ class QuestionBankCard extends StatelessWidget {
                           const Spacer(),
 
                           // Start button
-                          _StartButton(onStart: onStart),
+                          _StartButton(
+                            onStart: onStart,
+                            enabled: bank.questionCount > 0,
+                          ),
                         ],
                       ),
                     ],
@@ -187,37 +183,42 @@ class _InfoChip extends StatelessWidget {
 /// Animated "Bắt đầu" (Start) button with gradient background.
 class _StartButton extends StatelessWidget {
   final VoidCallback? onStart;
+  final bool enabled;
 
-  const _StartButton({this.onStart});
+  const _StartButton({this.onStart, required this.enabled});
 
   @override
   Widget build(BuildContext context) {
+    final canStart = enabled && onStart != null;
+    final cs = Theme.of(context).colorScheme;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onStart,
+        onTap: canStart ? onStart : null,
         borderRadius: BorderRadius.circular(10),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                AppTheme.primaryColor,
-                Color(0xFF1565C0),
-              ],
-            ),
+            gradient: canStart
+                ? const LinearGradient(
+                    colors: [AppTheme.primaryColor, Color(0xFF1565C0)],
+                  )
+                : null,
+            color: canStart
+                ? null
+                : cs.surfaceContainerHighest.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryColor.withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: canStart
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 8,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -226,14 +227,14 @@ class _StartButton extends StatelessWidget {
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: canStart ? Colors.white : cs.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
+              Icon(
                 Icons.arrow_forward_rounded,
                 size: 14,
-                color: Colors.white,
+                color: canStart ? Colors.white : cs.onSurfaceVariant,
               ),
             ],
           ),

@@ -569,6 +569,11 @@ async def admin_create_question_bank(
     response_model=QuestionBankResponse,
     summary="[Admin] Update question bank",
 )
+@router.put(
+    "/question-banks/{bank_id}",
+    response_model=QuestionBankResponse,
+    summary="[Admin] Update question bank",
+)
 async def admin_update_question_bank(
     bank_id: int,
     payload: QuestionBankUpdateRequest,
@@ -758,6 +763,11 @@ async def admin_create_question(
 # ─────────────────────────────────────────────────────────────
 
 @router.patch(
+    "/questions/{question_id}",
+    response_model=QuestionResponse,
+    summary="[Admin] Update a question",
+)
+@router.put(
     "/questions/{question_id}",
     response_model=QuestionResponse,
     summary="[Admin] Update a question",

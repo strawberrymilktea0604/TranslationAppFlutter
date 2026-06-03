@@ -315,7 +315,7 @@ class _TranslationViewState extends State<_TranslationView>
             }
           },
           child: Scaffold(
-            drawer: const Drawer(),
+            drawer: _AppDrawer(onActionSelected: _handleDrawerAction),
             appBar: AppBar(
               title: const Text('Dịch thuật'),
               centerTitle: true,
@@ -414,6 +414,17 @@ class _TranslationViewState extends State<_TranslationView>
         ); // closes BlocListener + return semicolon
       }, // closes BlocBuilder.builder callback
     ); // closes BlocBuilder
+  }
+
+  void _handleDrawerAction(String label) {
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label coming soon'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Widget _buildCurrentTab(
@@ -1010,6 +1021,181 @@ class _LanguagePickerSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// App drawer
+// ---------------------------------------------------------------------------
+
+class _AppDrawer extends StatelessWidget {
+  final void Function(String label) onActionSelected;
+
+  const _AppDrawer({required this.onActionSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final width = MediaQuery.sizeOf(context).width;
+
+    return Drawer(
+      width: width.clamp(0, 360) * 0.82,
+      backgroundColor: isDark ? const Color(0xFF151515) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            const SizedBox(height: 28),
+            Container(
+              width: 108,
+              height: 108,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.primaryColor.withValues(alpha: 0.14),
+                    AppTheme.warningColor.withValues(alpha: 0.14),
+                  ],
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Image.asset(
+                'images/logo.png',
+                width: 88,
+                height: 88,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'TRANSLATE ON THE GO',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Text, voice, image and learning',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 28),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                children: [
+                  _DrawerActionTile(
+                    icon: Icons.share_rounded,
+                    label: 'Share App',
+                    onTap: () => onActionSelected('Share App'),
+                  ),
+                  _DrawerActionTile(
+                    icon: Icons.star_rounded,
+                    label: 'Rate Us',
+                    onTap: () => onActionSelected('Rate Us'),
+                  ),
+                  _DrawerActionTile(
+                    icon: Icons.privacy_tip_rounded,
+                    label: 'Privacy Policy',
+                    onTap: () => onActionSelected('Privacy Policy'),
+                  ),
+                  _DrawerActionTile(
+                    icon: Icons.forum_rounded,
+                    label: 'Feedback',
+                    onTap: () => onActionSelected('Feedback'),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              child: Column(
+                children: [
+                  Divider(color: cs.outlineVariant.withValues(alpha: 0.6)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Version 1.0.0',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DrawerActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _DrawerActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 58),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 21, color: cs.primary),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: cs.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

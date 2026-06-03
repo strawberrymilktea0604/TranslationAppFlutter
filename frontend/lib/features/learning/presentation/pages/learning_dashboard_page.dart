@@ -200,22 +200,27 @@ class _LoadedView extends StatelessWidget {
             ...questionBanks.map(
               (bank) => QuestionBankCard(
                 bank: bank,
-                onStart: () async {
-                  final durationSeconds = (bank.durationMinutes ?? 5) * 60;
+                onStart: bank.questionCount > 0
+                    ? () async {
+                        final durationSeconds =
+                            (bank.durationMinutes ?? 5) * 60;
 
-                  final didComplete = await context.push<bool>(
-                    AppRoutes.quiz,
-                    extra: {
-                      'questions': const <QuizQuestionEntity>[],
-                      'durationSeconds': durationSeconds,
-                      'bankId': bank.backendId,
-                      'bankTitle': bank.title,
-                    },
-                  );
-                  if (didComplete == true && context.mounted) {
-                    context.read<LearningDashboardCubit>().loadDashboard();
-                  }
-                },
+                        final didComplete = await context.push<bool>(
+                          AppRoutes.quiz,
+                          extra: {
+                            'questions': const <QuizQuestionEntity>[],
+                            'durationSeconds': durationSeconds,
+                            'bankId': bank.backendId,
+                            'bankTitle': bank.title,
+                          },
+                        );
+                        if (didComplete == true && context.mounted) {
+                          context
+                              .read<LearningDashboardCubit>()
+                              .loadDashboard();
+                        }
+                      }
+                    : null,
               ),
             ),
         ],
