@@ -164,7 +164,11 @@ class TestOCRService:
             preprocess=True
         )
         
-        assert result['language'] == 'vie'
+        assert result['source_language'] == 'vi'
+        assert result['detected_source_language'] == 'vi'
+        # Tesseract returns ISO-639-3/tessdata codes (vie), while PaddleOCR
+        # returns the app language code (vi). Both are valid for engine output.
+        assert result['language'] in {'vi', 'vie'}
         assert 'processing_time_ms' in result
 
 
