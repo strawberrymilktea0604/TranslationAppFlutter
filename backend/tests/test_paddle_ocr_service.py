@@ -65,6 +65,46 @@ async def test_paddle_ocr_service_handles_empty_result(sample_image_bytes, mock_
     assert result["confidence"] == 0.0
     assert len(result["text_regions"]) == 0
 
+
+@pytest.mark.asyncio
+async def test_paddle_ocr_auto_selects_best_language(sample_image_bytes):
+    def make_engine(text, confidence):
+        engine = MagicMock()
+        engine.ocr.return_value = [
+            [
+                [
+                    [[10, 10], [80, 10], [80, 20], [10, 20]],
+                    (text, confidence),
+                ],
+            ],
+        ]
+        return engine
+
+    empty_engine = MagicMock()
+    empty_engine.ocr.return_value = [[]]
+    engines = {
+        "vi": make_engine("Ch\u1ec9 sau 5 th\u00e1ng", 0.82),
+        "en": make_engine("Chi sau 5 th\u00e4ng", 0.90),
+    }
+
+    with patch(
+        "app.services.paddle_ocr_service.PaddleOCRService._get_ocr_engine",
+        side_effect=lambda lang: engines.get(lang, empty_engine),
+    ) as mock_get_engine:
+        result = await PaddleOCRService.extract_text(
+            image_bytes=sample_image_bytes,
+            language=None,
+            preprocess=False,
+        )
+
+    assert result["source_language"] == "vi"
+    assert result["detected_source_language"] == "vi"
+    assert result["language"] == "vi"
+    assert "Ch\u1ec9 sau" in result["raw_text"]
+    assert mock_get_engine.call_count == len(
+        PaddleOCRService.AUTO_CANDIDATE_LANGUAGES
+    )
+
 @pytest.mark.asyncio
 @patch("app.services.paddle_ocr_service.PaddleOCRService.extract_text")
 async def test_ocr_service_routes_to_paddle(mock_paddle_extract, sample_image_bytes):
@@ -90,6 +130,34 @@ async def test_ocr_service_routes_to_paddle(mock_paddle_extract, sample_image_by
     )
     
     assert result["raw_text"] == "Routed to Paddle"
+    assert result["ocr_engine"] == "paddleocr"
+
+
+@pytest.mark.asyncio
+@patch("app.services.paddle_ocr_service.PaddleOCRService.extract_text")
+async def test_ocr_service_preserves_auto_detected_source_language(
+    mock_paddle_extract,
+    sample_image_bytes,
+):
+    mock_paddle_extract.return_value = {
+        "raw_text": "Ch\u1ec9 sau 5 th\u00e1ng",
+        "confidence": 91.0,
+        "language": "vi",
+        "source_language": "vi",
+        "detected_source_language": "vi",
+        "text_regions": [],
+        "processing_time_ms": 10.0,
+        "image_size": (100, 100),
+    }
+
+    result = await OCRService.extract_text(
+        image_bytes=sample_image_bytes,
+        language=None,
+        engine="paddleocr",
+    )
+
+    assert result["source_language"] == "vi"
+    assert result["detected_source_language"] == "vi"
     assert result["ocr_engine"] == "paddleocr"
 
 @pytest.mark.asyncio

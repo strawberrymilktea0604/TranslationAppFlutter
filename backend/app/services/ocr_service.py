@@ -97,6 +97,12 @@ class OCRService:
                 f"Valid options: {VALID_ENGINES}"
             )
 
+        requested_language = (
+            None
+            if language is None or str(language).strip().lower() == "auto"
+            else language
+        )
+
         # ---- Route to PaddleOCR ----
         if engine == "paddleocr":
             try:
@@ -108,13 +114,20 @@ class OCRService:
                 logger.info("🐉 Using PaddleOCR engine")
                 result = await PaddleOCRService.extract_text(
                     image_bytes=image_bytes,
-                    language=language,
+                    language=requested_language,
                     preprocess=preprocess,
                 )
-                if language:
-                    result["language"] = OCRService.SUPPORTED_LANGUAGES.get(
-                        language,
-                        language,
+                if requested_language:
+                    result["source_language"] = requested_language
+                    result["detected_source_language"] = requested_language
+                else:
+                    result["source_language"] = result.get(
+                        "source_language",
+                        "en",
+                    )
+                    result["detected_source_language"] = result.get(
+                        "detected_source_language",
+                        result["source_language"],
                     )
                 result["ocr_engine"] = "paddleocr"
                 return result
@@ -150,7 +163,7 @@ class OCRService:
             
             # Determine language
             lang_code = OCRService.SUPPORTED_LANGUAGES.get(
-                language or 'en', 'eng'
+                requested_language or 'en', 'eng'
             )
             
             # Extract text with confidence
@@ -188,6 +201,8 @@ class OCRService:
                 "raw_text": raw_text.strip(),
                 "confidence": round(avg_confidence, 2),
                 "language": lang_code,
+                "source_language": requested_language or "en",
+                "detected_source_language": requested_language or "en",
                 "text_regions": text_regions,
                 "processing_time_ms": round(processing_time, 2),
                 "image_size": image.size,

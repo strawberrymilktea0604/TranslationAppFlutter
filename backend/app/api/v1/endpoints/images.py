@@ -238,6 +238,16 @@ async def translate_image(
         ocr_time = (time.time() - ocr_start) * 1000
         
         extracted_text = ocr_result["raw_text"]
+        detected_source_language = str(
+            ocr_result.get("source_language")
+            or ocr_result.get("detected_source_language")
+            or source_language
+        )
+        effective_source_language = (
+            detected_source_language
+            if source_language.lower() == "auto"
+            else source_language
+        )
         
         if not extracted_text or len(extracted_text.strip()) == 0:
             raise HTTPException(
@@ -255,7 +265,7 @@ async def translate_image(
         try:
             translation_request = TranslationRequest(
                 source_text=extracted_text,
-                source_language=source_language,
+                source_language=effective_source_language,
                 target_language=target_language,
                 translation_type="image"
             )
@@ -443,6 +453,16 @@ async def translate_images_batch(
                 )
                 
                 extracted_text = ocr_result["raw_text"]
+                detected_source_language = str(
+                    ocr_result.get("source_language")
+                    or ocr_result.get("detected_source_language")
+                    or source_language
+                )
+                effective_source_language = (
+                    detected_source_language
+                    if source_language.lower() == "auto"
+                    else source_language
+                )
                 if not extracted_text.strip():
                     errors.append({
                         "file_index": idx,
@@ -453,7 +473,7 @@ async def translate_images_batch(
                 # Translate
                 trans_req = TranslationRequest(
                     source_text=extracted_text,
-                    source_language=source_language,
+                    source_language=effective_source_language,
                     target_language=target_language,
                     translation_type="image"
                 )
