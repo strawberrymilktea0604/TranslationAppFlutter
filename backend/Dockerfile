@@ -26,7 +26,10 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/root/.local/bin:$PATH" \
     OMP_NUM_THREADS=1 \
     KMP_DUPLICATE_LIB_OK=True \
-    MKL_NUM_THREADS=1
+    MKL_NUM_THREADS=1 \
+    HF_HUB_DISABLE_XET=1 \
+    HF_HOME=/models/huggingface \
+    HUGGINGFACE_HUB_CACHE=/models/huggingface/hub
 
 WORKDIR /app
 

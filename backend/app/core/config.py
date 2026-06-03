@@ -1,3 +1,4 @@
+import json
 import os
 from functools import lru_cache
 from typing import Optional
@@ -48,6 +49,13 @@ class Settings(BaseSettings):
     CACHE_ENABLED: bool = True
     CACHE_TTL_SECONDS: int = 3600  # 1 hour
     TRANSLATION_FALLBACK_ENABLED: bool = True
+    STT_PRELOAD_ENABLED: bool = True
+    STT_MODEL_SIZE: str = "small"
+    STT_DEVICE: str = "cpu"
+    STT_COMPUTE_TYPE: str = "int8"
+    STT_DOWNLOAD_ROOT: Optional[str] = "/models/faster-whisper"
+    STT_LOCAL_FILES_ONLY: bool = False
+    STT_PRELOAD_TIMEOUT_SECONDS: int = 900
 
     # Rate limiting / throttling
     GUEST_MAX_REQUESTS_PER_HOUR: int = 10
@@ -144,6 +152,14 @@ class Settings(BaseSettings):
     @classmethod
     def split_cors_origins(cls, v):
         if isinstance(v, str):
+            stripped = v.strip()
+            if stripped.startswith("["):
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
     

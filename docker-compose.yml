@@ -93,11 +93,17 @@ services:
     volumes:
       - ./backend:/app
       - backups:/backups  # Volume for database backups
+      - hf_cache:/models
     env_file:
       - ./backend/.env
     environment:
       - ENVIRONMENT=development
       - BACKUP_DIR=/backups/database
+      - HF_HUB_DISABLE_XET=1
+      - HF_HOME=/models/huggingface
+      - HUGGINGFACE_HUB_CACHE=/models/huggingface/hub
+      - STT_DOWNLOAD_ROOT=/models/faster-whisper
+      - STT_PRELOAD_TIMEOUT_SECONDS=900
     restart: unless-stopped
     logging:
       driver: fluentd
@@ -123,3 +129,4 @@ volumes:
   db_data:
   redis_data:
   backups:
+  hf_cache:

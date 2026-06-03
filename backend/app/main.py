@@ -133,13 +133,25 @@ async def lifespan(app: FastAPI):
         logger.warning("Redis initialization failed: %s", e)
         logger.warning("Application will continue without Redis caching")
 
-    try:
-        logger.info("Preloading STT model in background thread...")
-        await asyncio.to_thread(STTService.preload_model)
-        logger.info("STT model preloaded successfully")
-    except Exception as e:
-        logger.error("Failed to preload STT model: %s", e)
-        logger.warning("Application will try to load the model on first request")
+    if settings.STT_PRELOAD_ENABLED:
+        try:
+            logger.info("Preloading STT model in background thread...")
+            await asyncio.wait_for(
+                asyncio.to_thread(STTService.preload_model),
+                timeout=settings.STT_PRELOAD_TIMEOUT_SECONDS,
+            )
+            logger.info("STT model preloaded successfully")
+        except asyncio.TimeoutError:
+            logger.error(
+                "STT model preload timed out after %ss",
+                settings.STT_PRELOAD_TIMEOUT_SECONDS,
+            )
+            raise
+        except Exception as e:
+            logger.error("Failed to preload STT model: %s", e)
+            raise
+    else:
+        logger.warning("STT model preload disabled by configuration")
 
     # ==================== INITIALIZE BACKUP SCHEDULER ====================
     try:

@@ -7,78 +7,91 @@ from typing import Optional
 
 from faster_whisper import WhisperModel
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
+
 class STTError(Exception):
-    """Custom exception for STT related errors"""
-    pass
+    """Custom exception for STT related errors."""
+
 
 class STTService:
     """
     Speech-to-Text service utilizing faster-whisper.
-    Handles singleton model initialization to prevent memory leaks and reloading overhead.
+
+    Handles singleton model initialization to prevent memory leaks and repeated
+    model loads. Startup preload remains authoritative: if the model cannot be
+    loaded, the backend should not report itself as ready.
     """
+
     _model: Optional[WhisperModel] = None
-    _model_size = "small"
-    _device = "cpu"
-    _compute_type = "int8"
+    _model_size = settings.STT_MODEL_SIZE
+    _device = settings.STT_DEVICE
+    _compute_type = settings.STT_COMPUTE_TYPE
 
     @classmethod
-    def preload_model(cls):
-        """
-        Preload the model into memory. Intended to be called during app startup.
-        """
+    def preload_model(cls) -> None:
+        """Preload the model into memory during app startup."""
         cls._get_model()
 
     @classmethod
     def _get_model(cls) -> WhisperModel:
-        """
-        Get or initialize the WhisperModel singleton instance.
-        """
+        """Get or initialize the WhisperModel singleton instance."""
         if cls._model is None:
-            logger.info(f"🎙️ Initializing faster-whisper model ({cls._model_size}) on {cls._device} with {cls._compute_type}...")
+            download_root = settings.STT_DOWNLOAD_ROOT or None
+            logger.info(
+                "Initializing faster-whisper model (%s) on %s with %s "
+                "(download_root=%s, local_files_only=%s)",
+                cls._model_size,
+                cls._device,
+                cls._compute_type,
+                download_root,
+                settings.STT_LOCAL_FILES_ONLY,
+            )
             start_time = time.time()
             try:
                 cls._model = WhisperModel(
                     model_size_or_path=cls._model_size,
                     device=cls._device,
-                    compute_type=cls._compute_type
+                    compute_type=cls._compute_type,
+                    download_root=download_root,
+                    local_files_only=settings.STT_LOCAL_FILES_ONLY,
                 )
-                logger.info(f"✅ STT Model initialized in {(time.time() - start_time):.2f}s")
+                logger.info(
+                    "STT model initialized in %.2fs",
+                    time.time() - start_time,
+                )
             except Exception as e:
-                logger.error(f"❌ Failed to initialize STT model: {e}")
-                raise STTError(f"Engine initialization failed: {e}")
+                logger.error("Failed to initialize STT model: %s", e)
+                raise STTError(f"Engine initialization failed: {e}") from e
         return cls._model
 
     @classmethod
-    def _run_transcription(cls, temp_file_path: str, language: Optional[str] = None) -> dict:
-        """
-        Synchronous method to run the transcription, meant to be run in a thread.
-        """
+    def _run_transcription(
+        cls,
+        temp_file_path: str,
+        language: Optional[str] = None,
+    ) -> dict:
+        """Run transcription synchronously; callers execute this in a thread."""
         model = cls._get_model()
-        
-        logger.info(f"🎙️ Starting transcription (Language: {language or 'auto'})")
-        
-        # Run transcription
-        # We use word_timestamps=False and beam_size=5 for a good balance of speed and accuracy
+
+        logger.info("Starting transcription (language=%s)", language or "auto")
+
         segments, info = model.transcribe(
-            temp_file_path, 
-            beam_size=5, 
+            temp_file_path,
+            beam_size=5,
             language=language,
-            vad_filter=True, # Helps to remove silences and improve accuracy
+            vad_filter=True,
         )
 
-        # segments is a generator, so we need to iterate to get the result
-        text_parts = []
-        for segment in segments:
-            text_parts.append(segment.text)
-            
-        full_text = " ".join([t.strip() for t in text_parts if t.strip()])
-        
+        text_parts = [segment.text for segment in segments]
+        full_text = " ".join(t.strip() for t in text_parts if t.strip())
+
         return {
             "text": full_text.strip(),
             "language": info.language,
-            "language_probability": info.language_probability
+            "language_probability": info.language_probability,
         }
 
     @classmethod
@@ -90,43 +103,43 @@ class STTService:
     ) -> dict:
         """
         Transcribe audio bytes to text.
-        
-        Args:
-            audio_bytes: The audio file content as bytes.
-            language: Optional language code (e.g. 'vi', 'en'). If not provided, it will be auto-detected.
-            
-        Returns:
-            dict containing:
-                - text: Transcribed text
-                - language: Detected or provided language
-                - language_probability: Confidence of language detection
+
+        Returns a dict containing text, detected language, and confidence.
         """
         if not audio_bytes:
             raise STTError("Empty audio data provided")
 
         temp_file_path = None
         try:
-            # Create a temporary file to save the audio bytes
-            # faster-whisper requires a file path or a binary stream, but file path is safer for various formats
             suffix = file_extension if file_extension.startswith(".") else f".{file_extension}"
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
                 temp_file.write(audio_bytes)
                 temp_file_path = temp_file.name
 
-            # Run transcription in a background thread to prevent blocking the event loop
-            result = await asyncio.to_thread(cls._run_transcription, temp_file_path, language)
-            
-            logger.info(f"✅ Transcription complete. Detected language: {result['language']} ({result['language_probability']:.2f})")
+            result = await asyncio.to_thread(
+                cls._run_transcription,
+                temp_file_path,
+                language,
+            )
+
+            logger.info(
+                "Transcription complete. Detected language: %s (%.2f)",
+                result["language"],
+                result["language_probability"],
+            )
             return result
 
         except Exception as e:
-            logger.exception(f"❌ STT processing error: {e}")
-            raise STTError(str(e))
-            
+            logger.exception("STT processing error: %s", e)
+            raise STTError(str(e)) from e
+
         finally:
-            # Cleanup temporary file
             if temp_file_path and os.path.exists(temp_file_path):
                 try:
                     os.remove(temp_file_path)
                 except Exception as e:
-                    logger.warning(f"⚠️ Failed to delete temporary audio file {temp_file_path}: {e}")
+                    logger.warning(
+                        "Failed to delete temporary audio file %s: %s",
+                        temp_file_path,
+                        e,
+                    )

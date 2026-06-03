@@ -43,6 +43,13 @@ services:
       - ./backend/.env.staging.local
     environment:
       - ENVIRONMENT=staging
+      - HF_HUB_DISABLE_XET=1
+      - HF_HOME=/models/huggingface
+      - HUGGINGFACE_HUB_CACHE=/models/huggingface/hub
+      - STT_DOWNLOAD_ROOT=/models/faster-whisper
+      - STT_PRELOAD_TIMEOUT_SECONDS=900
+    volumes:
+      - hf_cache_staging:/models
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health'); print('ok')"]
@@ -52,3 +59,4 @@ services:
 
 volumes:
   db_staging_data:
+  hf_cache_staging:

@@ -1,0 +1,2 @@
+flutter build web --release -t lib/main_web.dart
+python -m http.server 9000 
