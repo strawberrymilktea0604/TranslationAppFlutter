@@ -429,6 +429,7 @@ Future<void> initDependenciesWeb() async {
       repository: sl(),
       authLocalDataSource: sl(),
       audioRecorderService: sl(),
+      historyRepository: sl(),
     ),
   );
 }

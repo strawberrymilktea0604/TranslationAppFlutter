@@ -43,11 +43,11 @@ class SyncRepositoryImpl implements SyncRepository {
     required VocabularyRemoteDataSource vocabularyRemoteDataSource,
     required AuthLocalDataSource authLocalDataSource,
     required SyncLocalDataSource syncLocalDataSource,
-  })  : _remoteDataSource = remoteDataSource,
-        _localDataSource = localDataSource,
-        _vocabularyRemoteDataSource = vocabularyRemoteDataSource,
-        _authLocalDataSource = authLocalDataSource,
-        _syncLocalDataSource = syncLocalDataSource;
+  }) : _remoteDataSource = remoteDataSource,
+       _localDataSource = localDataSource,
+       _vocabularyRemoteDataSource = vocabularyRemoteDataSource,
+       _authLocalDataSource = authLocalDataSource,
+       _syncLocalDataSource = syncLocalDataSource;
 
   // ==================================================================
   //  Legacy sync (POST /api/v1/sync/vocabulary)
@@ -63,9 +63,7 @@ class SyncRepositoryImpl implements SyncRepository {
         'No unsynced entries — skipping sync.',
         name: 'SyncRepository',
       );
-      return const Right(
-        SyncResponseEntity(syncedCount: 0, results: []),
-      );
+      return const Right(SyncResponseEntity(syncedCount: 0, results: []));
     }
 
     developer.log(
@@ -118,8 +116,7 @@ class SyncRepositoryImpl implements SyncRepository {
         final serverIds = <String>{};
 
         while (hasNext) {
-          final pageData =
-              await _vocabularyRemoteDataSource.getVocabularyList(
+          final pageData = await _vocabularyRemoteDataSource.getVocabularyList(
             page: page,
             accessToken: token,
           );
@@ -231,7 +228,11 @@ class SyncRepositoryImpl implements SyncRepository {
           );
 
           // Process push results.
-          await _processPushResults(pushResponse, unsyncedModels, unsyncedQuizResults);
+          await _processPushResults(
+            pushResponse,
+            unsyncedModels,
+            unsyncedQuizResults,
+          );
 
           developer.log(
             'Push completed: ${pushResponse.succeededCount} succeeded, '
@@ -246,9 +247,7 @@ class SyncRepositoryImpl implements SyncRepository {
             level: 900,
           );
           return const Left(
-            AuthFailure(
-              'Session expired. Please log in again to sync.',
-            ),
+            AuthFailure('Session expired. Please log in again to sync.'),
           );
         } on ServerException catch (e) {
           if (attempt < _retryDelays.length) {
@@ -309,7 +308,8 @@ class SyncRepositoryImpl implements SyncRepository {
     }
 
     // Build final result.
-    final result = pushResponse?.toEntity() ??
+    final result =
+        pushResponse?.toEntity() ??
         const SyncPushResponseEntity(
           succeededCount: 0,
           failedCount: 0,
@@ -342,9 +342,16 @@ class SyncRepositoryImpl implements SyncRepository {
   ) async {
     final vocabIdMap = <int, String>{};
     final quizIdMap = <int, String>{};
+    const syncedStatuses = {
+      'created',
+      'updated',
+      'unchanged',
+      'conflict_client_wins',
+      'conflict_server_wins',
+    };
 
     for (final result in response.results) {
-      if (result.status == 'created' || result.status == 'updated' || result.status == 'unchanged') {
+      if (syncedStatuses.contains(result.status)) {
         if (result.resource == 'flashcard') {
           final localModel = unsyncedModels.where(
             (m) => m.backendId == result.clientId,
@@ -372,7 +379,7 @@ class SyncRepositoryImpl implements SyncRepository {
     if (vocabIdMap.isNotEmpty) {
       await _localDataSource.markSyncedAndUpdateId(vocabIdMap);
     }
-    
+
     if (quizIdMap.isNotEmpty) {
       await _localDataSource.markQuizResultsSyncedAndUpdateId(quizIdMap);
     }
@@ -407,9 +414,7 @@ class SyncRepositoryImpl implements SyncRepository {
       for (final item in pullResponse.items) {
         if (item.resource == 'flashcard') {
           try {
-            vocabModels.add(
-              _flashcardPayloadToVocabularyModel(item.payload),
-            );
+            vocabModels.add(_flashcardPayloadToVocabularyModel(item.payload));
           } catch (e) {
             developer.log(
               'Skipping malformed flashcard pull item: $e',
@@ -419,9 +424,7 @@ class SyncRepositoryImpl implements SyncRepository {
           }
         } else if (item.resource == 'quiz_attempt') {
           try {
-            quizModels.add(
-              _quizAttemptPayloadToQuizResultModel(item.payload),
-            );
+            quizModels.add(_quizAttemptPayloadToQuizResultModel(item.payload));
           } catch (e) {
             developer.log(
               'Skipping malformed quiz attempt pull item: $e',
@@ -436,7 +439,7 @@ class SyncRepositoryImpl implements SyncRepository {
       if (vocabModels.isNotEmpty) {
         await _localDataSource.saveAll(vocabModels);
       }
-      
+
       // Upsert pulled quiz results into Isar.
       for (final q in quizModels) {
         await _localDataSource.saveQuizResult(q);
@@ -498,7 +501,8 @@ class SyncRepositoryImpl implements SyncRepository {
       score: (payload['score'] as num?)?.toDouble() ?? 0.0,
       durationSeconds: payload['completion_time_seconds'] as int? ?? 0,
       status: payload['status'] as String? ?? 'completed',
-      answers: [], // We might not get full answers in pull unless they were added to payload
+      answers:
+          [], // We might not get full answers in pull unless they were added to payload
       completedAt: payload['created_at'] != null
           ? DateTime.parse(payload['created_at'] as String)
           : DateTime.now(),

@@ -233,7 +233,7 @@ class SyncService:
                             server_id=item.server_id,
                             client_updated_at=item.updated_at,
                             payload=payload,
-                            allow_content_match=False,
+                            allow_content_match=True,
                         )
                     else:
                         payload = QuizAttemptPushPayload.model_validate(item.payload)

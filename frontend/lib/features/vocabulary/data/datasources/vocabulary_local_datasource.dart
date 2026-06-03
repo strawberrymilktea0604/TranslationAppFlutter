@@ -98,7 +98,10 @@ abstract class VocabularyLocalDataSource {
   // ---- Quiz Results ----
 
   /// All quiz results sorted by most recent.
-  Future<List<QuizResultModel>> getQuizResults({int offset = 0, int limit = 50});
+  Future<List<QuizResultModel>> getQuizResults({
+    int offset = 0,
+    int limit = 50,
+  });
 
   /// Quiz results for a specific bank.
   Future<List<QuizResultModel>> getQuizResultsByBank(String bankBackendId);
@@ -136,9 +139,7 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
     int offset = 0,
     int limit = 100,
   }) async {
-    var query = _isar.vocabularyModels
-        .filter()
-        .isDeletedEqualTo(false);
+    var query = _isar.vocabularyModels.filter().isDeletedEqualTo(false);
 
     if (category != null && category.isNotEmpty) {
       query = query.categoryEqualTo(category);
@@ -146,17 +147,15 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
 
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
       final q = searchQuery.trim().toLowerCase();
-      query = query.group((g) => g
-          .wordContains(q, caseSensitive: false)
-          .or()
-          .translationContains(q, caseSensitive: false));
+      query = query.group(
+        (g) => g
+            .wordContains(q, caseSensitive: false)
+            .or()
+            .translationContains(q, caseSensitive: false),
+      );
     }
 
-    return query
-        .sortByCreatedAtDesc()
-        .offset(offset)
-        .limit(limit)
-        .findAll();
+    return query.sortByCreatedAtDesc().offset(offset).limit(limit).findAll();
   }
 
   @override
@@ -171,7 +170,10 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
 
   @override
   Future<List<CategorySummary>> getCategorySummaries() async {
-    final categories = await _isar.vocabularyCategoryModels.filter().isDeletedEqualTo(false).findAll();
+    final categories = await _isar.vocabularyCategoryModels
+        .filter()
+        .isDeletedEqualTo(false)
+        .findAll();
     final summaries = <CategorySummary>[];
 
     for (final cat in categories) {
@@ -183,27 +185,33 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
 
       final learned = words.where((w) => w.masteryLevel >= 3).length;
 
-      summaries.add(CategorySummary(
-        name: cat.name,
-        wordCount: words.length,
-        learnedCount: learned,
-      ));
+      summaries.add(
+        CategorySummary(
+          name: cat.name,
+          wordCount: words.length,
+          learnedCount: learned,
+        ),
+      );
     }
 
     // Include "Chưa phân loại" for words without category
     final uncategorizedWords = await _isar.vocabularyModels
-          .filter()
-          .isDeletedEqualTo(false)
-          .categoryIdIsNull()
-          .findAll();
+        .filter()
+        .isDeletedEqualTo(false)
+        .categoryIdIsNull()
+        .findAll();
 
     if (uncategorizedWords.isNotEmpty) {
-      final learned = uncategorizedWords.where((w) => w.masteryLevel >= 3).length;
-      summaries.add(CategorySummary(
-        name: 'Chưa phân loại',
-        wordCount: uncategorizedWords.length,
-        learnedCount: learned,
-      ));
+      final learned = uncategorizedWords
+          .where((w) => w.masteryLevel >= 3)
+          .length;
+      summaries.add(
+        CategorySummary(
+          name: 'Chưa phân loại',
+          wordCount: uncategorizedWords.length,
+          learnedCount: learned,
+        ),
+      );
     }
 
     return summaries;
@@ -232,14 +240,39 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
   @override
   Future<void> save(VocabularyModel item) async {
     await _isar.writeTxn(() async {
-      await _isar.vocabularyModels.put(item);
+      final existing = await _findDuplicateByContent(item);
+      if (existing == null || existing.id == item.id) {
+        await _isar.vocabularyModels.put(item);
+        return;
+      }
+
+      _mergeVocabulary(existing, item, markDirty: true);
+      await _isar.vocabularyModels.put(existing);
     });
   }
 
   @override
   Future<void> saveAll(List<VocabularyModel> items) async {
     await _isar.writeTxn(() async {
-      await _isar.vocabularyModels.putAll(items);
+      for (final item in items) {
+        final existingByBackendId = await _isar.vocabularyModels.getByBackendId(
+          item.backendId,
+        );
+        if (existingByBackendId != null) {
+          _mergeVocabulary(existingByBackendId, item, markDirty: false);
+          await _isar.vocabularyModels.put(existingByBackendId);
+          continue;
+        }
+
+        final duplicate = await _findDuplicateByContent(item);
+        if (duplicate != null) {
+          _mergeVocabulary(duplicate, item, markDirty: false);
+          await _isar.vocabularyModels.put(duplicate);
+          continue;
+        }
+
+        await _isar.vocabularyModels.put(item);
+      }
     });
   }
 
@@ -285,10 +318,7 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
 
   @override
   Future<List<VocabularyModel>> getUnsynced() async {
-    return _isar.vocabularyModels
-        .filter()
-        .isSyncedEqualTo(false)
-        .findAll();
+    return _isar.vocabularyModels.filter().isSyncedEqualTo(false).findAll();
   }
 
   @override
@@ -312,8 +342,21 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
       for (int i = 0; i < items.length; i++) {
         final item = items[i];
         if (item != null) {
+          final backendId = idMap[ids[i]]!;
+          final duplicate = await _isar.vocabularyModels.getByBackendId(
+            backendId,
+          );
+          if (duplicate != null && duplicate.id != item.id) {
+            _mergeVocabulary(duplicate, item, markDirty: false);
+            duplicate.backendId = backendId;
+            duplicate.isSynced = true;
+            await _isar.vocabularyModels.put(duplicate);
+            await _isar.vocabularyModels.delete(item.id);
+            continue;
+          }
+
           item.isSynced = true;
-          item.backendId = idMap[ids[i]]!;
+          item.backendId = backendId;
           await _isar.vocabularyModels.put(item);
         }
       }
@@ -335,11 +378,15 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
         // If server has no records, delete all synced records.
         // We only delete synced ones so we don't accidentally wipe offline records
         // that haven't been pushed yet (though they should have been pushed earlier).
-        final toDelete = await _isar.vocabularyModels.filter().isSyncedEqualTo(true).findAll();
+        final toDelete = await _isar.vocabularyModels
+            .filter()
+            .isSyncedEqualTo(true)
+            .findAll();
         idsToDelete = toDelete.map((e) => e.id).toList();
       } else {
         final toDelete = await _isar.vocabularyModels
             .filter()
+            .isSyncedEqualTo(true)
             .not()
             .anyOf(validBackendIds, (q, String id) => q.backendIdEqualTo(id))
             .findAll();
@@ -395,7 +442,8 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
 
   @override
   Future<List<QuizResultModel>> getQuizResultsByBank(
-      String bankBackendId) async {
+    String bankBackendId,
+  ) async {
     return _isar.quizResultModels
         .filter()
         .bankBackendIdEqualTo(bankBackendId)
@@ -412,10 +460,7 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
 
   @override
   Future<List<QuizResultModel>> getUnsyncedQuizResults() async {
-    return _isar.quizResultModels
-        .filter()
-        .isSyncedEqualTo(false)
-        .findAll();
+    return _isar.quizResultModels.filter().isSyncedEqualTo(false).findAll();
   }
 
   @override
@@ -445,5 +490,75 @@ class VocabularyLocalDataSourceImpl implements VocabularyLocalDataSource {
         }
       }
     });
+  }
+
+  Future<VocabularyModel?> _findDuplicateByContent(VocabularyModel item) async {
+    final candidates = await _isar.vocabularyModels
+        .filter()
+        .sourceLanguageEqualTo(item.sourceLanguage)
+        .targetLanguageEqualTo(item.targetLanguage)
+        .findAll();
+
+    final wordKey = _normalizeText(item.word);
+    final translationKey = _normalizeText(item.translation);
+
+    for (final candidate in candidates) {
+      if (candidate.id == item.id) continue;
+      if (_normalizeText(candidate.word) == wordKey &&
+          _normalizeText(candidate.translation) == translationKey) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  void _mergeVocabulary(
+    VocabularyModel target,
+    VocabularyModel source, {
+    required bool markDirty,
+  }) {
+    final shouldReplaceCategory =
+        source.categoryId != null || target.categoryId == null;
+
+    target.backendId = _preferServerId(target.backendId, source.backendId);
+    target.word = source.word;
+    target.translation = source.translation;
+    target.sourceLanguage = source.sourceLanguage;
+    target.targetLanguage = source.targetLanguage;
+    if (shouldReplaceCategory) {
+      target.category = source.category;
+      target.categoryId = source.categoryId;
+    }
+    target.isStarred = target.isStarred || source.isStarred;
+    target.pronunciation ??= source.pronunciation;
+    target.example ??= source.example;
+    target.translationId ??= source.translationId;
+    target.masteryLevel = target.masteryLevel > source.masteryLevel
+        ? target.masteryLevel
+        : source.masteryLevel;
+    target.lastTestedAt = _latestDate(target.lastTestedAt, source.lastTestedAt);
+    target.createdAt = target.createdAt.isBefore(source.createdAt)
+        ? target.createdAt
+        : source.createdAt;
+    target.updatedAt = markDirty ? DateTime.now() : source.updatedAt;
+    target.isDeleted = source.isDeleted;
+    target.isSynced = markDirty ? false : source.isSynced;
+  }
+
+  String _preferServerId(String current, String incoming) {
+    final incomingIsServerId = int.tryParse(incoming) != null;
+    if (incomingIsServerId) return incoming;
+    return current;
+  }
+
+  DateTime? _latestDate(DateTime? a, DateTime? b) {
+    if (a == null) return b;
+    if (b == null) return a;
+    return a.isAfter(b) ? a : b;
+  }
+
+  String _normalizeText(String value) {
+    return value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
   }
 }

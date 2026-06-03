@@ -521,6 +521,7 @@ Future<void> initDependencies() async {
       repository: sl(),
       authLocalDataSource: sl(),
       audioRecorderService: sl(),
+      historyRepository: sl(),
     ),
   );
 }

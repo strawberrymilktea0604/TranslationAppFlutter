@@ -15,6 +15,8 @@ import 'package:frontend/features/conversation/domain/usecases/end_session_useca
 import 'package:frontend/features/conversation/domain/usecases/send_audio_chunk_usecase.dart';
 import 'package:frontend/features/conversation/domain/usecases/start_session_usecase.dart';
 import 'package:frontend/features/conversation/domain/usecases/switch_speaker_usecase.dart';
+import 'package:frontend/features/history/domain/entities/history_entity.dart';
+import 'package:frontend/features/history/domain/repositories/history_repository.dart';
 
 part 'conversation_state.dart';
 
@@ -49,9 +51,11 @@ class ConversationViewModel extends Cubit<ConversationState> {
   final ConversationRepository _repository;
   final AuthLocalDataSource _authLocalDataSource;
   final AudioRecorderService _audioRecorderService;
+  final HistoryRepository _historyRepository;
 
   StreamSubscription<ConversationEvent>? _eventSubscription;
   StreamSubscription<Uint8List>? _audioSubscription;
+  bool _isStartingRecording = false;
 
   /// Audio chunk buffer — accumulates raw PCM and flushes 2-second chunks.
   final AudioChunkBuffer _audioBuffer = AudioChunkBuffer();
@@ -74,6 +78,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
     required ConversationRepository repository,
     required AuthLocalDataSource authLocalDataSource,
     required AudioRecorderService audioRecorderService,
+    required HistoryRepository historyRepository,
   }) : _connectUseCase = connectUseCase,
        _startSessionUseCase = startSessionUseCase,
        _sendAudioChunkUseCase = sendAudioChunkUseCase,
@@ -82,6 +87,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
        _repository = repository,
        _authLocalDataSource = authLocalDataSource,
        _audioRecorderService = audioRecorderService,
+       _historyRepository = historyRepository,
        super(const ConversationInitial());
 
   // ---------------------------------------------------------------------------
@@ -199,6 +205,22 @@ class ConversationViewModel extends Cubit<ConversationState> {
   /// - [ConversationErrorType.recorderFailure] if recorder fails to start.
   Future<void> startListening() async {
     if (isClosed) return;
+    if (_isStartingRecording ||
+        _audioRecorderService.isRecording ||
+        _audioSubscription != null) {
+      if (state is ConversationConnected && !isClosed) {
+        emit(
+          ConversationRecording(
+            messages: state.messages,
+            currentSpeaker: state.currentSpeaker,
+            connectionStatus: WebSocketConnectionStatus.connected,
+            sourceLanguage: state.sourceLanguage,
+            targetLanguage: state.targetLanguage,
+          ),
+        );
+      }
+      return;
+    }
 
     final hasPermission = await _audioRecorderService.hasPermission();
     if (!hasPermission) {
@@ -215,8 +237,15 @@ class ConversationViewModel extends Cubit<ConversationState> {
       return;
     }
 
+    _isStartingRecording = true;
     try {
       final stream = await _audioRecorderService.startStreamRecording();
+      if (isClosed) {
+        if (_audioRecorderService.isRecording) {
+          await _audioRecorderService.stopStreamRecording();
+        }
+        return;
+      }
 
       _silenceStartTime = null;
       _audioBuffer.clear();
@@ -260,6 +289,8 @@ class ConversationViewModel extends Cubit<ConversationState> {
           errorType: ConversationErrorType.recorderFailure,
         ),
       );
+    } finally {
+      _isStartingRecording = false;
     }
   }
 
@@ -323,6 +354,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
   Future<void> stopListening({bool finalizeUtterance = true}) async {
     if (isClosed) return;
 
+    _isStartingRecording = false;
     _silenceStartTime = null;
 
     await _audioSubscription?.cancel();
@@ -394,6 +426,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
 
   /// Disconnects and resets to initial state.
   Future<void> disconnect() async {
+    _isStartingRecording = false;
     await _audioSubscription?.cancel();
     _audioSubscription = null;
 
@@ -476,6 +509,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
       case ConversationTranslationReceived(:final message):
         final updatedMessages = List<ConversationMessage>.of(state.messages)
           ..add(message);
+        _saveMessageToHistory(message);
         emit(
           ConversationConnected(
             messages: updatedMessages,
@@ -558,15 +592,47 @@ class ConversationViewModel extends Cubit<ConversationState> {
     if (isClosed) return;
     if (_currentSessionId == null) return;
     if (state.connectionStatus != WebSocketConnectionStatus.connected) return;
+    if (_isStartingRecording ||
+        _audioRecorderService.isRecording ||
+        _audioSubscription != null) {
+      return;
+    }
 
     // Small delay to avoid overlapping with UI state transitions.
     await Future<void>.delayed(const Duration(milliseconds: 300));
 
     if (!isClosed &&
         state is ConversationConnected &&
-        _currentSessionId != null) {
+        _currentSessionId != null &&
+        !_isStartingRecording &&
+        !_audioRecorderService.isRecording &&
+        _audioSubscription == null) {
       startListening();
     }
+  }
+
+  Future<void> _saveMessageToHistory(ConversationMessage message) async {
+    final now = DateTime.now();
+    final history = HistoryEntity(
+      id: 'conversation_${message.id}',
+      sourceText: message.sourceText,
+      translatedText: message.translatedText,
+      sourceLanguage: message.sourceLanguage,
+      targetLanguage: message.targetLanguage,
+      createdAt: message.timestamp,
+      updatedAt: now,
+      isSynced: true,
+    );
+
+    final result = await _historyRepository.saveHistory(history);
+    result.fold(
+      (failure) => developer.log(
+        'Failed to save conversation message to history: ${failure.message}',
+        name: 'ConversationVM',
+        level: 800,
+      ),
+      (_) {},
+    );
   }
 
   void _emitWithUpdatedSpeaker(ConversationSpeaker newSpeaker) {
@@ -612,6 +678,7 @@ class ConversationViewModel extends Cubit<ConversationState> {
 
   @override
   Future<void> close() async {
+    _isStartingRecording = false;
     await _audioSubscription?.cancel();
     if (_audioRecorderService.isRecording) {
       await _audioRecorderService.stopStreamRecording();
