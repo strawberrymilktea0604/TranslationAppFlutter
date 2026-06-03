@@ -2,8 +2,10 @@ import 'package:bloc/bloc.dart';
 
 import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.dart';
 import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
-import 'package:frontend/features/history/domain/entities/history_entity.dart' as frontend_history;
-import 'package:frontend/features/history/domain/repositories/history_repository.dart' as frontend_history;
+import 'package:frontend/features/history/domain/entities/history_entity.dart'
+    as frontend_history;
+import 'package:frontend/features/history/domain/repositories/history_repository.dart'
+    as frontend_history;
 import 'package:frontend/injection_container.dart';
 
 part 'speech_state.dart';
@@ -25,9 +27,9 @@ class SpeechCubit extends Cubit<SpeechState> {
   SpeechCubit({
     required SpeechTranslateUseCase speechTranslateUseCase,
     required RetranslateVoiceTextUseCase retranslateUseCase,
-  })  : _speechTranslateUseCase = speechTranslateUseCase,
-        _retranslateUseCase = retranslateUseCase,
-        super(const SpeechInitial());
+  }) : _speechTranslateUseCase = speechTranslateUseCase,
+       _retranslateUseCase = retranslateUseCase,
+       super(const SpeechInitial());
 
   // -------------------------------------------------------------------------
   // Upload recorded audio for STT + translation
@@ -42,54 +44,55 @@ class SpeechCubit extends Cubit<SpeechState> {
     required String srcLang,
     required String tgtLang,
   }) async {
-    emit(SpeechTranslating(
-      recognisedText: '',
-      srcLang: srcLang,
-      tgtLang: tgtLang,
-    ));
+    emit(
+      SpeechTranslating(recognisedText: '', srcLang: srcLang, tgtLang: tgtLang),
+    );
 
-    final result = await _speechTranslateUseCase(SpeechTranslateParams(
-      audioFilePath: audioFilePath,
-      sourceLanguage: srcLang == 'auto' ? null : srcLang,
-      targetLanguage: tgtLang,
-    ));
+    final result = await _speechTranslateUseCase(
+      SpeechTranslateParams(
+        audioFilePath: audioFilePath,
+        sourceLanguage: srcLang == 'auto' ? null : srcLang,
+        targetLanguage: tgtLang,
+      ),
+    );
 
     if (isClosed) return;
 
-    result.fold(
-      (failure) => emit(SpeechFailure(failure.message)),
-      (entity) {
-        if (entity.sourceText.trim().isEmpty) {
-          emit(const SpeechFailure(
+    result.fold((failure) => emit(SpeechFailure(failure.message)), (entity) {
+      if (entity.sourceText.trim().isEmpty) {
+        emit(
+          const SpeechFailure(
             'Không nhận diện được giọng nói. '
             'Hãy nói rõ hơn và thử lại.',
-          ));
-          return;
-        }
-        emit(SpeechSuccess(
+          ),
+        );
+        return;
+      }
+      emit(
+        SpeechSuccess(
           recognisedText: entity.sourceText,
           translatedText: entity.translatedText,
           srcLang: entity.sourceLanguage,
           tgtLang: entity.targetLanguage,
-        ));
+        ),
+      );
 
-        // Lưu lịch sử
-        try {
-          final historyEntity = frontend_history.HistoryEntity(
-            isarId: 0,
-            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-            sourceText: entity.sourceText,
-            translatedText: entity.translatedText,
-            sourceLanguage: entity.sourceLanguage,
-            targetLanguage: entity.targetLanguage,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            isSynced: false,
-          );
-          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
-        } catch (_) {}
-      },
-    );
+      // Lưu lịch sử
+      try {
+        final historyEntity = frontend_history.HistoryEntity(
+          isarId: 0,
+          id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+          sourceText: entity.sourceText,
+          translatedText: entity.translatedText,
+          sourceLanguage: entity.sourceLanguage,
+          targetLanguage: entity.targetLanguage,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          isSynced: false,
+        );
+        sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+      } catch (_) {}
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -107,47 +110,52 @@ class SpeechCubit extends Cubit<SpeechState> {
   }) async {
     if (editedText.trim().isEmpty) return;
 
-    emit(SpeechRetranslating(
-      editedText: editedText,
-      srcLang: srcLang,
-      tgtLang: tgtLang,
-    ));
+    emit(
+      SpeechRetranslating(
+        editedText: editedText,
+        srcLang: srcLang,
+        tgtLang: tgtLang,
+      ),
+    );
 
-    final result = await _retranslateUseCase(RetranslateVoiceParams(
-      text: editedText.trim(),
-      sourceLanguage: srcLang,
-      targetLanguage: tgtLang,
-    ));
+    final result = await _retranslateUseCase(
+      RetranslateVoiceParams(
+        text: editedText.trim(),
+        sourceLanguage: srcLang,
+        targetLanguage: tgtLang,
+      ),
+    );
 
     if (isClosed) return;
 
-    result.fold(
-      (failure) => emit(SpeechFailure(failure.message)),
-      (translatedText) {
-        emit(SpeechSuccess(
+    result.fold((failure) => emit(SpeechFailure(failure.message)), (
+      translation,
+    ) {
+      emit(
+        SpeechSuccess(
           recognisedText: editedText,
-          translatedText: translatedText,
-          srcLang: srcLang,
-          tgtLang: tgtLang,
-        ));
+          translatedText: translation.translatedText,
+          srcLang: translation.sourceLanguage,
+          tgtLang: translation.targetLanguage,
+        ),
+      );
 
-        // Lưu lịch sử
-        try {
-          final historyEntity = frontend_history.HistoryEntity(
-            isarId: 0,
-            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-            sourceText: editedText,
-            translatedText: translatedText,
-            sourceLanguage: srcLang,
-            targetLanguage: tgtLang,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            isSynced: false,
-          );
-          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
-        } catch (_) {}
-      },
-    );
+      // Lưu lịch sử
+      try {
+        final historyEntity = frontend_history.HistoryEntity(
+          isarId: 0,
+          id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+          sourceText: editedText,
+          translatedText: translation.translatedText,
+          sourceLanguage: translation.sourceLanguage,
+          targetLanguage: translation.targetLanguage,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          isSynced: false,
+        );
+        sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+      } catch (_) {}
+    });
   }
 
   // -------------------------------------------------------------------------

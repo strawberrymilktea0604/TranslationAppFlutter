@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/features/ocr/domain/entities/ocr_entity.dart';
+import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 
 /// Abstract repository for OCR operations (UC06).
 ///
@@ -22,7 +23,7 @@ abstract class OcrRepository {
   });
 
   /// Re-translates previously extracted OCR text after user edits.
-  Future<Either<Failure, String>> retranslateText({
+  Future<Either<Failure, TranslationEntity>> retranslateText({
     required String text,
     required String sourceLanguage,
     required String targetLanguage,

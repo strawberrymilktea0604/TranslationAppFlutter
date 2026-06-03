@@ -136,7 +136,9 @@ async def translate_audio(
         try:
             stt_result = await STTService.transcribe_audio(
                 audio_bytes,
-                language=source_language,
+                language=None
+                if source_language is None or source_language.lower() == "auto"
+                else source_language,
             )
         except STTError as e:
             logger.error(f"❌ STT failed: {e}")
@@ -163,7 +165,11 @@ async def translate_audio(
         )
         
         # Determine actual source language (fallback to detected if none provided)
-        actual_source_language = source_language if source_language else detected_language
+        actual_source_language = (
+            detected_language
+            if source_language is None or source_language.lower() == "auto"
+            else source_language
+        )
         
         # ==================== STEP 3: TRANSLATE TEXT ====================
         try:
@@ -200,7 +206,7 @@ async def translate_audio(
         response_data = AudioTranslationResponse(
             source_text=extracted_text,
             translated_text=translated_text,
-            source_language=actual_source_language,
+            source_language=translation_request.source_language,
             target_language=target_language,
             stt_language_probability=language_probability,
             is_cached=is_cached,
@@ -333,7 +339,9 @@ async def translate_voice_with_preprocessing(
             # Use preprocessed audio for STT
             stt_result = await STTService.transcribe_audio(
                 preprocessed_audio_bytes,
-                language=source_language,
+                language=None
+                if source_language is None or source_language.lower() == "auto"
+                else source_language,
             )
         except STTError as e:
             logger.error(f"❌ STT failed: {e}")
@@ -361,7 +369,11 @@ async def translate_voice_with_preprocessing(
         )
         
         # Determine actual source language
-        actual_source_language = source_language if source_language else detected_language
+        actual_source_language = (
+            detected_language
+            if source_language is None or source_language.lower() == "auto"
+            else source_language
+        )
         
         # ==================== STEP 4: TRANSLATE TEXT ====================
         try:
@@ -424,7 +436,7 @@ async def translate_voice_with_preprocessing(
         response_data = AudioTranslationResponse(
             source_text=extracted_text,
             translated_text=translated_text,
-            source_language=actual_source_language,
+            source_language=translation_request.source_language,
             target_language=target_language,
             stt_language_probability=language_probability,
             is_cached=is_cached,

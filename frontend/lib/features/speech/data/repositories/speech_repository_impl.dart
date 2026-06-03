@@ -8,6 +8,7 @@ import 'package:frontend/features/speech/data/datasources/speech_remote_datasour
 import 'package:frontend/features/speech/domain/entities/speech_entity.dart';
 import 'package:frontend/features/speech/domain/repositories/speech_repository.dart';
 import 'package:frontend/features/translation/data/datasources/translation_remote_datasource.dart';
+import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 
 /// Implements [SpeechRepository] by coordinating remote data sources.
 ///
@@ -25,10 +26,10 @@ class SpeechRepositoryImpl implements SpeechRepository {
     required TranslationRemoteDataSource translationRemoteDataSource,
     required AuthLocalDataSource authLocalDataSource,
     required NetworkInfo networkInfo,
-  })  : _speechRemoteDataSource = speechRemoteDataSource,
-        _translationRemoteDataSource = translationRemoteDataSource,
-        _authLocalDataSource = authLocalDataSource,
-        _networkInfo = networkInfo;
+  }) : _speechRemoteDataSource = speechRemoteDataSource,
+       _translationRemoteDataSource = translationRemoteDataSource,
+       _authLocalDataSource = authLocalDataSource,
+       _networkInfo = networkInfo;
 
   @override
   Future<Either<Failure, SpeechTranslationEntity>> translateVoice({
@@ -50,15 +51,17 @@ class SpeechRepositoryImpl implements SpeechRepository {
         authToken: authToken,
       );
 
-      return Right(SpeechTranslationEntity(
-        sourceText: result.sourceText,
-        translatedText: result.translatedText,
-        sourceLanguage: result.sourceLanguage,
-        targetLanguage: result.targetLanguage,
-        sttLanguageProbability: result.sttLanguageProbability,
-        isCached: result.isCached,
-        responseTimeMs: result.responseTimeMs,
-      ));
+      return Right(
+        SpeechTranslationEntity(
+          sourceText: result.sourceText,
+          translatedText: result.translatedText,
+          sourceLanguage: result.sourceLanguage,
+          targetLanguage: result.targetLanguage,
+          sttLanguageProbability: result.sttLanguageProbability,
+          isCached: result.isCached,
+          responseTimeMs: result.responseTimeMs,
+        ),
+      );
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on NetworkException {
@@ -69,7 +72,7 @@ class SpeechRepositoryImpl implements SpeechRepository {
   }
 
   @override
-  Future<Either<Failure, String>> retranslateText({
+  Future<Either<Failure, TranslationEntity>> retranslateText({
     required String text,
     required String sourceLanguage,
     required String targetLanguage,
@@ -83,12 +86,12 @@ class SpeechRepositoryImpl implements SpeechRepository {
 
       final translation = await _translationRemoteDataSource.translateText(
         text: text.trim(),
-        sourceLanguage: sourceLanguage == 'auto' ? 'en' : sourceLanguage,
+        sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
         authToken: authToken,
       );
 
-      return Right(translation.translatedText);
+      return Right(translation);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on NetworkException {

@@ -10,6 +10,7 @@ import 'package:frontend/features/ocr/data/datasources/ocr_remote_datasource.dar
 import 'package:frontend/features/ocr/domain/entities/ocr_entity.dart';
 import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
 import 'package:frontend/features/translation/data/datasources/translation_remote_datasource.dart';
+import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 
 /// Implements [OcrRepository] by coordinating remote data sources.
 ///
@@ -27,10 +28,10 @@ class OcrRepositoryImpl implements OcrRepository {
     required TranslationRemoteDataSource translationRemoteDataSource,
     required AuthLocalDataSource authLocalDataSource,
     required NetworkInfo networkInfo,
-  })  : _ocrRemoteDataSource = ocrRemoteDataSource,
-        _translationRemoteDataSource = translationRemoteDataSource,
-        _authLocalDataSource = authLocalDataSource,
-        _networkInfo = networkInfo;
+  }) : _ocrRemoteDataSource = ocrRemoteDataSource,
+       _translationRemoteDataSource = translationRemoteDataSource,
+       _authLocalDataSource = authLocalDataSource,
+       _networkInfo = networkInfo;
 
   @override
   Future<Either<Failure, OcrTranslationEntity>> translateImage({
@@ -56,14 +57,16 @@ class OcrRepositoryImpl implements OcrRepository {
         onProgress: onProgress,
       );
 
-      return Right(OcrTranslationEntity(
-        extractedText: result.extractedText,
-        translatedText: result.translatedText,
-        imageBytes: imageBytes,
-        sourceLanguage: sourceLanguage,
-        targetLanguage: targetLanguage,
-        confidence: result.confidence,
-      ));
+      return Right(
+        OcrTranslationEntity(
+          extractedText: result.extractedText,
+          translatedText: result.translatedText,
+          imageBytes: imageBytes,
+          sourceLanguage: result.sourceLanguage,
+          targetLanguage: result.targetLanguage,
+          confidence: result.confidence,
+        ),
+      );
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on NetworkException {
@@ -74,7 +77,7 @@ class OcrRepositoryImpl implements OcrRepository {
   }
 
   @override
-  Future<Either<Failure, String>> retranslateText({
+  Future<Either<Failure, TranslationEntity>> retranslateText({
     required String text,
     required String sourceLanguage,
     required String targetLanguage,
@@ -88,12 +91,12 @@ class OcrRepositoryImpl implements OcrRepository {
 
       final translation = await _translationRemoteDataSource.translateText(
         text: text.trim(),
-        sourceLanguage: sourceLanguage == 'auto' ? 'en' : sourceLanguage,
+        sourceLanguage: sourceLanguage,
         targetLanguage: targetLanguage,
         authToken: authToken,
       );
 
-      return Right(translation.translatedText);
+      return Right(translation);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on NetworkException {

@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/core/usecases/usecase.dart';
 import 'package:frontend/features/speech/domain/repositories/speech_repository.dart';
+import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 
 /// Parameters for [RetranslateVoiceTextUseCase].
 class RetranslateVoiceParams extends Equatable {
@@ -31,13 +32,15 @@ class RetranslateVoiceParams extends Equatable {
 /// Used when the user corrects misrecognised words from STT
 /// before saving to flashcards.
 class RetranslateVoiceTextUseCase
-    extends UseCase<String, RetranslateVoiceParams> {
+    extends UseCase<TranslationEntity, RetranslateVoiceParams> {
   final SpeechRepository _repository;
 
   RetranslateVoiceTextUseCase(this._repository);
 
   @override
-  Future<Either<Failure, String>> call(RetranslateVoiceParams params) {
+  Future<Either<Failure, TranslationEntity>> call(
+    RetranslateVoiceParams params,
+  ) {
     return _repository.retranslateText(
       text: params.text,
       sourceLanguage: params.sourceLanguage,

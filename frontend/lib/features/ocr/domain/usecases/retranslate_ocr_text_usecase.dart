@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/core/usecases/usecase.dart';
 import 'package:frontend/features/ocr/domain/repositories/ocr_repository.dart';
+import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 
 /// Parameters for [RetranslateOcrTextUseCase].
 class RetranslateParams extends Equatable {
@@ -22,13 +23,14 @@ class RetranslateParams extends Equatable {
 }
 
 /// Re-translates previously extracted OCR text after user edits.
-class RetranslateOcrTextUseCase extends UseCase<String, RetranslateParams> {
+class RetranslateOcrTextUseCase
+    extends UseCase<TranslationEntity, RetranslateParams> {
   final OcrRepository _repository;
 
   RetranslateOcrTextUseCase(this._repository);
 
   @override
-  Future<Either<Failure, String>> call(RetranslateParams params) {
+  Future<Either<Failure, TranslationEntity>> call(RetranslateParams params) {
     return _repository.retranslateText(
       text: params.text,
       sourceLanguage: params.sourceLanguage,

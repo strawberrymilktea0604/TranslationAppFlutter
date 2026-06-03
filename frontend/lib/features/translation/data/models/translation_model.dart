@@ -21,14 +21,24 @@ class TranslationModel extends TranslationEntity {
   /// Handles both camelCase (Dart convention) and snake_case
   /// (backend convention from `/translate/text`).
   factory TranslationModel.fromJson(Map<String, dynamic> json) {
+    final rawSourceLanguage =
+        (json['source_language'] ?? json['sourceLanguage'] ?? '') as String;
+    final detectedSourceLanguage =
+        (json['detected_source_language'] ?? json['detectedSourceLanguage'])
+            as String?;
+    final resolvedSourceLanguage =
+        rawSourceLanguage.toLowerCase() == 'auto' &&
+            detectedSourceLanguage != null &&
+            detectedSourceLanguage.trim().isNotEmpty
+        ? detectedSourceLanguage.trim().toLowerCase()
+        : rawSourceLanguage;
+
     return TranslationModel(
       id: json['id']?.toString() ?? '',
-      sourceText:
-          (json['source_text'] ?? json['sourceText'] ?? '') as String,
+      sourceText: (json['source_text'] ?? json['sourceText'] ?? '') as String,
       translatedText:
           (json['translated_text'] ?? json['translatedText'] ?? '') as String,
-      sourceLanguage:
-          (json['source_language'] ?? json['sourceLanguage'] ?? '') as String,
+      sourceLanguage: resolvedSourceLanguage,
       targetLanguage:
           (json['target_language'] ?? json['targetLanguage'] ?? '') as String,
       createdAt: _parseDateTime(json['created_at'] ?? json['createdAt']),

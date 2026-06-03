@@ -13,11 +13,15 @@ import 'package:frontend/core/error/exceptions.dart';
 class OcrResultData {
   final String extractedText;
   final String translatedText;
+  final String sourceLanguage;
+  final String targetLanguage;
   final double? confidence;
 
   const OcrResultData({
     required this.extractedText,
     required this.translatedText,
+    required this.sourceLanguage,
+    required this.targetLanguage,
     this.confidence,
   });
 }
@@ -54,10 +58,7 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
 
   static const _timeout = Duration(seconds: 60);
 
-  const OcrRemoteDataSourceImpl({
-    required this.client,
-    required this.baseUrl,
-  });
+  const OcrRemoteDataSourceImpl({required this.client, required this.baseUrl});
 
   @override
   Future<OcrResultData> translateImage({
@@ -78,16 +79,12 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
         multipart.headers['Authorization'] = 'Bearer $authToken';
       }
 
-      multipart.fields['source_language'] = sourceLanguage == 'auto' ? 'en' : sourceLanguage;
+      multipart.fields['source_language'] = sourceLanguage;
       multipart.fields['target_language'] = targetLanguage;
       multipart.fields['optimize_image'] = 'true';
 
       multipart.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          imageBytes,
-          filename: filename,
-        ),
+        http.MultipartFile.fromBytes('file', imageBytes, filename: filename),
       );
 
       // Finalize and get the raw byte stream + total content length.
@@ -133,6 +130,10 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
         return OcrResultData(
           extractedText: (data['source_text'] as String?) ?? '',
           translatedText: (data['translated_text'] as String?) ?? '',
+          sourceLanguage:
+              (data['source_language'] as String?) ?? sourceLanguage,
+          targetLanguage:
+              (data['target_language'] as String?) ?? targetLanguage,
           confidence: (data['ocr_confidence'] as num?)?.toDouble(),
         );
       }
@@ -142,7 +143,7 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
       try {
         final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
         detail = (errJson['detail'] as String?) ?? detail;
-        
+
         // Translate common backend errors to Vietnamese
         if (detail == 'No text could be extracted from image') {
           detail = 'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.';

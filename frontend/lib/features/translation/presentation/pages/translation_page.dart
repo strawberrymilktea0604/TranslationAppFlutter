@@ -208,8 +208,8 @@ class _TranslationViewState extends State<_TranslationView>
       cubit: context.read<VocabularyCubit>(),
       word: sourceText,
       translation: translatedText,
-      sourceLanguage: _srcCode == 'auto' ? 'en' : _srcCode,
-      targetLanguage: _tgtCode,
+      sourceLanguage: translationState.translation.sourceLanguage,
+      targetLanguage: translationState.translation.targetLanguage,
     );
   }
 
@@ -273,7 +273,7 @@ class _TranslationViewState extends State<_TranslationView>
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
         final isAuth = authState is AuthAuthenticated;
-        
+
         return BlocListener<VocabularyCubit, VocabularyState>(
           listener: (context, vocabState) {
             if (vocabState is VocabularySaveSuccess) {
@@ -281,8 +281,11 @@ class _TranslationViewState extends State<_TranslationView>
                 SnackBar(
                   content: Row(
                     children: [
-                      const Icon(Icons.check_circle_rounded,
-                          color: Colors.white, size: 20),
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -312,94 +315,113 @@ class _TranslationViewState extends State<_TranslationView>
             }
           },
           child: Scaffold(
-          drawer: const Drawer(),
-        appBar: AppBar(
-          title: const Text('Dịch thuật'),
-          centerTitle: true,
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 12.0, left: 4.0),
-              child: InkWell(
-                onTap: () {
-                  context.push('/profile');
-                },
-                customBorder: const CircleBorder(),
-                child: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: isAuth ? cs.primaryContainer : cs.surfaceContainerHighest,
-                  backgroundImage: (isAuth && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
-                      ? CachedNetworkImageProvider(authState.user.avatarUrl!)
-                      : null,
-                  child: (isAuth && authState.user.avatarUrl != null && authState.user.avatarUrl!.isNotEmpty)
-                      ? null
-                      : Icon(
-                          isAuth ? Icons.person_rounded : Icons.person_outline_rounded,
-                          size: 22,
-                          color: isAuth ? cs.onPrimaryContainer : cs.onSurfaceVariant,
-                        ),
+            drawer: const Drawer(),
+            appBar: AppBar(
+              title: const Text('Dịch thuật'),
+              centerTitle: true,
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 12.0, left: 4.0),
+                  child: InkWell(
+                    onTap: () {
+                      context.push('/profile');
+                    },
+                    customBorder: const CircleBorder(),
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: isAuth
+                          ? cs.primaryContainer
+                          : cs.surfaceContainerHighest,
+                      backgroundImage:
+                          (isAuth &&
+                              authState.user.avatarUrl != null &&
+                              authState.user.avatarUrl!.isNotEmpty)
+                          ? CachedNetworkImageProvider(
+                              authState.user.avatarUrl!,
+                            )
+                          : null,
+                      child:
+                          (isAuth &&
+                              authState.user.avatarUrl != null &&
+                              authState.user.avatarUrl!.isNotEmpty)
+                          ? null
+                          : Icon(
+                              isAuth
+                                  ? Icons.person_rounded
+                                  : Icons.person_outline_rounded,
+                              size: 22,
+                              color: isAuth
+                                  ? cs.onPrimaryContainer
+                                  : cs.onSurfaceVariant,
+                            ),
+                    ),
+                  ),
                 ),
+              ],
+            ),
+            // Use LayoutBuilder to prevent bottom overflow on small screens.
+            body: SafeArea(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.05),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: _buildCurrentTab(context, cs, theme, isAuth),
               ),
             ),
-          ],
-        ),
-        // Use LayoutBuilder to prevent bottom overflow on small screens.
-        body: SafeArea(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.05),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                ),
-              );
-            },
-            child: _buildCurrentTab(context, cs, theme, isAuth),
-          ),
-        ),
-        bottomNavigationBar: isAuth
-            ? NavigationBar(
-                selectedIndex: _currentIndex,
-                onDestinationSelected: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                },
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.translate_rounded),
-                    label: 'Dịch',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.lens_blur_rounded),
-                    label: 'Lens',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.bookmark_rounded),
-                    label: 'Từ vựng',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.school_rounded),
-                    label: 'Học tập',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.forum_rounded),
-                    label: 'Hội thoại',
-                  ),
-                ],
-              )
-            : null,
-        ),  // closes Scaffold
-      );    // closes BlocListener + return semicolon
-      },    // closes BlocBuilder.builder callback
-    );      // closes BlocBuilder
+            bottomNavigationBar: isAuth
+                ? NavigationBar(
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: (index) {
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.translate_rounded),
+                        label: 'Dịch',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.lens_blur_rounded),
+                        label: 'Lens',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.bookmark_rounded),
+                        label: 'Từ vựng',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.school_rounded),
+                        label: 'Học tập',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.forum_rounded),
+                        label: 'Hội thoại',
+                      ),
+                    ],
+                  )
+                : null,
+          ), // closes Scaffold
+        ); // closes BlocListener + return semicolon
+      }, // closes BlocBuilder.builder callback
+    ); // closes BlocBuilder
   }
 
-  Widget _buildCurrentTab(BuildContext context, ColorScheme cs, ThemeData theme, bool isAuth) {
+  Widget _buildCurrentTab(
+    BuildContext context,
+    ColorScheme cs,
+    ThemeData theme,
+    bool isAuth,
+  ) {
     if (_currentIndex == 1) {
       // Lens tab — full OCR page (state managed by OcrCubit provided above)
       return const OcrPage(key: ValueKey('lens'));
@@ -413,10 +435,22 @@ class _TranslationViewState extends State<_TranslationView>
     } else if (_currentIndex == 4) {
       return const ConversationPage(key: ValueKey('conversation'));
     }
-    return _buildTranslationTab(context, cs, theme, isAuth, key: const ValueKey('translate'));
+    return _buildTranslationTab(
+      context,
+      cs,
+      theme,
+      isAuth,
+      key: const ValueKey('translate'),
+    );
   }
 
-  Widget _buildTranslationTab(BuildContext context, ColorScheme cs, ThemeData theme, bool isAuth, {Key? key}) {
+  Widget _buildTranslationTab(
+    BuildContext context,
+    ColorScheme cs,
+    ThemeData theme,
+    bool isAuth, {
+    Key? key,
+  }) {
     return LayoutBuilder(
       key: key,
       builder: (context, constraints) {
@@ -425,10 +459,11 @@ class _TranslationViewState extends State<_TranslationView>
         //   - guest banner: ~48 (only if !isAuth)
         //   - lang bar: ~48
         //   - two SizedBox(height: 10) spacers: 20
-        final fixedHeight = 24.0 +
+        final fixedHeight =
+            24.0 +
             (!isAuth ? 56.0 : 0.0) +
             48.0 + // lang bar
-            20.0;  // spacers
+            20.0; // spacers
 
         // Split the remaining space equally between source and result cards.
         // Cap each card at 300dp max so they don't stretch excessively
@@ -683,15 +718,22 @@ class _TranslationViewState extends State<_TranslationView>
             child: Row(
               children: [
                 IconButton(
-                  icon: Icon(isAuth ? Icons.mic_outlined : Icons.lock_outline_rounded, size: 22),
-                  tooltip: isAuth ? 'Dịch bằng giọng nói' : 'Đăng nhập để sử dụng giọng nói',
-                  color: isAuth ? cs.onSurfaceVariant : cs.onSurface.withValues(alpha: 0.3),
+                  icon: Icon(
+                    isAuth ? Icons.mic_outlined : Icons.lock_outline_rounded,
+                    size: 22,
+                  ),
+                  tooltip: isAuth
+                      ? 'Dịch bằng giọng nói'
+                      : 'Đăng nhập để sử dụng giọng nói',
+                  color: isAuth
+                      ? cs.onSurfaceVariant
+                      : cs.onSurface.withValues(alpha: 0.3),
                   onPressed: isAuth
                       ? () => showVoiceTranslationSheet(
-                            context,
-                            srcLang: _srcCode,
-                            tgtLang: _tgtCode,
-                          )
+                          context,
+                          srcLang: _srcCode,
+                          tgtLang: _tgtCode,
+                        )
                       : _showLoginDialog,
                 ),
                 const Spacer(),
@@ -785,15 +827,16 @@ class _TranslationViewState extends State<_TranslationView>
                         ),
                         tooltip: 'Lưu từ vựng',
                         color: cs.onSurfaceVariant,
-                        onPressed: resultText != null
-                            ? _saveVocabulary
-                            : null,
+                        onPressed: resultText != null ? _saveVocabulary : null,
                       )
                     else
                       Tooltip(
                         message: 'Đăng nhập để lưu từ vựng',
                         child: IconButton(
-                          icon: const Icon(Icons.lock_outline_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.lock_outline_rounded,
+                            size: 18,
+                          ),
                           color: cs.onSurface.withValues(alpha: 0.3),
                           onPressed: _showLoginDialog,
                         ),

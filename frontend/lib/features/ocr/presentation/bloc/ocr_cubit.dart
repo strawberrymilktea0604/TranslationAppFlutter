@@ -9,8 +9,10 @@ import 'package:frontend/core/image_picker/image_compress_service.dart';
 import 'package:frontend/core/image_picker/image_crop_service.dart';
 import 'package:frontend/features/ocr/domain/usecases/ocr_translate_usecase.dart';
 import 'package:frontend/features/ocr/domain/usecases/retranslate_ocr_text_usecase.dart';
-import 'package:frontend/features/history/domain/entities/history_entity.dart' as frontend_history;
-import 'package:frontend/features/history/domain/repositories/history_repository.dart' as frontend_history;
+import 'package:frontend/features/history/domain/entities/history_entity.dart'
+    as frontend_history;
+import 'package:frontend/features/history/domain/repositories/history_repository.dart'
+    as frontend_history;
 import 'package:frontend/injection_container.dart';
 
 part 'ocr_state.dart';
@@ -36,12 +38,12 @@ class OcrCubit extends Cubit<OcrState> {
     required ImagePickerService imagePickerService,
     required ImageCompressService imageCompressService,
     required ImageCropService imageCropService,
-  })  : _ocrTranslateUseCase = ocrTranslateUseCase,
-        _retranslateUseCase = retranslateUseCase,
-        _imagePickerService = imagePickerService,
-        _imageCompressService = imageCompressService,
-        _imageCropService = imageCropService,
-        super(OcrInitial());
+  }) : _ocrTranslateUseCase = ocrTranslateUseCase,
+       _retranslateUseCase = retranslateUseCase,
+       _imagePickerService = imagePickerService,
+       _imageCompressService = imageCompressService,
+       _imageCropService = imageCropService,
+       super(OcrInitial());
 
   // -------------------------------------------------------------------------
   // Step 1: Pick image from camera or gallery
@@ -117,65 +119,65 @@ class OcrCubit extends Cubit<OcrState> {
 
     final filename = 'lens_${DateTime.now().millisecondsSinceEpoch}.jpg';
 
-    final result = await _ocrTranslateUseCase(OcrTranslateParams(
-      imageBytes: imageBytes,
-      filename: filename,
-      sourceLanguage: srcLang,
-      targetLanguage: tgtLang,
-      onProgress: (p) {
-        if (!isClosed) {
-          if (p < 1.0) {
-            emit(OcrUploading(
-              progress: p,
-              message: 'Đang tải ảnh lên... ${(p * 100).toInt()}%',
-            ));
-          } else {
-            emit(OcrUploading(
-              progress: 1.0,
-              message: 'Đang nhận diện chữ...',
-            ));
+    final result = await _ocrTranslateUseCase(
+      OcrTranslateParams(
+        imageBytes: imageBytes,
+        filename: filename,
+        sourceLanguage: srcLang,
+        targetLanguage: tgtLang,
+        onProgress: (p) {
+          if (!isClosed) {
+            if (p < 1.0) {
+              emit(
+                OcrUploading(
+                  progress: p,
+                  message: 'Đang tải ảnh lên... ${(p * 100).toInt()}%',
+                ),
+              );
+            } else {
+              emit(
+                OcrUploading(progress: 1.0, message: 'Đang nhận diện chữ...'),
+              );
+            }
           }
-        }
-      },
-    ));
+        },
+      ),
+    );
 
     if (isClosed) return;
 
-    result.fold(
-      (failure) => emit(OcrFailure(failure.message)),
-      (entity) {
-        if (entity.extractedText.trim().isEmpty) {
-          emit(OcrFailure(
-            'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.',
-          ));
-          return;
-        }
-        emit(OcrSuccess(
+    result.fold((failure) => emit(OcrFailure(failure.message)), (entity) {
+      if (entity.extractedText.trim().isEmpty) {
+        emit(OcrFailure('Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.'));
+        return;
+      }
+      emit(
+        OcrSuccess(
           extractedText: entity.extractedText,
           translatedText: entity.translatedText,
           imageBytes: entity.imageBytes,
           sourceLang: entity.sourceLanguage,
           targetLang: entity.targetLanguage,
           confidence: entity.confidence,
-        ));
+        ),
+      );
 
-        // Lưu lịch sử
-        try {
-          final historyEntity = frontend_history.HistoryEntity(
-            isarId: 0,
-            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-            sourceText: entity.extractedText,
-            translatedText: entity.translatedText,
-            sourceLanguage: entity.sourceLanguage,
-            targetLanguage: entity.targetLanguage,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            isSynced: false,
-          );
-          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
-        } catch (_) {}
-      },
-    );
+      // Lưu lịch sử
+      try {
+        final historyEntity = frontend_history.HistoryEntity(
+          isarId: 0,
+          id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+          sourceText: entity.extractedText,
+          translatedText: entity.translatedText,
+          sourceLanguage: entity.sourceLanguage,
+          targetLanguage: entity.targetLanguage,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          isSynced: false,
+        );
+        sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+      } catch (_) {}
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -191,49 +193,52 @@ class OcrCubit extends Cubit<OcrState> {
   }) async {
     if (editedText.trim().isEmpty) return;
 
-    emit(OcrRetranslating(
-      editedText: editedText,
-      imageBytes: imageBytes,
-      sourceLang: srcLang,
-      targetLang: tgtLang,
-    ));
+    emit(
+      OcrRetranslating(
+        editedText: editedText,
+        imageBytes: imageBytes,
+        sourceLang: srcLang,
+        targetLang: tgtLang,
+      ),
+    );
 
-    final result = await _retranslateUseCase(RetranslateParams(
-      text: editedText.trim(),
-      sourceLanguage: srcLang,
-      targetLanguage: tgtLang,
-    ));
+    final result = await _retranslateUseCase(
+      RetranslateParams(
+        text: editedText.trim(),
+        sourceLanguage: srcLang,
+        targetLanguage: tgtLang,
+      ),
+    );
 
     if (isClosed) return;
 
-    result.fold(
-      (failure) => emit(OcrFailure(failure.message)),
-      (translatedText) {
-        emit(OcrSuccess(
+    result.fold((failure) => emit(OcrFailure(failure.message)), (translation) {
+      emit(
+        OcrSuccess(
           extractedText: editedText,
-          translatedText: translatedText,
+          translatedText: translation.translatedText,
           imageBytes: imageBytes,
-          sourceLang: srcLang,
-          targetLang: tgtLang,
-        ));
+          sourceLang: translation.sourceLanguage,
+          targetLang: translation.targetLanguage,
+        ),
+      );
 
-        // Lưu lịch sử
-        try {
-          final historyEntity = frontend_history.HistoryEntity(
-            isarId: 0,
-            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-            sourceText: editedText,
-            translatedText: translatedText,
-            sourceLanguage: srcLang,
-            targetLanguage: tgtLang,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            isSynced: false,
-          );
-          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
-        } catch (_) {}
-      },
-    );
+      // Lưu lịch sử
+      try {
+        final historyEntity = frontend_history.HistoryEntity(
+          isarId: 0,
+          id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+          sourceText: editedText,
+          translatedText: translation.translatedText,
+          sourceLanguage: translation.sourceLanguage,
+          targetLanguage: translation.targetLanguage,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          isSynced: false,
+        );
+        sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+      } catch (_) {}
+    });
   }
 
   /// Resets back to initial state.

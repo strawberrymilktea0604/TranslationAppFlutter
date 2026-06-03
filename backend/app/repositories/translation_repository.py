@@ -151,6 +151,31 @@ class TranslationRepository:
             )
         )
         return result.scalars().first()
+
+    @staticmethod
+    async def check_existing_translation_any_source(
+        db: AsyncSession,
+        user_id: int,
+        source_text: str,
+        target_language: str,
+    ) -> Optional[Translation]:
+        """
+        Check if a translation exists for auto-detected source language.
+
+        Used when the client sends source_language="auto"; "auto" is a UI mode,
+        not a stable language key for persisted records.
+        """
+        result = await db.execute(
+            select(Translation)
+            .filter(
+                Translation.user_id == user_id,
+                Translation.source_text == source_text,
+                Translation.target_language == target_language,
+                Translation.is_deleted.is_(False),
+            )
+            .order_by(desc(Translation.created_at))
+        )
+        return result.scalars().first()
     
     @staticmethod
     async def delete_translation(

@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 
 import 'package:frontend/core/error/failures.dart';
 import 'package:frontend/features/speech/domain/entities/speech_entity.dart';
+import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 
 /// Abstract repository for Speech-to-Text operations (UC05).
 ///
@@ -23,7 +24,7 @@ abstract class SpeechRepository {
   /// Re-translates previously recognised text after user edits.
   ///
   /// Used when the user corrects misrecognised words before saving.
-  Future<Either<Failure, String>> retranslateText({
+  Future<Either<Failure, TranslationEntity>> retranslateText({
     required String text,
     required String sourceLanguage,
     required String targetLanguage,

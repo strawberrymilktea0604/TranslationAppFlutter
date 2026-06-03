@@ -105,7 +105,7 @@ async def _get_rate_limit_key(
 @router.post("/translate", response_model=SuccessResponse)
 async def translate_image(
     request: Request,
-    source_language: str = Form(default="en", description="Source language code"),
+    source_language: str = Form(default="auto", description="Source language code"),
     target_language: str = Form(..., description="Target language code"),
     optimize_image: bool = Form(default=True, description="Optimize image before OCR"),
     return_regions: bool = Form(default=False, description="Include text regions"),
@@ -224,7 +224,7 @@ async def translate_image(
         try:
             ocr_result = await OCRService.extract_text(
                 image_bytes,
-                language=source_language,
+                language=None if source_language.lower() == "auto" else source_language,
                 preprocess=True,
                 engine=ocr_engine,
             )
@@ -305,8 +305,8 @@ async def translate_image(
         response_data = ImageTranslationResponse(
             source_text=extracted_text,
             translated_text=translated_text,
-            source_language=source_language,
-            target_language=target_language,
+            source_language=translation_request.source_language,
+            target_language=translation_request.target_language,
             ocr_confidence=ocr_result["confidence"],
             text_regions=text_regions,
             is_cached=is_cached,
@@ -343,7 +343,7 @@ async def translate_image(
 @router.post("/translate/batch", response_model=SuccessResponse)
 async def translate_images_batch(
     request: Request,
-    source_language: str = Form(default="en"),
+    source_language: str = Form(default="auto"),
     target_language: str = Form(...),
     ocr_engine: str = Form(default="paddleocr", description="OCR engine: 'tesseract' or 'paddleocr'"),
     files: List[UploadFile] = File(..., description="Multiple image files"),
@@ -436,7 +436,9 @@ async def translate_images_batch(
                 # OCR
                 ocr_result = await OCRService.extract_text(
                     image_bytes,
-                    language=source_language,
+                    language=None
+                    if source_language.lower() == "auto"
+                    else source_language,
                     engine=ocr_engine,
                 )
                 
@@ -466,8 +468,8 @@ async def translate_images_batch(
                 results.append(ImageTranslationResponse(
                     source_text=extracted_text,
                     translated_text=translated_text,
-                    source_language=source_language,
-                    target_language=target_language,
+                    source_language=trans_req.source_language,
+                    target_language=trans_req.target_language,
                     ocr_confidence=ocr_result["confidence"],
                     is_cached=is_cached,
                     response_time_ms=0.0,

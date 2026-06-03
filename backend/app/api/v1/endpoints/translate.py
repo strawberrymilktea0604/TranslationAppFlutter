@@ -295,9 +295,13 @@ async def translate_text(
             data=TranslateTextResponse(
                 translated_text=translated_text,
                 source_text=body.text,
-                source_language=body.source_language,
-                target_language=body.target_language,
-                detected_source_language=None,  # TODO: populate if auto-detect used
+                source_language=translation_request.source_language,
+                target_language=translation_request.target_language,
+                detected_source_language=(
+                    translation_request.source_language
+                    if body.source_language == "auto"
+                    else None
+                ),
                 is_cached=is_cached,
                 response_time_ms=round(response_time_ms, 2),
                 role=role,
@@ -363,7 +367,7 @@ class TranslateImageResponse(BaseModel):
 @router.post("/image", response_model=SuccessResponse, summary="Translate text from an uploaded image")
 async def translate_image(
     file: UploadFile = File(..., description="Image file (PNG, JPG, BMP, TIFF, GIF)"),
-    source_language: str = Form(default="en", description="Source language code (e.g. 'en', 'vi')"),
+    source_language: str = Form(default="auto", description="Source language code (e.g. 'en', 'vi', 'auto')"),
     target_language: str = Form(..., description="Target language code (e.g. 'vi', 'en')"),
     request: Request = ...,
     db: AsyncSession = Depends(get_db),
@@ -428,7 +432,7 @@ async def translate_image(
     )
 
     # ==================== VALIDATE SAME LANGUAGE ====================
-    if source_language == target_language:
+    if source_language != "auto" and source_language == target_language:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -506,7 +510,7 @@ async def translate_image(
     try:
         ocr_result = await OCRService.extract_text(
             preprocessed_bytes,
-            language=source_language,
+            language=None if source_language.lower() == "auto" else source_language,
             preprocess=False,  # Already preprocessed above
         )
     except OCRError as e:
@@ -594,8 +598,8 @@ async def translate_image(
         data=TranslateImageResponse(
             source_text=extracted_text,
             translated_text=translated_text,
-            source_language=source_language,
-            target_language=target_language,
+            source_language=translation_request.source_language,
+            target_language=translation_request.target_language,
             ocr_confidence=ocr_result["confidence"],
             is_cached=is_cached,
             response_time_ms=round(total_time, 2),

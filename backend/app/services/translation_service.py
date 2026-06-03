@@ -4,7 +4,7 @@ Implements: Check Redis cache → Call API → Store in Redis + DB
 """
 import logging
 import time
-from typing import Optional, Tuple, cast
+from typing import Any, Optional, Tuple, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -65,14 +65,20 @@ class TranslationService:
         start_time = time.time()
         is_cached = False
         translated_text = ""
+        requested_source_language = request.source_language
+        source_is_auto = TranslationService._is_auto_language(
+            requested_source_language
+        )
         
         # ==================== STEP 1: Check Redis Cache ====================
         try:
-            cached_result = await get_cached_translation(
-                request.source_text,
-                request.source_language,
-                request.target_language
-            )
+            cached_result = None
+            if not source_is_auto:
+                cached_result = await get_cached_translation(
+                    request.source_text,
+                    request.source_language,
+                    request.target_language
+                )
             
             if cached_result:
                 is_cached = True
@@ -90,15 +96,27 @@ class TranslationService:
         # ==================== STEP 2: Check Database (Local Cache) ====================
         if not is_cached and user_id:
             try:
-                existing = await TranslationRepository.check_existing_translation(
-                    db,
-                    user_id,
-                    request.source_text,
-                    request.source_language,
-                    request.target_language
-                )
+                if source_is_auto:
+                    existing = (
+                        await TranslationRepository
+                        .check_existing_translation_any_source(
+                            db,
+                            user_id,
+                            request.source_text,
+                            request.target_language,
+                        )
+                    )
+                else:
+                    existing = await TranslationRepository.check_existing_translation(
+                        db,
+                        user_id,
+                        request.source_text,
+                        request.source_language,
+                        request.target_language
+                    )
                 if existing:
                     translated_text = cast(str, existing.translated_text)
+                    request.source_language = cast(str, existing.source_language)
                     is_cached = True
                     response_time_ms = (time.time() - start_time) * 1000
                     
@@ -125,9 +143,14 @@ class TranslationService:
         )
         
         try:
-            translated_text = await TranslationService._call_translation_api(
+            api_result = await TranslationService._call_translation_api(
                 request,
                 user_id=user_id,
+            )
+            translated_text = str(api_result["translated_text"])
+            request.source_language = TranslationService._resolve_source_language(
+                requested_source_language=requested_source_language,
+                detected_source_language=api_result.get("detected_source_language"),
             )
             
             # ==================== STEP 4: Cache the Result ====================
@@ -141,6 +164,21 @@ class TranslationService:
             )
             logger.info("💾 Result cached in Redis")
             
+            if save_to_db and user_id:
+                existing = await TranslationRepository.check_existing_translation(
+                    db,
+                    user_id,
+                    request.source_text,
+                    request.source_language,
+                    request.target_language,
+                )
+                if existing is not None:
+                    save_to_db = False
+                    logger.info(
+                        "Translation already exists after resolving source; "
+                        "skipping duplicate database insert"
+                    )
+
             # 4b. Optionally save to database (for history & analytics)
             if save_to_db and user_id:
                 translation_db = TranslationCreateDB(
@@ -172,12 +210,31 @@ class TranslationService:
                 f"❌ Translation failed after {response_time_ms:.2f}ms: {e}"
             )
             raise
-    
+
+    @staticmethod
+    def _is_auto_language(language: str) -> bool:
+        return language.strip().lower() == "auto"
+
+    @staticmethod
+    def _resolve_source_language(
+        requested_source_language: str,
+        detected_source_language: Any,
+    ) -> str:
+        if not TranslationService._is_auto_language(requested_source_language):
+            return requested_source_language
+
+        if isinstance(detected_source_language, str):
+            detected = detected_source_language.strip().lower()
+            if detected and detected != "auto":
+                return detected
+
+        return requested_source_language
+
     @staticmethod
     async def _call_translation_api(
         request: TranslationRequest,
         user_id: Optional[int] = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         """
         Call Google Cloud Translation API v2.
         
@@ -202,7 +259,7 @@ class TranslationService:
                 user_id=user_id,
                 translation_type=request.translation_type,
             )
-            return result["translated_text"]
+            return result
             
         except GoogleTranslateError as primary_error:
             logger.error(
@@ -273,7 +330,7 @@ class TranslationService:
         request: TranslationRequest,
         primary_error: GoogleTranslateError,
         user_id: Optional[int] = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         """Call googletrans as fallback provider and map failures consistently."""
         try:
             fallback_result = await GoogleTransFallbackService.translate_text(
@@ -283,7 +340,7 @@ class TranslationService:
                 user_id=user_id,
                 translation_type=request.translation_type,
             )
-            return fallback_result["translated_text"]
+            return fallback_result
         except GoogleTransFallbackError as fallback_error:
             logger.error(
                 "Fallback translation failed after Google Cloud failure: "
