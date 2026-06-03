@@ -22,6 +22,8 @@ import 'package:frontend/core/audio_recorder/audio_recorder_service.dart';
 import 'package:frontend/features/conversation/domain/entities/conversation_entity.dart'
     as dom;
 import 'package:frontend/features/conversation/domain/repositories/conversation_repository.dart';
+import 'package:frontend/features/history/domain/entities/history_entity.dart';
+import 'package:frontend/features/history/domain/repositories/history_repository.dart';
 import 'package:frontend/features/translation/domain/entities/translation_entity.dart';
 import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
 import 'e2e_seed_data.dart';
@@ -674,6 +676,106 @@ class FakeSyncRepository {
   }
 
   Future<bool> isSyncNeeded() async => false;
+}
+
+class FakeHistoryRepositoryImpl implements HistoryRepository {
+  final List<HistoryEntity> _items = [];
+  int _idCounter = 1;
+
+  @override
+  Future<Either<Failure, List<HistoryEntity>>> getHistory({
+    String? searchQuery,
+    String? langFilter,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    var list = _items.where((item) => !item.isDeleted).toList();
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase();
+      list = list
+          .where(
+            (item) =>
+                item.sourceText.toLowerCase().contains(query) ||
+                item.translatedText.toLowerCase().contains(query),
+          )
+          .toList();
+    }
+    if (langFilter != null && langFilter.isNotEmpty) {
+      list = list
+          .where(
+            (item) =>
+                item.sourceLanguage == langFilter ||
+                item.targetLanguage == langFilter,
+          )
+          .toList();
+    }
+    return Right(list.skip(offset).take(limit).toList());
+  }
+
+  @override
+  Future<Either<Failure, void>> saveHistory(HistoryEntity entity) async {
+    _items.add(
+      HistoryEntity(
+        isarId: _idCounter++,
+        id: entity.id,
+        sourceText: entity.sourceText,
+        translatedText: entity.translatedText,
+        sourceLanguage: entity.sourceLanguage,
+        targetLanguage: entity.targetLanguage,
+        createdAt: entity.createdAt,
+        updatedAt: entity.updatedAt,
+        isSynced: entity.isSynced,
+        isDeleted: entity.isDeleted,
+      ),
+    );
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteHistory(int isarId) async {
+    final index = _items.indexWhere((item) => item.isarId == isarId);
+    if (index != -1) {
+      final old = _items[index];
+      _items[index] = HistoryEntity(
+        isarId: old.isarId,
+        id: old.id,
+        sourceText: old.sourceText,
+        translatedText: old.translatedText,
+        sourceLanguage: old.sourceLanguage,
+        targetLanguage: old.targetLanguage,
+        createdAt: old.createdAt,
+        updatedAt: DateTime.now(),
+        isSynced: old.isSynced,
+        isDeleted: true,
+      );
+    }
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, void>> clearHistory() async {
+    for (var i = 0; i < _items.length; i++) {
+      final old = _items[i];
+      _items[i] = HistoryEntity(
+        isarId: old.isarId,
+        id: old.id,
+        sourceText: old.sourceText,
+        translatedText: old.translatedText,
+        sourceLanguage: old.sourceLanguage,
+        targetLanguage: old.targetLanguage,
+        createdAt: old.createdAt,
+        updatedAt: DateTime.now(),
+        isSynced: old.isSynced,
+        isDeleted: true,
+      );
+    }
+    return const Right(null);
+  }
+
+  @override
+  Future<Either<Failure, int>> count() async {
+    return Right(_items.where((item) => !item.isDeleted).length);
+  }
 }
 
 class FakeVocabularyRepositoryImpl implements VocabularyRepository {

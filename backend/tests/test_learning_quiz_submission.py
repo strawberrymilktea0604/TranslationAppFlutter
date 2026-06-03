@@ -294,26 +294,56 @@ def test_submit_response_includes_new_fields(client, monkeypatch):
 # New tests: 400 validation errors
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_missing_answers_returns_400(client, monkeypatch):
-    """Repository raises bad_request → endpoint returns 400."""
+def test_empty_answers_are_accepted_for_submit_and_exit(client, monkeypatch):
+    """Submitting with no answers still persists a 0-score attempt."""
     async def fake_grade_and_save(
         db, user_id, bank_id, answers,
         completion_time_seconds=None, time_spent_seconds=None,
     ):
-        raise ValueError("bad_request:Missing answers for question IDs: [102]")
+        assert answers == []
+        quiz = SimpleNamespace(
+            id=55,
+            bank_id=bank_id,
+            score=0.0,
+            completion_time_seconds=30,
+            time_spent_seconds=30,
+            total_questions=2,
+            correct_answers=0,
+            submitted_at=datetime(2026, 5, 18, 6, 0, tzinfo=timezone.utc),
+            status="completed",
+            created_at=datetime(2026, 5, 15, 12, 0, tzinfo=timezone.utc),
+        )
+        results = [
+            QuizAnswerResult(
+                question_id=101,
+                selected_answer="",
+                correct_answer="A",
+                is_correct=False,
+            ),
+            QuizAnswerResult(
+                question_id=102,
+                selected_answer="",
+                correct_answer="C",
+                is_correct=False,
+            ),
+        ]
+        return quiz, results
 
     monkeypatch.setattr(QuizRepository, "grade_and_save", fake_grade_and_save)
 
     response = client.post(
         "/api/v1/learning/banks/10/submit",
         json={
-            "answers": [{"question_id": 101, "selected_answer": "A"}],
+            "answers": [],
             "completion_time_seconds": 30,
         },
     )
 
-    assert response.status_code == 400
-    assert "Missing answers" in response.json()["detail"]
+    assert response.status_code == 201
+    data = response.json()
+    assert data["score"] == 0.0
+    assert data["correct_answers"] == 0
+    assert [result["selected_answer"] for result in data["results"]] == ["", ""]
 
 
 def test_duplicate_answers_returns_400(client, monkeypatch):

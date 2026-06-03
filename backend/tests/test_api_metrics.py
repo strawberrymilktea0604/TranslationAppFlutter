@@ -151,7 +151,7 @@ def test_primary_failure_then_fallback_records_two_metrics(monkeypatch):
     ) as record_mock:
         result = _run(TranslationService._call_translation_api(_request("image"), user_id=8))
 
-    assert result == "Xin chao fallback"
+    assert result["translated_text"] == "Xin chao fallback"
     assert record_mock.await_count == 2
     metrics = [call.kwargs for call in record_mock.await_args_list]
     assert [metric["ai_model"] for metric in metrics] == [

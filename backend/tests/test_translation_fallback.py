@@ -44,7 +44,7 @@ def test_translation_uses_google_cloud_when_available(monkeypatch):
     ) as fallback_mock:
         result = _run(TranslationService._call_translation_api(_build_request()))
 
-    assert result == "Xin chao"
+    assert result["translated_text"] == "Xin chao"
     primary_mock.assert_awaited_once()
     fallback_mock.assert_not_awaited()
 
@@ -70,7 +70,7 @@ def test_translation_falls_back_when_google_cloud_unavailable(monkeypatch):
     ) as fallback_mock:
         result = _run(TranslationService._call_translation_api(_build_request()))
 
-    assert result == "Xin chao fallback"
+    assert result["translated_text"] == "Xin chao fallback"
     primary_mock.assert_awaited_once()
     fallback_mock.assert_awaited_once()
 
@@ -96,7 +96,7 @@ def test_translation_falls_back_when_google_api_key_missing(monkeypatch):
     ) as fallback_mock:
         result = _run(TranslationService._call_translation_api(_build_request()))
 
-    assert result == "Xin chao fallback"
+    assert result["translated_text"] == "Xin chao fallback"
     primary_mock.assert_awaited_once()
     fallback_mock.assert_awaited_once()
 
@@ -122,7 +122,7 @@ def test_translation_falls_back_when_google_api_key_invalid(monkeypatch):
     ) as fallback_mock:
         result = _run(TranslationService._call_translation_api(_build_request()))
 
-    assert result == "Xin chao fallback"
+    assert result["translated_text"] == "Xin chao fallback"
     primary_mock.assert_awaited_once()
     fallback_mock.assert_awaited_once()
 

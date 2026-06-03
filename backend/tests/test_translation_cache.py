@@ -184,7 +184,7 @@ class TestTranslationService:
         with patch.object(
             TranslationService,
             "_call_translation_api",
-            return_value="Văn bản mới để dịch"
+            return_value={"translated_text": "Văn bản mới để dịch"}
         ):
             translated, is_cached, response_time = await TranslationService.translate_with_cache(
                 request, db, save_to_db=False
@@ -205,7 +205,7 @@ class TestTranslationService:
         with patch.object(
             TranslationService,
             "_call_translation_api",
-            return_value="Lưu cái này vào cache"
+            return_value={"translated_text": "Lưu cái này vào cache"}
         ):
             # First call - cache miss, API called
             translated1, is_cached1, _ = await TranslationService.translate_with_cache(
@@ -233,7 +233,7 @@ class TestTranslationService:
         with patch.object(
             TranslationService,
             "_call_translation_api",
-            return_value="Lưu vào cơ sở dữ liệu"
+            return_value={"translated_text": "Lưu vào cơ sở dữ liệu"}
         ):
             translated, is_cached, _ = await TranslationService.translate_with_cache(
                 request, db, user_id=1, save_to_db=True
@@ -246,6 +246,46 @@ class TestTranslationService:
         
         assert existing is not None
         assert getattr(existing, "translated_text") == "Lưu vào cơ sở dữ liệu"
+
+
+    @pytest.mark.asyncio
+    async def test_auto_source_language_is_resolved_before_database_save(
+        self,
+        db: AsyncSession,
+    ):
+        request = TranslationRequest(
+            source_text="Hello",
+            source_language="auto",
+            target_language="vi",
+        )
+
+        with patch.object(
+            TranslationService,
+            "_call_translation_api",
+            return_value={
+                "translated_text": "Xin chao",
+                "detected_source_language": "en",
+            },
+        ):
+            translated, is_cached, _ = await TranslationService.translate_with_cache(
+                request,
+                db,
+                user_id=1,
+                save_to_db=True,
+            )
+
+        auto_existing = await TranslationRepository.check_existing_translation(
+            db, 1, "Hello", "auto", "vi"
+        )
+        detected_existing = await TranslationRepository.check_existing_translation(
+            db, 1, "Hello", "en", "vi"
+        )
+
+        assert translated == "Xin chao"
+        assert is_cached is False
+        assert request.source_language == "en"
+        assert auto_existing is None
+        assert detected_existing is not None
 
 
 class TestTranslationRepository:

@@ -380,6 +380,18 @@ class SyncService:
             payload=payload,
             allow_content_match=allow_content_match,
         )
+        if SyncService._is_auto_language(payload.source_language):
+            if (
+                translation is not None
+                and translation.source_language
+                and not SyncService._is_auto_language(translation.source_language)
+            ):
+                payload.source_language = translation.source_language
+            else:
+                raise SyncItemError(
+                    "invalid_language",
+                    "Flashcard source_language must be resolved before sync",
+                )
 
         # ------------------------------------------------------------------
         # 2. New record — no conflict possible
@@ -568,6 +580,15 @@ class SyncService:
         if not allow_content_match:
             return None, None
 
+        filters = [
+            Translation.user_id == user_id,
+            Translation.source_text == payload.word,
+            Translation.translated_text == payload.translation,
+            Translation.target_language == payload.target_language,
+        ]
+        if not SyncService._is_auto_language(payload.source_language):
+            filters.append(Translation.source_language == payload.source_language)
+
         result = await db.execute(
             select(Translation, Vocabulary)
             .outerjoin(
@@ -577,19 +598,17 @@ class SyncService:
                     Vocabulary.user_id == user_id,
                 ),
             )
-            .where(
-                Translation.user_id == user_id,
-                Translation.source_text == payload.word,
-                Translation.translated_text == payload.translation,
-                Translation.source_language == payload.source_language,
-                Translation.target_language == payload.target_language,
-            )
+            .where(*filters)
         )
         row = result.first()
         if row is None:
             return None, None
         translation, vocabulary = row
         return vocabulary, translation
+
+    @staticmethod
+    def _is_auto_language(language: Optional[str]) -> bool:
+        return str(language or "").strip().lower() == "auto"
 
     @staticmethod
     async def _flashcard_row_by(

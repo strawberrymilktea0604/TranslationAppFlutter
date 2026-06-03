@@ -127,6 +127,9 @@ class FakeResult:
     def scalars(self):
         return FakeScalars(self._items)
 
+    def all(self):
+        return self._items
+
     def scalar_one_or_none(self):
         return self._one_or_none
 
@@ -173,13 +176,14 @@ def test_list_banks(client, monkeypatch):
             duration_minutes=5,
             is_deleted=False,
             created_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
+            updated_at=datetime(2026, 5, 1, tzinfo=timezone.utc),
         )
     ]
 
     from app.core.database import get_db as _get_db_original
 
     app.dependency_overrides[_get_db_original] = _override_db(
-        [FakeResult(items=banks)]
+        [FakeResult(items=[(banks[0], 2)])]
     )
 
     response = client.get("/api/v1/learning/banks")
@@ -434,6 +438,35 @@ def test_timeout_submit_saves_status(client, monkeypatch):
     data = response.json()
     assert data["status"] == "timeout"
     assert captured["time_spent_seconds"] == 700
+
+
+@pytest.mark.asyncio
+async def test_grade_and_save_counts_skipped_questions_as_incorrect():
+    bank = SimpleNamespace(
+        id=1,
+        duration_minutes=5,
+        is_deleted=False,
+        questions=[
+            SimpleNamespace(id=101, correct_answer="A", is_deleted=False),
+            SimpleNamespace(id=102, correct_answer="C", is_deleted=False),
+        ],
+    )
+    db = FakeDB([FakeResult(one_or_none=bank)])
+
+    quiz, results = await QuizRepository.grade_and_save(
+        db=db,
+        user_id=123,
+        bank_id=1,
+        answers=[],
+        time_spent_seconds=10,
+    )
+
+    assert quiz.total_questions == 2
+    assert quiz.correct_answers == 0
+    assert quiz.score == 0.0
+    assert [result.question_id for result in results] == [101, 102]
+    assert [result.selected_answer for result in results] == ["", ""]
+    assert all(result.is_correct is False for result in results)
 
 
 def test_timeout_logic_in_repository():

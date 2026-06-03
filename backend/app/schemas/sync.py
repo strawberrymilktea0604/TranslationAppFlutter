@@ -99,7 +99,7 @@ class QuizAttemptAnswer(BaseModel):
 
 class QuizAttemptPushPayload(BaseModel):
     bank_id: int
-    answers: list[QuizAttemptAnswer] = Field(..., min_length=1)
+    answers: list[QuizAttemptAnswer] = Field(default_factory=list)
     time_spent_seconds: int = Field(..., ge=0)
     created_at: Optional[datetime] = None
 

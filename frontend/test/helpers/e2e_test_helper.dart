@@ -62,6 +62,7 @@ import 'package:frontend/features/conversation/domain/usecases/send_audio_chunk_
 import 'package:frontend/features/conversation/domain/usecases/switch_speaker_usecase.dart';
 import 'package:frontend/features/conversation/domain/usecases/end_session_usecase.dart';
 import 'package:frontend/features/conversation/presentation/bloc/conversation_viewmodel.dart';
+import 'package:frontend/features/history/domain/repositories/history_repository.dart';
 
 import 'package:frontend/features/translation/domain/repositories/translation_repository.dart';
 import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
@@ -218,6 +219,9 @@ class E2ETestHelper {
         }
       },
     );
+    _getIt.registerLazySingleton<HistoryRepository>(
+      () => FakeHistoryRepositoryImpl(),
+    );
     _getIt.registerLazySingleton(() => ConnectConversationUseCase(_getIt()));
     _getIt.registerLazySingleton(() => StartSessionUseCase(_getIt()));
     _getIt.registerLazySingleton(() => SendAudioChunkUseCase(_getIt()));
@@ -233,6 +237,7 @@ class E2ETestHelper {
         repository: _getIt(),
         authLocalDataSource: _getIt(),
         audioRecorderService: _getIt(),
+        historyRepository: _getIt(),
       ),
     );
 

@@ -474,15 +474,10 @@ async def websocket_conversation(
             # --- session_start ---
             if event_name == "session_start":
                 if active_session_id is not None:
-                    session = conversation_manager.get_session(active_session_id)
-                    await _send_json_locked(
-                        {
-                            "event": "session_started",
-                            "session_id": active_session_id,
-                            "status": (
-                                session.status.value if session is not None else "idle"
-                            ),
-                        }
+                    await _send_error_locked(
+                        "SESSION_ALREADY_ACTIVE",
+                        "A session is already active. Send session_end before "
+                        "starting a new one.",
                     )
                     continue
 

@@ -91,6 +91,9 @@ class FakeResult:
     def all(self):
         return self.items
 
+    def first(self):
+        return self.items[0] if self.items else None
+
 
 def _flashcard(card_id=10, updated_at=NOW, is_deleted=False):
     return Vocabulary(
@@ -246,6 +249,72 @@ async def test_flashcard_last_write_wins_updates_denormalized_translation(monkey
     assert vocabulary.mastery_level == 4
     assert vocabulary.is_deleted is True
     assert translation.is_deleted is True
+
+
+@pytest.mark.asyncio
+async def test_flashcard_sync_resolves_auto_source_from_existing_translation(monkeypatch):
+    db = FakeDB()
+    vocabulary = _flashcard()
+    translation = _translation()
+
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def existing_flashcard(**kwargs):
+        return vocabulary, translation
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", existing_flashcard)
+
+    result = await SyncService._sync_flashcard(
+        db=db,
+        user_id=123,
+        client_id="flash-local",
+        server_id=None,
+        client_updated_at=NOW + timedelta(seconds=1),
+        payload=FlashcardPushPayload(
+            word="hello",
+            translation="xin chao",
+            source_language="auto",
+            target_language="vi",
+        ),
+        allow_content_match=True,
+    )
+
+    assert result.status == "conflict_client_wins"
+    assert vocabulary.source_language == "en"
+    assert translation.source_language == "en"
+    assert result.canonical["source_language"] == "en"
+
+
+@pytest.mark.asyncio
+async def test_flashcard_sync_rejects_unresolved_auto_source(monkeypatch):
+    async def valid_category(db, user_id, category_id):
+        return None
+
+    async def no_existing(**kwargs):
+        return None, None
+
+    monkeypatch.setattr(SyncService, "_validate_category", valid_category)
+    monkeypatch.setattr(SyncService, "_find_flashcard", no_existing)
+
+    with pytest.raises(SyncItemError) as exc_info:
+        await SyncService._sync_flashcard(
+            db=FakeDB(),
+            user_id=123,
+            client_id="flash-auto",
+            server_id=None,
+            client_updated_at=NOW,
+            payload=FlashcardPushPayload(
+                word="hello",
+                translation="xin chao",
+                source_language="auto",
+                target_language="vi",
+            ),
+            allow_content_match=True,
+        )
+
+    assert exc_info.value.code == "invalid_language"
 
 
 @pytest.mark.asyncio
@@ -609,6 +678,37 @@ async def test_new_quiz_attempt_delegates_server_side_grading(monkeypatch):
     assert captured["commit"] is False
     assert captured["sync_client_id"] == "quiz-local"
     assert captured["answers"][0].selected_answer == "A"
+
+
+@pytest.mark.asyncio
+async def test_new_quiz_attempt_allows_empty_answers_for_submit_and_exit(monkeypatch):
+    captured = {}
+
+    async def find_none(db, user_id, client_id, server_id):
+        return None
+
+    async def grade_and_save(**kwargs):
+        captured.update(kwargs)
+        return _quiz(quiz_id=21), []
+
+    monkeypatch.setattr(SyncService, "_find_quiz_attempt", find_none)
+    monkeypatch.setattr("app.services.sync_service.QuizRepository.grade_and_save", grade_and_save)
+
+    result = await SyncService._sync_quiz_attempt(
+        db=FakeDB(),
+        user_id=123,
+        client_id="quiz-empty",
+        server_id=None,
+        payload=QuizAttemptPushPayload(
+            bank_id=7,
+            answers=[],
+            time_spent_seconds=12,
+        ),
+    )
+
+    assert result.status == "created"
+    assert captured["answers"] == []
+    assert captured["time_spent_seconds"] == 12
 
 
 @pytest.mark.asyncio

@@ -116,32 +116,30 @@ class QuizRepository:
                 f"bad_request:Unknown question IDs for this bank: {sorted(unknown)}"
             )
 
-        # c) Missing answers for active questions
-        missing = active_ids - submitted_id_set
-        if missing:
-            raise ValueError(
-                f"bad_request:Missing answers for question IDs: {sorted(missing)}"
-            )
+        # Missing answers are allowed: exiting and submitting a quiz should
+        # still persist an attempt. Skipped questions are graded as incorrect.
 
-        # 3. Build a lookup map {question_id -> correct_answer}
+        # 3. Build lookup maps
         correct_map = {q.id: q.correct_answer for q in active_questions}
+        submitted_map = {a.question_id: a.selected_answer for a in answers}
 
         # 4. Grade each submitted answer
         results: List[QuizAnswerResult] = []
         correct_count = 0
 
-        for answer in answers:
-            correct_answer = correct_map.get(answer.question_id, "")
+        for question in active_questions:
+            selected_answer = submitted_map.get(question.id, "")
+            correct_answer = correct_map.get(question.id, "")
             is_correct = (
-                answer.selected_answer.strip() == correct_answer.strip()
+                selected_answer.strip() == correct_answer.strip()
             )
             if is_correct:
                 correct_count += 1
 
             results.append(
                 QuizAnswerResult(
-                    question_id=answer.question_id,
-                    selected_answer=answer.selected_answer,
+                    question_id=question.id,
+                    selected_answer=selected_answer,
                     correct_answer=correct_answer,
                     is_correct=is_correct,
                 )
