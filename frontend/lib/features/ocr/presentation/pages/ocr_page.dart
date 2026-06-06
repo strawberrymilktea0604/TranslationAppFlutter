@@ -138,6 +138,16 @@ class _OcrPageState extends State<OcrPage> {
         if (state is OcrRetranslating) {
           _editController.text = state.editedText;
         }
+        if (state is OcrFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       },
       builder: (context, state) {
         return Column(

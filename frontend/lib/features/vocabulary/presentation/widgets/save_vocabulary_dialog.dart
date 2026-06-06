@@ -135,6 +135,16 @@ class _SaveVocabularyDialogContentState
             setState(() => _selectedCategoryId = match.first.id);
           }
         }
+        if (state is VocabularyCategoryError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       },
       child: AlertDialog(
         title: const Text('Lưu từ vựng'),

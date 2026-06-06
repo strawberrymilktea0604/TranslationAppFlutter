@@ -14,6 +14,8 @@ import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
 import 'package:frontend/features/ocr/presentation/pages/ocr_page.dart';
 import 'package:frontend/features/speech/presentation/bloc/speech_cubit.dart';
 import 'package:frontend/features/speech/presentation/pages/speech_page.dart';
+import 'package:frontend/features/sync/presentation/bloc/sync_cubit.dart';
+import 'package:frontend/features/sync/presentation/bloc/sync_state.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_cubit.dart';
 import 'package:frontend/features/translation/presentation/widgets/shimmer_loading_widget.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
@@ -314,7 +316,34 @@ class _TranslationViewState extends State<_TranslationView>
               );
             }
           },
-          child: Scaffold(
+          child: BlocListener<TranslationCubit, TranslationState>(
+            listener: (context, translationState) {
+              if (translationState is TranslationFailure) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(translationState.message),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+            child: BlocListener<SyncCubit, SyncState>(
+              listenWhen: (previous, current) => current is SyncFailure,
+              listener: (context, syncState) {
+                if (syncState is SyncFailure) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(syncState.message),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: Theme.of(context).colorScheme.error,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+              child: Scaffold(
             drawer: _AppDrawer(onActionSelected: _handleDrawerAction),
             appBar: AppBar(
               title: const Text('Dịch thuật'),
@@ -410,7 +439,9 @@ class _TranslationViewState extends State<_TranslationView>
                     ],
                   )
                 : null,
-          ), // closes Scaffold
+              ), // closes Scaffold
+            ), // closes SyncCubit listener
+          ), // closes TranslationCubit listener
         ); // closes BlocListener + return semicolon
       }, // closes BlocBuilder.builder callback
     ); // closes BlocBuilder

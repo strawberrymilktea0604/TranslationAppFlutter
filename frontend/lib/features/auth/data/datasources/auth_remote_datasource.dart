@@ -76,6 +76,7 @@ abstract class AuthRemoteDataSource {
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final http.Client client;
   final String baseUrl;
+  static const _timeout = Duration(seconds: 15);
 
   const AuthRemoteDataSourceImpl({required this.client, required this.baseUrl});
 
@@ -90,7 +91,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: {'username': email, 'password': password},
-    );
+    ).timeout(_timeout);
 
     return _handleTokenResponse(response, 'Login');
   }
@@ -101,7 +102,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       Uri.parse('$baseUrl/auth/check-email'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email}),
-    );
+    ).timeout(_timeout);
 
     if (response.statusCode == 200) {
       final body = _decodeBody(response);
@@ -131,7 +132,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'last_name': lastName,
         'password': password,
       }),
-    );
+    ).timeout(_timeout);
 
     return _handleTokenResponse(response, 'Register');
   }
@@ -142,7 +143,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       Uri.parse('$baseUrl/auth/refresh'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'refresh_token': refreshToken}),
-    );
+    ).timeout(_timeout);
 
     return _handleTokenResponse(response, 'Refresh token');
   }
@@ -162,7 +163,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'access_token': accessToken,
         'refresh_token': refreshToken,
       }),
-    );
+    ).timeout(_timeout);
 
     if (response.statusCode != 200) {
       // Logout is best-effort: even if BE fails,
@@ -192,7 +193,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           'Authorization': 'Bearer $accessToken',
         },
         body: jsonEncode(body),
-      );
+      ).timeout(_timeout);
     if (response.statusCode == 200) {
       return _decodeBody(response);
     } else {
@@ -220,7 +221,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'old_password': oldPassword,
         'new_password': newPassword,
       }),
-    );
+    ).timeout(_timeout);
     if (response.statusCode != 200) {
       final body = _decodeBody(response);
       throw ServerException(
@@ -242,7 +243,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     request.headers['Authorization'] = 'Bearer $accessToken';
     request.files.add(await http.MultipartFile.fromPath('file', filePath));
     
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send().timeout(_timeout);
     final response = await http.Response.fromStream(streamedResponse);
     
     if (response.statusCode == 200) {
@@ -267,7 +268,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $accessToken',
       },
-    );
+    ).timeout(_timeout);
     if (response.statusCode == 200) {
       return _decodeBody(response);
     } else {

@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/error/app_error_message.dart';
 import '../../domain/usecases/get_categories_usecase.dart';
 import '../../domain/usecases/create_category_usecase.dart';
 import '../../domain/usecases/update_category_usecase.dart';
@@ -30,7 +31,7 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
     if (isClosed) return;
 
     result.fold(
-      (failure) => emit(VocabularyCategoryError(failure.message)),
+      (failure) => emit(VocabularyCategoryError(AppErrorMessage.fromFailure(failure))),
       (categories) => emit(VocabularyCategoryLoaded(categories)),
     );
   }
@@ -40,7 +41,7 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
     if (isClosed) return;
 
     result.fold(
-      (failure) => emit(VocabularyCategoryError(failure.message)),
+      (failure) => emit(VocabularyCategoryError(AppErrorMessage.fromFailure(failure))),
       (_) => loadCategories(),
     );
   }
@@ -50,7 +51,7 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
     if (isClosed) return;
 
     result.fold(
-      (failure) => emit(VocabularyCategoryError(failure.message)),
+      (failure) => emit(VocabularyCategoryError(AppErrorMessage.fromFailure(failure))),
       (_) => loadCategories(),
     );
   }
@@ -60,7 +61,7 @@ class VocabularyCategoryCubit extends Cubit<VocabularyCategoryState> {
     if (isClosed) return;
 
     result.fold(
-      (failure) => emit(VocabularyCategoryError(failure.message)),
+      (failure) => emit(VocabularyCategoryError(AppErrorMessage.fromFailure(failure))),
       (_) => loadCategories(),
     );
   }

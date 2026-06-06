@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'package:frontend/core/error/app_error_message.dart';
 import 'package:frontend/core/image_picker/image_picker_service.dart';
 import 'package:frontend/core/image_picker/image_compress_service.dart';
 import 'package:frontend/core/image_picker/image_crop_service.dart';
@@ -86,7 +87,7 @@ class OcrCubit extends Cubit<OcrState> {
       );
     } catch (e) {
       if (!isClosed) {
-        emit(OcrFailure(e.toString().replaceFirst('Exception: ', '')));
+        emit(OcrFailure(AppErrorMessage.fromError(e)));
       }
     }
   }
@@ -146,7 +147,7 @@ class OcrCubit extends Cubit<OcrState> {
 
     if (isClosed) return;
 
-    result.fold((failure) => emit(OcrFailure(failure.message)), (entity) {
+    result.fold((failure) => emit(OcrFailure(AppErrorMessage.fromFailure(failure))), (entity) {
       if (entity.extractedText.trim().isEmpty) {
         emit(OcrFailure('Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.'));
         return;
@@ -212,7 +213,7 @@ class OcrCubit extends Cubit<OcrState> {
 
     if (isClosed) return;
 
-    result.fold((failure) => emit(OcrFailure(failure.message)), (translation) {
+    result.fold((failure) => emit(OcrFailure(AppErrorMessage.fromFailure(failure))), (translation) {
       emit(
         OcrSuccess(
           extractedText: editedText,

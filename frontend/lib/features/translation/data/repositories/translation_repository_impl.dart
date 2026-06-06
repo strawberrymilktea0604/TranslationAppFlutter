@@ -58,6 +58,8 @@ class TranslationRepositoryImpl implements TranslationRepository {
       return Right(model.toEntity());
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException {
+      return const Left(NetworkFailure());
     } on Exception catch (e) {
       return Left(ServerFailure(e.toString()));
     }

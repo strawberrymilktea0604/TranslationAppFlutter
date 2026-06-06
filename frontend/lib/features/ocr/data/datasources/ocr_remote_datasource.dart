@@ -1,14 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 import 'package:frontend/core/error/exceptions.dart';
-
-// ---------------------------------------------------------------------------
-// Result model
-// ---------------------------------------------------------------------------
 
 class OcrResultData {
   final String extractedText;
@@ -26,18 +23,7 @@ class OcrResultData {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Abstract interface
-// ---------------------------------------------------------------------------
-
 abstract class OcrRemoteDataSource {
-  /// Uploads [imageBytes] to `POST /api/v1/images/translate`.
-  ///
-  /// Calls [onProgress] with values from 0.0 → 1.0 while the bytes are
-  /// being streamed to the server.  Values above 1.0 indicate the server
-  /// is processing (OCR stage).
-  ///
-  /// Throws [ServerException] on non-200 responses or timeout.
   Future<OcrResultData> translateImage({
     required Uint8List imageBytes,
     required String filename,
@@ -47,10 +33,6 @@ abstract class OcrRemoteDataSource {
     required void Function(double progress) onProgress,
   });
 }
-
-// ---------------------------------------------------------------------------
-// Implementation
-// ---------------------------------------------------------------------------
 
 class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
   final http.Client client;
@@ -72,37 +54,31 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
     final uri = Uri.parse('$baseUrl/images/translate');
 
     try {
-      // Build a MultipartRequest so we can finalize and track its byte stream.
       final multipart = http.MultipartRequest('POST', uri);
 
-      if (authToken != null) {
+      if (authToken != null && authToken.isNotEmpty) {
         multipart.headers['Authorization'] = 'Bearer $authToken';
       }
 
       multipart.fields['source_language'] = sourceLanguage;
       multipart.fields['target_language'] = targetLanguage;
       multipart.fields['optimize_image'] = 'true';
-
       multipart.files.add(
         http.MultipartFile.fromBytes('file', imageBytes, filename: filename),
       );
 
-      // Finalize and get the raw byte stream + total content length.
       final byteStream = multipart.finalize();
       final totalBytes = multipart.contentLength;
 
-      // Wrap the byte stream to track upload progress.
       int sentBytes = 0;
       final trackedStream = byteStream.map((chunk) {
         sentBytes += chunk.length;
         if (totalBytes > 0) {
-          // Upload is 0.0–0.9; OCR/translate phase is indicated by 1.0+
           onProgress((sentBytes / totalBytes).clamp(0.0, 0.9));
         }
         return chunk;
       });
 
-      // Build a StreamedRequest with our tracked stream.
       final streamedRequest = http.StreamedRequest('POST', uri);
       streamedRequest.headers.addAll(multipart.headers);
       streamedRequest.contentLength = totalBytes;
@@ -110,11 +86,10 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
       trackedStream.listen(
         streamedRequest.sink.add,
         onDone: streamedRequest.sink.close,
-        onError: (Object e) => streamedRequest.sink.addError(e),
+        onError: streamedRequest.sink.addError,
         cancelOnError: true,
       );
 
-      // Signal that upload is done and server is processing.
       onProgress(1.0);
 
       final streamedResponse = await client
@@ -138,25 +113,53 @@ class OcrRemoteDataSourceImpl implements OcrRemoteDataSource {
         );
       }
 
-      // Error response
-      String detail = 'Lỗi máy chủ (${streamedResponse.statusCode})';
-      try {
-        final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
-        detail = (errJson['detail'] as String?) ?? detail;
-
-        // Translate common backend errors to Vietnamese
-        if (detail == 'No text could be extracted from image') {
-          detail = 'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.';
-        }
-      } catch (_) {}
-
-      throw ServerException(message: detail);
+      throw ServerException(
+        message: _extractErrorMessage(responseBody, streamedResponse.statusCode),
+        statusCode: streamedResponse.statusCode,
+      );
     } on ServerException {
       rethrow;
     } on TimeoutException {
-      throw ServerException(message: 'Quá thời gian chờ. Hãy thử lại.');
+      throw const ServerException(
+        message: 'Yêu cầu mất quá lâu. Vui lòng thử lại.',
+        statusCode: 408,
+      );
+    } on SocketException {
+      throw const NetworkException();
+    } on http.ClientException {
+      throw const NetworkException();
     } catch (e) {
-      throw ServerException(message: 'Không thể kết nối: ${e.toString()}');
+      throw ServerException(message: 'Không thể xử lý ảnh: ${e.toString()}');
     }
+  }
+
+  String _extractErrorMessage(String responseBody, int statusCode) {
+    try {
+      final errJson = jsonDecode(responseBody) as Map<String, dynamic>;
+      final detail = errJson['detail'];
+      if (detail == 'No text could be extracted from image') {
+        return 'Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.';
+      }
+      if (detail is String && detail.trim().isNotEmpty) {
+        return detail;
+      }
+      if (detail is Map<String, dynamic>) {
+        return detail['message'] as String? ?? _fallbackErrorMessage(statusCode);
+      }
+    } catch (_) {}
+    return _fallbackErrorMessage(statusCode);
+  }
+
+  String _fallbackErrorMessage(int statusCode) {
+    if (statusCode == 401) {
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    }
+    if (statusCode == 413) {
+      return 'Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.';
+    }
+    if (statusCode >= 500) {
+      return 'Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.';
+    }
+    return 'Không thể dịch ảnh lúc này. Vui lòng thử lại.';
   }
 }

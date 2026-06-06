@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:frontend/core/error/app_error_message.dart';
 import 'package:frontend/core/usecases/usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/get_current_user_usecase.dart';
 import 'package:frontend/features/auth/domain/usecases/login_usecase.dart';
@@ -87,7 +88,7 @@ class AuthCubit extends Cubit<AuthState> {
     );
 
     result.fold(
-      (failure) => emit(AuthFailureState(failure.message)),
+      (failure) => emit(AuthFailureState(AppErrorMessage.fromFailure(failure))),
       (user) {
         if (user.status == 'locked') {
           _logoutUseCase(const NoParams());
@@ -127,7 +128,7 @@ class AuthCubit extends Cubit<AuthState> {
     );
 
     result.fold(
-      (failure) => emit(AuthFailureState(failure.message)),
+      (failure) => emit(AuthFailureState(AppErrorMessage.fromFailure(failure))),
       (user) => emit(AuthAuthenticated(user)),
     );
   }
@@ -137,7 +138,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<String?> checkEmail(String email) async {
     final result = await _checkEmailUseCase(email);
     return result.fold(
-      (failure) => failure.message,
+      (failure) => AppErrorMessage.fromFailure(failure),
       (isAvailable) =>
           isAvailable ? null : 'Email is already registered. Please login.',
     );
@@ -167,7 +168,7 @@ class AuthCubit extends Cubit<AuthState> {
     ));
 
     result.fold(
-      (failure) => throw Exception(failure.message),
+      (failure) => throw Exception(AppErrorMessage.fromFailure(failure)),
       (user) => emit(AuthAuthenticated(user)),
     );
   }
@@ -181,7 +182,7 @@ class AuthCubit extends Cubit<AuthState> {
 
     if (result.isLeft()) {
       final failure = result.fold((l) => l, (r) => throw Exception('Unexpected Right'));
-      throw Exception(failure.message);
+      throw Exception(AppErrorMessage.fromFailure(failure));
     }
   }
 
@@ -192,7 +193,7 @@ class AuthCubit extends Cubit<AuthState> {
     ));
 
     result.fold(
-      (failure) => throw Exception(failure.message),
+      (failure) => throw Exception(AppErrorMessage.fromFailure(failure)),
       (user) => emit(AuthAuthenticated(user)),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/core/error/app_error_message.dart';
 import 'package:frontend/features/translation/domain/usecases/translate_text_usecase.dart';
 import 'package:frontend/features/translation/presentation/bloc/translation_state.dart';
 import 'package:frontend/features/history/domain/entities/history_entity.dart' as frontend_history;
@@ -35,7 +36,7 @@ class TranslationCubit extends Cubit<TranslationState> {
     final bool isOnlineAndAuthenticated = token != null && token.isNotEmpty;
 
     result.fold(
-      (failure) => emit(TranslationFailure(failure.message)),
+      (failure) => emit(TranslationFailure(AppErrorMessage.fromFailure(failure))),
       (translation) {
         // Lưu lịch sử offline sau khi dịch thành công
         try {

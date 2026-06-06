@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/error/app_error_message.dart';
 import '../../domain/usecases/save_vocabulary_usecase.dart';
 import '../../domain/usecases/get_vocabulary_list_usecase.dart';
 import '../../domain/usecases/delete_vocabulary_usecase.dart';
@@ -58,7 +59,7 @@ class VocabularyCubit extends Cubit<VocabularyState> {
     );
     if (isClosed) return;
 
-    result.fold((failure) => emit(VocabularyFailure(failure.message)), (
+    result.fold((failure) => emit(VocabularyFailure(AppErrorMessage.fromFailure(failure))), (
       entity,
     ) {
       emit(VocabularySaveSuccess(entity));
@@ -85,7 +86,7 @@ class VocabularyCubit extends Cubit<VocabularyState> {
     if (isClosed) return;
 
     result.fold(
-      (failure) => emit(VocabularyFailure(failure.message)),
+      (failure) => emit(VocabularyFailure(AppErrorMessage.fromFailure(failure))),
       (list) => emit(VocabularyLoaded(list)),
     );
   }
@@ -102,7 +103,7 @@ class VocabularyCubit extends Cubit<VocabularyState> {
     );
     if (isClosed) return;
 
-    result.fold((failure) => emit(VocabularyFailure(failure.message)), (_) {
+    result.fold((failure) => emit(VocabularyFailure(AppErrorMessage.fromFailure(failure))), (_) {
       emit(const VocabularyDeleteSuccess());
       // Trigger background sync immediately if online
       try {

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/error/app_error_message.dart';
 import '../../../../core/network/bloc/network_cubit.dart';
 import '../../../../core/network/services/realtime_sync_service.dart';
 import '../../../../core/usecases/usecase.dart';
@@ -168,7 +169,7 @@ class SyncCubit extends Cubit<SyncState> {
           name: 'SyncCubit',
           level: 900,
         );
-        if (!isClosed) emit(SyncFailure(failure.message));
+        if (!isClosed) emit(SyncFailure(AppErrorMessage.fromFailure(failure)));
       },
       (response) {
         developer.log(
@@ -210,7 +211,7 @@ class SyncCubit extends Cubit<SyncState> {
           name: 'SyncCubit',
           level: 900,
         );
-        if (!isClosed) emit(SyncFailure(failure.message));
+        if (!isClosed) emit(SyncFailure(AppErrorMessage.fromFailure(failure)));
       },
       (response) {
         developer.log(

@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 
+import 'package:frontend/core/error/app_error_message.dart';
 import 'package:frontend/features/speech/domain/usecases/speech_to_text_usecase.dart';
 import 'package:frontend/features/speech/domain/usecases/retranslate_voice_text_usecase.dart';
 import 'package:frontend/features/history/domain/entities/history_entity.dart'
@@ -58,7 +59,9 @@ class SpeechCubit extends Cubit<SpeechState> {
 
     if (isClosed) return;
 
-    result.fold((failure) => emit(SpeechFailure(failure.message)), (entity) {
+    result.fold(
+      (failure) => emit(SpeechFailure(AppErrorMessage.fromFailure(failure))),
+      (entity) {
       if (entity.sourceText.trim().isEmpty) {
         emit(
           const SpeechFailure(
@@ -92,7 +95,8 @@ class SpeechCubit extends Cubit<SpeechState> {
         );
         sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
       } catch (_) {}
-    });
+      },
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -128,17 +132,17 @@ class SpeechCubit extends Cubit<SpeechState> {
 
     if (isClosed) return;
 
-    result.fold((failure) => emit(SpeechFailure(failure.message)), (
-      translation,
-    ) {
-      emit(
-        SpeechSuccess(
-          recognisedText: editedText,
-          translatedText: translation.translatedText,
-          srcLang: translation.sourceLanguage,
-          tgtLang: translation.targetLanguage,
-        ),
-      );
+    result.fold(
+      (failure) => emit(SpeechFailure(AppErrorMessage.fromFailure(failure))),
+      (translation) {
+        emit(
+          SpeechSuccess(
+            recognisedText: editedText,
+            translatedText: translation.translatedText,
+            srcLang: translation.sourceLanguage,
+            tgtLang: translation.targetLanguage,
+          ),
+        );
 
       // Lưu lịch sử
       try {
@@ -155,7 +159,8 @@ class SpeechCubit extends Cubit<SpeechState> {
         );
         sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
       } catch (_) {}
-    });
+      },
+    );
   }
 
   // -------------------------------------------------------------------------

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -8,13 +10,6 @@ import 'package:frontend/features/translation/data/models/translation_model.dart
 /// Abstract interface for remote translation API.
 abstract class TranslationRemoteDataSource {
   /// Calls `POST /api/v1/translate/text`.
-  ///
-  /// When [authToken] is provided, attaches it as `Authorization: Bearer`
-  /// so the backend applies User-level rate limits (100 req/hour, 5000 chars).
-  /// Without a token, the backend treats the request as Guest (10 req/hour,
-  /// 500 chars).
-  ///
-  /// Throws [ServerException] on non-200 responses or timeout.
   Future<TranslationModel> translateText({
     required String text,
     required String sourceLanguage,
@@ -26,6 +21,8 @@ abstract class TranslationRemoteDataSource {
 class TranslationRemoteDataSourceImpl implements TranslationRemoteDataSource {
   final http.Client client;
   final String baseUrl;
+
+  static const _timeout = Duration(seconds: 12);
 
   const TranslationRemoteDataSourceImpl({
     required this.client,
@@ -39,8 +36,6 @@ class TranslationRemoteDataSourceImpl implements TranslationRemoteDataSource {
     required String targetLanguage,
     String? authToken,
   }) async {
-    // Build headers — attach Bearer token when available so
-    // the backend applies User-level limits instead of Guest.
     final headers = <String, String>{
       'Content-Type': 'application/json',
     };
@@ -48,63 +43,67 @@ class TranslationRemoteDataSourceImpl implements TranslationRemoteDataSource {
       headers['Authorization'] = 'Bearer $authToken';
     }
 
-    final response = await client
-        .post(
-          Uri.parse('$baseUrl/translate/text'),
-          headers: headers,
-          body: jsonEncode({
-            'text': text,
-            'source_language': sourceLanguage,
-            'target_language': targetLanguage,
-          }),
-        )
-        .timeout(
-          const Duration(seconds: 10),
-          onTimeout: () => throw const ServerException(
-            message: 'Yêu cầu hết thời gian, vui lòng thử lại.',
-          ),
-        );
+    late final http.Response response;
+    try {
+      response = await client
+          .post(
+            Uri.parse('$baseUrl/translate/text'),
+            headers: headers,
+            body: jsonEncode({
+              'text': text,
+              'source_language': sourceLanguage,
+              'target_language': targetLanguage,
+            }),
+          )
+          .timeout(_timeout);
+    } on TimeoutException {
+      throw const ServerException(
+        message: 'Yêu cầu mất quá lâu. Vui lòng thử lại.',
+        statusCode: 408,
+      );
+    } on SocketException {
+      throw const NetworkException();
+    } on http.ClientException {
+      throw const NetworkException();
+    }
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
-
-      // Backend wraps responses in SuccessResponse:
-      // { "status": "success", "data": { ... } }
       final data = (body['data'] as Map<String, dynamic>?) ?? body;
       return TranslationModel.fromJson(data);
     }
 
-    // Parse error detail from backend error response format:
-    // { "detail": { "status": "error", "code": "...", "message": "..." } }
-    // or { "detail": "simple string" }
-    Map<String, dynamic> errorBody;
-    try {
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) {
-        errorBody = decoded;
-      } else {
-        errorBody = {'detail': response.body};
-      }
-    } catch (_) {
-      errorBody = {'detail': response.body};
-    }
-
-    String errorMessage;
-    final detail = errorBody['detail'];
-    if (detail is Map<String, dynamic>) {
-      errorMessage =
-          detail['message'] as String? ??
-          'Lỗi máy chủ ${response.statusCode}';
-    } else if (detail is String) {
-      errorMessage = detail;
-    } else {
-      errorMessage = 'Lỗi máy chủ ${response.statusCode}';
-    }
-
+    final errorMessage = _extractErrorMessage(response);
     throw ServerException(
       message: errorMessage,
       statusCode: response.statusCode,
     );
   }
-}
 
+  String _extractErrorMessage(http.Response response) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final detail = decoded['detail'];
+        if (detail is Map<String, dynamic>) {
+          return detail['message'] as String? ??
+              _fallbackErrorMessage(response.statusCode);
+        }
+        if (detail is String && detail.trim().isNotEmpty) {
+          return detail;
+        }
+      }
+    } catch (_) {}
+    return _fallbackErrorMessage(response.statusCode);
+  }
+
+  String _fallbackErrorMessage(int statusCode) {
+    if (statusCode == 401) {
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    }
+    if (statusCode >= 500) {
+      return 'Dịch vụ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.';
+    }
+    return 'Không thể dịch lúc này. Vui lòng thử lại.';
+  }
+}
