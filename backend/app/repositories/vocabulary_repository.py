@@ -8,7 +8,7 @@ from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc, and_, func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.translation import Vocabulary, Translation
 
@@ -99,25 +99,96 @@ class VocabularyRepository:
     ) -> List[Vocabulary]:
         """
         Create multiple vocabulary entries at once.
-        
+
+        Optimized: Uses bulk-load approach instead of N×3 individual queries.
+        - 1 query to load & validate all translations
+        - 1 query to find all already-bookmarked entries
+        - N inserts via db.add() then a single commit
+
         Args:
             db: Database session
             user_id: User ID who is bookmarking
             translation_ids: List of translation IDs to bookmark
-        
+
         Returns:
-            List of created Vocabulary entries
+            List of created Vocabulary entries (skips invalid / already-existing)
         """
+        if not translation_ids:
+            return []
+
+        # 1. Bulk-load all requested translations in one query
+        translations_result = await db.execute(
+            select(Translation).filter(
+                and_(
+                    Translation.id.in_(translation_ids),
+                    Translation.user_id == user_id,
+                    Translation.is_deleted.is_(False)
+                )
+            )
+        )
+        translations_map: dict = {
+            t.id: t for t in translations_result.scalars().all()
+        }
+
+        # 2. Bulk-check which translations are already in vocabulary
+        existing_result = await db.execute(
+            select(Vocabulary.translation_id).filter(
+                and_(
+                    Vocabulary.user_id == user_id,
+                    Vocabulary.translation_id.in_(translation_ids),
+                    Vocabulary.is_deleted.is_(False)
+                )
+            )
+        )
+        already_bookmarked: set = {row[0] for row in existing_result.all()}
+
+        # 3. Build new Vocabulary objects in memory — no per-item DB round-trips
+        now_ms = int(time.time() * 1000)
         created_entries = []
-        
-        for translation_id in translation_ids:
-            try:
-                entry = await VocabularyRepository.create_vocabulary(db, user_id, translation_id)
-                created_entries.append(entry)
-            except ValueError as e:
-                logger.warning(f"⚠️  Skipped vocabulary creation: {e}")
+        for i, translation_id in enumerate(translation_ids):
+            translation = translations_map.get(translation_id)
+            if translation is None:
+                logger.warning(
+                    "⚠️  Skipped vocabulary creation: "
+                    "Translation %s not found or doesn't belong to user",
+                    translation_id,
+                )
                 continue
-        
+
+            if translation_id in already_bookmarked:
+                logger.warning(
+                    "⚠️  Skipped vocabulary creation: "
+                    "Translation %s is already in vocabulary",
+                    translation_id,
+                )
+                continue
+
+            # Unique Snowflake-like ID: offset by i to avoid collision within the same ms
+            unique_id = ((now_ms + i) << 22) | random.randint(0, 4194303)
+            new_vocab = Vocabulary(
+                id=unique_id,
+                user_id=user_id,
+                translation_id=translation_id,
+                # Denormalized content — no JOIN needed on future reads
+                word=translation.source_text,
+                definition=translation.translated_text,
+                source_language=translation.source_language,
+                target_language=translation.target_language,
+            )
+            db.add(new_vocab)
+            created_entries.append(new_vocab)
+
+        if created_entries:
+            await db.commit()
+            # Refresh all created entries to populate server-generated fields
+            for entry in created_entries:
+                await db.refresh(entry)
+            logger.info(
+                "✅ Bulk vocabulary created (%d entries) for user %s",
+                len(created_entries),
+                user_id,
+            )
+
         return created_entries
     
     @staticmethod
@@ -161,19 +232,22 @@ class VocabularyRepository:
     ) -> Tuple[List[Vocabulary], int]:
         """
         Get all vocabulary entries for a user with pagination.
-        
+
+        Optimized: Uses selectinload for translation and category_rel to prevent
+        N+1 lazy-load queries if callers access those relations.
+
         Args:
             db: Database session
             user_id: User ID
             skip: Number of records to skip (for pagination)
             limit: Number of records to return (max 100)
-        
+
         Returns:
             Tuple of (list of Vocabulary entries, total count)
         """
         # Ensure limit is reasonable
         limit = min(limit, 100)
-        
+
         # Get total count
         count_result = await db.execute(
             select(func.count(Vocabulary.id)).filter(
@@ -184,10 +258,14 @@ class VocabularyRepository:
             )
         )
         total = count_result.scalar() or 0
-        
-        # Get paginated results
+
+        # Get paginated results with eager-loaded relations to prevent N+1
         result = await db.execute(
             select(Vocabulary)
+            .options(
+                selectinload(Vocabulary.translation),
+                selectinload(Vocabulary.category_rel),
+            )
             .filter(
                 and_(
                     Vocabulary.user_id == user_id,
@@ -198,7 +276,7 @@ class VocabularyRepository:
             .offset(skip)
             .limit(limit)
         )
-        
+
         vocabularies = result.scalars().all()
         return vocabularies, total
     

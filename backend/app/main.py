@@ -13,6 +13,7 @@ from app.core.logging_config import configure_logging
 from app.core.redis_client import close_redis, get_redis_client, health_check
 from app.core.database_indexes import ensure_database_indexes
 from app.core.monitoring import setup_metrics
+from app.core.query_profiler import install_query_profiler
 from app.services.backup_service import BackupScheduler, DatabaseBackupService
 from app.services.stt_service import STTService
 
@@ -209,6 +210,16 @@ app.add_middleware(
     allow_credentials=settings.BACKEND_CORS_ALLOW_CREDENTIALS,
     allow_methods=settings.BACKEND_CORS_ALLOW_METHODS,
     allow_headers=settings.BACKEND_CORS_ALLOW_HEADERS,
+)
+
+# ==================== QUERY PROFILER ====================
+# Enabled via QUERY_PROFILER_ENABLED=true in .env (dev/staging only).
+# Logs a WARNING for any request that executes more than
+# QUERY_PROFILER_THRESHOLD SQL queries and adds X-Query-Count header.
+install_query_profiler(
+    app,
+    threshold=settings.QUERY_PROFILER_THRESHOLD,
+    enabled=settings.QUERY_PROFILER_ENABLED,
 )
 
 # ==================== API ROUTERS ====================

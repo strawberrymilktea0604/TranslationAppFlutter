@@ -283,9 +283,13 @@ async def admin_list_users(
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total: int = (await db.execute(count_stmt)).scalar() or 0
 
-    # Paginated rows
+    # Paginated rows — order_by ensures stable pagination across pages
     offset = (page - 1) * page_size
-    rows = (await db.execute(stmt.offset(offset).limit(page_size))).scalars().all()
+    rows = (
+        await db.execute(
+            stmt.order_by(desc(User.created_at)).offset(offset).limit(page_size)
+        )
+    ).scalars().all()
 
     return AdminUserListResponse(
         items=[AdminUserRead.model_validate(u) for u in rows],

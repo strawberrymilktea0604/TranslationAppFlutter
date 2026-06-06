@@ -117,6 +117,12 @@ class Settings(BaseSettings):
     ERROR_RATE_ALERT_THRESHOLD: float = 0.1  # 10%
     LATENCY_ALERT_THRESHOLD_MS: int = 5000  # 5 seconds
 
+    # Query Profiler (N+1 detection — dev/staging only)
+    # Set QUERY_PROFILER_ENABLED=true in .env to activate.
+    # Logs a WARNING and adds X-Query-Count header when queries/request > threshold.
+    QUERY_PROFILER_ENABLED: bool = False
+    QUERY_PROFILER_THRESHOLD: int = 10  # warn when a single request runs more than N queries
+
     # CORS configuration
     BACKEND_CORS_ORIGINS: list[str] = Field(
         default_factory=lambda: ["*"],
