@@ -74,3 +74,34 @@ docker-compose -f docker-compose.staging.yml up -d
 ```text
 GET http://127.0.0.1:8001/api/v1/health
 ```
+
+### Production and Monitoring
+
+The repository includes production and monitoring support:
+
+- `docker-compose.prod.yml` for production-style deployment.
+- `docker-compose.monitoring.yml` for Prometheus, Grafana, Alertmanager and Postgres exporter.
+- Prometheus configuration: `prometheus.yml`
+- Alert rules: `alert_rules.yml`
+- Grafana provisioning: `grafana/provisioning/`
+- Dashboard JSON: `grafana/dashboards/translation_app.json`
+- Database index tuning SQL: `backend/db_indexes.sql`
+- Load test helper: `backend/scripts/load_test.py`
+
+#### Start monitoring stack
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+```
+
+#### Start production stack
+
+```powershell
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+#### Load testing example
+
+```powershell
+python backend/scripts/load_test.py --host http://localhost:8000 --concurrency 20 --requests 100 --endpoint /health
+```

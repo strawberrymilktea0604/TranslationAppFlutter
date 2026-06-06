@@ -11,6 +11,8 @@ from app.api.v1.endpoints import management, quota
 from app.core.config import settings
 from app.core.logging_config import configure_logging
 from app.core.redis_client import close_redis, get_redis_client, health_check
+from app.core.database_indexes import ensure_database_indexes
+from app.core.monitoring import setup_metrics
 from app.services.backup_service import BackupScheduler, DatabaseBackupService
 from app.services.stt_service import STTService
 
@@ -153,6 +155,13 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("STT model preload disabled by configuration")
 
+    # ==================== ENSURE DATABASE INDEXES ====================
+    try:
+        await ensure_database_indexes()
+    except Exception as e:
+        logger.warning("Database index creation failed: %s", e)
+        logger.warning("Please verify the database is available and pg_trgm is enabled.")
+
     # ==================== INITIALIZE BACKUP SCHEDULER ====================
     try:
         backup_dir = os.getenv("BACKUP_DIR", "/backups/database")
@@ -192,6 +201,7 @@ async def lifespan(app: FastAPI):
 
 # ==================== APP CONFIGURATION ====================
 app = FastAPI(title=settings.PROJECT_NAME, version="1.0.0", lifespan=lifespan)
+setup_metrics(app)
 
 app.add_middleware(
     CORSMiddleware,
