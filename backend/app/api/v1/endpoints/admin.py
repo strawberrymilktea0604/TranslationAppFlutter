@@ -12,7 +12,7 @@ import logging
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import DBSession, get_admin_user

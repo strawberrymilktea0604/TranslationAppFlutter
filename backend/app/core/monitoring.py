@@ -2,7 +2,6 @@ import time
 import logging
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import FastAPI, Request, Response
-from starlette.responses import PlainTextResponse
 
 logger = logging.getLogger(__name__)
 
