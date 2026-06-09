@@ -61,6 +61,7 @@ class OcrCubit extends Cubit<OcrState> {
   }) async {
     try {
       final picked = await _imagePickerService.pickImage(source: source);
+      if (isClosed) return;
       if (picked == null) return; // User cancelled
 
       // --- Crop step: let user select the text region ---
@@ -73,6 +74,7 @@ class OcrCubit extends Cubit<OcrState> {
           sourcePath: picked.filePath!,
           themeData: themeData,
         );
+        if (isClosed) return;
 
         if (croppedBytes != null) {
           imageBytes = croppedBytes;
@@ -105,6 +107,7 @@ class OcrCubit extends Cubit<OcrState> {
     required String srcLang,
     required String tgtLang,
   }) async {
+    if (isClosed) return;
     emit(OcrUploading(progress: 0.0, message: 'Đang chuẩn bị ảnh...'));
 
     // Compress images > 1.5 MB to keep under the 5 MB server limit (§7.2).
@@ -116,6 +119,7 @@ class OcrCubit extends Cubit<OcrState> {
         minWidth: 1280,
         minHeight: 1280,
       );
+      if (isClosed) return;
     }
 
     final filename = 'lens_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -147,38 +151,41 @@ class OcrCubit extends Cubit<OcrState> {
 
     if (isClosed) return;
 
-    result.fold((failure) => emit(OcrFailure(AppErrorMessage.fromFailure(failure))), (entity) {
-      if (entity.extractedText.trim().isEmpty) {
-        emit(OcrFailure('Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.'));
-        return;
-      }
-      emit(
-        OcrSuccess(
-          extractedText: entity.extractedText,
-          translatedText: entity.translatedText,
-          imageBytes: entity.imageBytes,
-          sourceLang: entity.sourceLanguage,
-          targetLang: entity.targetLanguage,
-          confidence: entity.confidence,
-        ),
-      );
-
-      // Lưu lịch sử
-      try {
-        final historyEntity = frontend_history.HistoryEntity(
-          isarId: 0,
-          id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-          sourceText: entity.extractedText,
-          translatedText: entity.translatedText,
-          sourceLanguage: entity.sourceLanguage,
-          targetLanguage: entity.targetLanguage,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          isSynced: false,
+    result.fold(
+      (failure) => emit(OcrFailure(AppErrorMessage.fromFailure(failure))),
+      (entity) {
+        if (entity.extractedText.trim().isEmpty) {
+          emit(OcrFailure('Không tìm thấy chữ trong ảnh. Hãy thử ảnh khác.'));
+          return;
+        }
+        emit(
+          OcrSuccess(
+            extractedText: entity.extractedText,
+            translatedText: entity.translatedText,
+            imageBytes: entity.imageBytes,
+            sourceLang: entity.sourceLanguage,
+            targetLang: entity.targetLanguage,
+            confidence: entity.confidence,
+          ),
         );
-        sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
-      } catch (_) {}
-    });
+
+        // Lưu lịch sử
+        try {
+          final historyEntity = frontend_history.HistoryEntity(
+            isarId: 0,
+            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+            sourceText: entity.extractedText,
+            translatedText: entity.translatedText,
+            sourceLanguage: entity.sourceLanguage,
+            targetLanguage: entity.targetLanguage,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            isSynced: false,
+          );
+          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+        } catch (_) {}
+      },
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -192,6 +199,7 @@ class OcrCubit extends Cubit<OcrState> {
     required String srcLang,
     required String tgtLang,
   }) async {
+    if (isClosed) return;
     if (editedText.trim().isEmpty) return;
 
     emit(
@@ -213,35 +221,42 @@ class OcrCubit extends Cubit<OcrState> {
 
     if (isClosed) return;
 
-    result.fold((failure) => emit(OcrFailure(AppErrorMessage.fromFailure(failure))), (translation) {
-      emit(
-        OcrSuccess(
-          extractedText: editedText,
-          translatedText: translation.translatedText,
-          imageBytes: imageBytes,
-          sourceLang: translation.sourceLanguage,
-          targetLang: translation.targetLanguage,
-        ),
-      );
-
-      // Lưu lịch sử
-      try {
-        final historyEntity = frontend_history.HistoryEntity(
-          isarId: 0,
-          id: 'local_${DateTime.now().millisecondsSinceEpoch}',
-          sourceText: editedText,
-          translatedText: translation.translatedText,
-          sourceLanguage: translation.sourceLanguage,
-          targetLanguage: translation.targetLanguage,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          isSynced: false,
+    result.fold(
+      (failure) => emit(OcrFailure(AppErrorMessage.fromFailure(failure))),
+      (translation) {
+        emit(
+          OcrSuccess(
+            extractedText: editedText,
+            translatedText: translation.translatedText,
+            imageBytes: imageBytes,
+            sourceLang: translation.sourceLanguage,
+            targetLang: translation.targetLanguage,
+          ),
         );
-        sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
-      } catch (_) {}
-    });
+
+        // Lưu lịch sử
+        try {
+          final historyEntity = frontend_history.HistoryEntity(
+            isarId: 0,
+            id: 'local_${DateTime.now().millisecondsSinceEpoch}',
+            sourceText: editedText,
+            translatedText: translation.translatedText,
+            sourceLanguage: translation.sourceLanguage,
+            targetLanguage: translation.targetLanguage,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            isSynced: false,
+          );
+          sl<frontend_history.HistoryRepository>().saveHistory(historyEntity);
+        } catch (_) {}
+      },
+    );
   }
 
   /// Resets back to initial state.
-  void reset() => emit(OcrInitial());
+  void reset() {
+    if (!isClosed) {
+      emit(OcrInitial());
+    }
+  }
 }

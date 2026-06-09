@@ -63,7 +63,7 @@ abstract class AudioRecorderService {
   Future<RecordingResult?> stopRecording();
 
   /// Starts streaming raw audio data.
-  /// 
+  ///
   /// The audio is encoded as PCM 16-bit, 16000Hz, mono.
   /// Throws [StateError] if a recording is already in progress.
   Future<Stream<Uint8List>> startStreamRecording();
@@ -114,7 +114,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
   bool _isPaused = false;
 
   AudioRecorderServiceImpl({AudioRecorder? recorder})
-      : _recorder = recorder ?? AudioRecorder();
+    : _recorder = recorder ?? AudioRecorder();
 
   @override
   Future<bool> hasPermission({bool request = true}) async {
@@ -182,8 +182,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
 
     final path = await _recorder.stop();
     final duration = _recordingStartTime != null
-        ? DateTime.now().difference(_recordingStartTime!) -
-            _totalPausedDuration
+        ? DateTime.now().difference(_recordingStartTime!) - _totalPausedDuration
         : Duration.zero;
 
     _resetState();
@@ -203,11 +202,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
       name: 'AudioRecorderService',
     );
 
-    return RecordingResult(
-      filePath: path,
-      duration: duration,
-      format: 'm4a',
-    );
+    return RecordingResult(filePath: path, duration: duration, format: 'm4a');
   }
 
   @override
@@ -219,10 +214,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
       );
     }
 
-    developer.log(
-      'Starting stream recording...',
-      name: 'AudioRecorderService',
-    );
+    developer.log('Starting stream recording...', name: 'AudioRecorderService');
 
     // Configure recording: PCM 16-bit, 16000Hz, Mono for STT backend.
     const config = RecordConfig(
@@ -256,10 +248,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
     await _recorder.stop();
     _resetState();
 
-    developer.log(
-      'Stream recording stopped.',
-      name: 'AudioRecorderService',
-    );
+    developer.log('Stream recording stopped.', name: 'AudioRecorderService');
   }
 
   @override
@@ -268,10 +257,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
       return;
     }
 
-    developer.log(
-      'Cancelling recording...',
-      name: 'AudioRecorderService',
-    );
+    developer.log('Cancelling recording...', name: 'AudioRecorderService');
 
     await _recorder.cancel();
 
@@ -300,10 +286,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
     _isPaused = true;
     _pauseStartTime = DateTime.now();
 
-    developer.log(
-      'Recording paused.',
-      name: 'AudioRecorderService',
-    );
+    developer.log('Recording paused.', name: 'AudioRecorderService');
   }
 
   @override
@@ -321,10 +304,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
     await _recorder.resume();
     _isPaused = false;
 
-    developer.log(
-      'Recording resumed.',
-      name: 'AudioRecorderService',
-    );
+    developer.log('Recording resumed.', name: 'AudioRecorderService');
   }
 
   @override
@@ -338,7 +318,7 @@ class AudioRecorderServiceImpl implements AudioRecorderService {
     if (_isRecording) {
       await cancelRecording();
     }
-    _recorder.dispose();
+    await _recorder.dispose();
   }
 
   /// Resets all internal tracking state after stop/cancel.

@@ -44,18 +44,26 @@ class OcrPage extends StatefulWidget {
 }
 
 class _OcrPageState extends State<OcrPage> {
+  late final OcrCubit _ocrCubit;
   String _srcLang = 'en';
   String _tgtLang = 'vi';
   final _editController = TextEditingController();
   bool _isEditing = false;
 
   @override
+  void initState() {
+    super.initState();
+    _ocrCubit = context.read<OcrCubit>();
+  }
+
+  @override
   void dispose() {
+    _ocrCubit.reset();
     _editController.dispose();
     super.dispose();
   }
 
-  OcrCubit get _cubit => context.read<OcrCubit>();
+  OcrCubit get _cubit => _ocrCubit;
 
   // ---- Language picker ---------------------------------------------------
 
@@ -162,17 +170,20 @@ class _OcrPageState extends State<OcrPage> {
                 child: switch (state) {
                   OcrInitial() => _buildInitial(cs, theme),
                   OcrImagePicked() => _buildLoading(
-                      cs, theme, 0.0, 'Đang mở khung cắt ảnh...'),
-                  OcrUploading(
-                    progress: final p,
-                    message: final msg,
-                  ) =>
+                    cs,
+                    theme,
+                    0.0,
+                    'Đang mở khung cắt ảnh...',
+                  ),
+                  OcrUploading(progress: final p, message: final msg) =>
                     _buildLoading(cs, theme, p, msg),
                   OcrSuccess() => _buildSuccess(cs, theme, state),
-                  OcrRetranslating() =>
-                    _buildRetranslating(cs, theme, state),
-                  OcrFailure(message: final msg) =>
-                    _buildFailure(cs, theme, msg),
+                  OcrRetranslating() => _buildRetranslating(cs, theme, state),
+                  OcrFailure(message: final msg) => _buildFailure(
+                    cs,
+                    theme,
+                    msg,
+                  ),
                 },
               ),
             ),
@@ -208,8 +219,9 @@ class _OcrPageState extends State<OcrPage> {
         children: [
           Expanded(
             child: InkWell(
-              borderRadius:
-                  const BorderRadius.horizontal(left: Radius.circular(14)),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(14),
+              ),
               onTap: () => _pickLang(isSource: true),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -238,8 +250,9 @@ class _OcrPageState extends State<OcrPage> {
           Icon(Icons.camera_alt_outlined, size: 20, color: cs.onSurfaceVariant),
           Expanded(
             child: InkWell(
-              borderRadius:
-                  const BorderRadius.horizontal(right: Radius.circular(14)),
+              borderRadius: const BorderRadius.horizontal(
+                right: Radius.circular(14),
+              ),
               onTap: () => _pickLang(isSource: false),
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
@@ -323,7 +336,11 @@ class _OcrPageState extends State<OcrPage> {
   // =========================================================================
 
   Widget _buildLoading(
-      ColorScheme cs, ThemeData theme, double progress, String message) {
+    ColorScheme cs,
+    ThemeData theme,
+    double progress,
+    String message,
+  ) {
     final pct = (progress * 100).toInt().clamp(0, 100);
     final isProcessing = progress >= 1.0;
 
@@ -338,14 +355,18 @@ class _OcrPageState extends State<OcrPage> {
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 400),
               child: isProcessing
-                  ? Icon(Icons.document_scanner_rounded,
+                  ? Icon(
+                      Icons.document_scanner_rounded,
                       key: const ValueKey('scan'),
                       size: 56,
-                      color: cs.primary)
-                  : Icon(Icons.cloud_upload_outlined,
+                      color: cs.primary,
+                    )
+                  : Icon(
+                      Icons.cloud_upload_outlined,
                       key: const ValueKey('upload'),
                       size: 56,
-                      color: cs.primary),
+                      color: cs.primary,
+                    ),
             ),
             const SizedBox(height: 28),
 
@@ -380,7 +401,10 @@ class _OcrPageState extends State<OcrPage> {
   // =========================================================================
 
   Widget _buildRetranslating(
-      ColorScheme cs, ThemeData theme, OcrRetranslating state) {
+    ColorScheme cs,
+    ThemeData theme,
+    OcrRetranslating state,
+  ) {
     return _buildLoading(cs, theme, 1.0, 'Đang dịch lại...');
   }
 
@@ -456,9 +480,7 @@ class _OcrPageState extends State<OcrPage> {
             },
             icon: const Icon(Icons.refresh_rounded, size: 16),
             label: const Text('Chọn ảnh khác'),
-            style: TextButton.styleFrom(
-              foregroundColor: cs.onSurfaceVariant,
-            ),
+            style: TextButton.styleFrom(foregroundColor: cs.onSurfaceVariant),
           ),
         ],
       ),
@@ -472,11 +494,7 @@ class _OcrPageState extends State<OcrPage> {
       borderRadius: BorderRadius.circular(16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxHeight: 200),
-        child: Image.memory(
-          bytes,
-          fit: BoxFit.cover,
-          width: double.infinity,
-        ),
+        child: Image.memory(bytes, fit: BoxFit.cover, width: double.infinity),
       ),
     );
   }
@@ -504,8 +522,11 @@ class _OcrPageState extends State<OcrPage> {
             padding: const EdgeInsets.fromLTRB(16, 10, 8, 0),
             child: Row(
               children: [
-                Icon(Icons.document_scanner_outlined,
-                    size: 15, color: cs.onSurfaceVariant),
+                Icon(
+                  Icons.document_scanner_outlined,
+                  size: 15,
+                  color: cs.onSurfaceVariant,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Văn bản gốc · ${_findLang(state.sourceLang).name}',
@@ -557,8 +578,9 @@ class _OcrPageState extends State<OcrPage> {
                 // TTS for source
                 TtsIconButton(
                   text: _editController.text,
-                  languageCode:
-                      state.sourceLang == 'auto' ? 'en' : state.sourceLang,
+                  languageCode: state.sourceLang == 'auto'
+                      ? 'en'
+                      : state.sourceLang,
                   tooltip: 'Phát âm văn bản gốc',
                 ),
                 const Spacer(),
@@ -587,7 +609,9 @@ class _OcrPageState extends State<OcrPage> {
                   label: const Text('Dịch lại'),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     textStyle: const TextStyle(fontSize: 13),
                   ),
                 ),
@@ -603,7 +627,10 @@ class _OcrPageState extends State<OcrPage> {
   // ---- Translation card ----
 
   Widget _buildTranslationCard(
-      ColorScheme cs, ThemeData theme, OcrSuccess state) {
+    ColorScheme cs,
+    ThemeData theme,
+    OcrSuccess state,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: cs.primary.withValues(alpha: 0.06),
@@ -618,8 +645,11 @@ class _OcrPageState extends State<OcrPage> {
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Row(
               children: [
-                Icon(Icons.translate_rounded,
-                    size: 15, color: cs.onSurfaceVariant),
+                Icon(
+                  Icons.translate_rounded,
+                  size: 15,
+                  color: cs.onSurfaceVariant,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Bản dịch · ${_findLang(state.targetLang).name}',
@@ -697,7 +727,9 @@ class _OcrPageState extends State<OcrPage> {
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
       decoration: BoxDecoration(
         color: cs.surface,
-        border: Border(top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3))),
+        border: Border(
+          top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.3)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -731,8 +763,11 @@ class _OcrPageState extends State<OcrPage> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.camera_alt_rounded,
-                  size: 30, color: Colors.white),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                size: 30,
+                color: Colors.white,
+              ),
             ),
           ),
 
@@ -800,8 +835,7 @@ class _ConfidenceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isHigh = confidence >= 80;
-    final color =
-        isHigh ? AppTheme.successColor : AppTheme.warningColor;
+    final color = isHigh ? AppTheme.successColor : AppTheme.warningColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -847,8 +881,10 @@ class _LangPickerSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const Text('Chọn ngôn ngữ',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text(
+            'Chọn ngôn ngữ',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           const SizedBox(height: 8),
           Flexible(
             child: ListView.builder(
@@ -858,8 +894,7 @@ class _LangPickerSheet extends StatelessWidget {
                 final l = langs[i];
                 final isSelected = l.code == selected;
                 return ListTile(
-                  leading: Text(l.flag,
-                      style: const TextStyle(fontSize: 22)),
+                  leading: Text(l.flag, style: const TextStyle(fontSize: 22)),
                   title: Text(l.name),
                   trailing: isSelected
                       ? Icon(Icons.check_rounded, color: cs.primary)

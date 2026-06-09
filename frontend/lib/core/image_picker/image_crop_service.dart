@@ -32,7 +32,7 @@ class ImageCropServiceImpl implements ImageCropService {
   final ImageCropper _cropper;
 
   ImageCropServiceImpl({ImageCropper? cropper})
-      : _cropper = cropper ?? ImageCropper();
+    : _cropper = cropper ?? ImageCropper();
 
   @override
   Future<Uint8List?> cropImage({
@@ -40,12 +40,9 @@ class ImageCropServiceImpl implements ImageCropService {
     ThemeData? themeData,
   }) async {
     final primaryColor = themeData?.colorScheme.primary ?? Colors.blue;
-    final backgroundColor =
-        themeData?.scaffoldBackgroundColor ?? Colors.black;
-    final toolbarColor =
-        themeData?.colorScheme.surface ?? Colors.black;
-    final toolbarWidgetColor =
-        themeData?.colorScheme.onSurface ?? Colors.white;
+    final backgroundColor = themeData?.scaffoldBackgroundColor ?? Colors.black;
+    final toolbarColor = themeData?.colorScheme.surface ?? Colors.black;
+    final toolbarWidgetColor = themeData?.colorScheme.onSurface ?? Colors.white;
 
     final croppedFile = await _cropper.cropImage(
       sourcePath: sourcePath,
@@ -78,6 +75,9 @@ class ImageCropServiceImpl implements ImageCropService {
     // Read the cropped file bytes and clean up the temp file.
     final file = File(croppedFile.path);
     final bytes = await file.readAsBytes();
+    if (croppedFile.path != sourcePath && await file.exists()) {
+      await file.delete();
+    }
     return bytes;
   }
 }

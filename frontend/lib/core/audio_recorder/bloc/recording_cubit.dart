@@ -34,8 +34,8 @@ class RecordingCubit extends Cubit<RecordingState> {
   DateTime? _pauseStartTime;
 
   RecordingCubit({required AudioRecorderService recorderService})
-      : _recorderService = recorderService,
-        super(const RecordingIdle());
+    : _recorderService = recorderService,
+      super(const RecordingIdle());
 
   /// Checks microphone permission and starts recording if granted.
   ///
@@ -46,12 +46,17 @@ class RecordingCubit extends Cubit<RecordingState> {
     try {
       // Check permission first.
       final hasPermission = await _recorderService.hasPermission();
+      if (isClosed) return;
       if (!hasPermission) {
         emit(const RecordingPermissionDenied());
         return;
       }
 
       await _recorderService.startRecording();
+      if (isClosed) {
+        await _recorderService.cancelRecording();
+        return;
+      }
 
       _recordingStartTime = DateTime.now();
       _pausedDuration = Duration.zero;
@@ -90,11 +95,14 @@ class RecordingCubit extends Cubit<RecordingState> {
 
     try {
       final result = await _recorderService.stopRecording();
+      if (isClosed) return;
 
       if (result == null) {
-        emit(const RecordingFailure(
-          'Recording stopped but no audio file was produced.',
-        ));
+        emit(
+          const RecordingFailure(
+            'Recording stopped but no audio file was produced.',
+          ),
+        );
         return;
       }
 
@@ -104,10 +112,9 @@ class RecordingCubit extends Cubit<RecordingState> {
         name: 'RecordingCubit',
       );
 
-      emit(RecordingSuccess(
-        filePath: result.filePath,
-        duration: result.duration,
-      ));
+      emit(
+        RecordingSuccess(filePath: result.filePath, duration: result.duration),
+      );
     } on Exception catch (e) {
       developer.log(
         'Recording stop error: $e',
@@ -126,7 +133,9 @@ class RecordingCubit extends Cubit<RecordingState> {
 
     try {
       await _recorderService.cancelRecording();
-      emit(const RecordingIdle());
+      if (!isClosed) {
+        emit(const RecordingIdle());
+      }
     } on Exception catch (e) {
       developer.log(
         'Recording cancel error: $e',
@@ -148,7 +157,9 @@ class RecordingCubit extends Cubit<RecordingState> {
       final elapsed = _calculateElapsed();
       _stopElapsedTimer();
 
-      emit(RecordingPaused(elapsed: elapsed));
+      if (!isClosed) {
+        emit(RecordingPaused(elapsed: elapsed));
+      }
     } on Exception catch (e) {
       developer.log(
         'Recording pause error: $e',
@@ -172,8 +183,10 @@ class RecordingCubit extends Cubit<RecordingState> {
 
       await _recorderService.resumeRecording();
 
-      emit(RecordingInProgress(elapsed: _calculateElapsed()));
-      _startElapsedTimer();
+      if (!isClosed) {
+        emit(RecordingInProgress(elapsed: _calculateElapsed()));
+        _startElapsedTimer();
+      }
     } on Exception catch (e) {
       developer.log(
         'Recording resume error: $e',
@@ -223,14 +236,11 @@ class RecordingCubit extends Cubit<RecordingState> {
   /// every second while recording is in progress.
   void _startElapsedTimer() {
     _stopElapsedTimer();
-    _elapsedTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (_) {
-        if (!isClosed && state is RecordingInProgress) {
-          emit(RecordingInProgress(elapsed: _calculateElapsed()));
-        }
-      },
-    );
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!isClosed && state is RecordingInProgress) {
+        emit(RecordingInProgress(elapsed: _calculateElapsed()));
+      }
+    });
   }
 
   /// Cancels the elapsed timer.
@@ -244,7 +254,7 @@ class RecordingCubit extends Cubit<RecordingState> {
     _stopElapsedTimer();
     // Do not dispose _recorderService here because it is a singleton
     // and will be reused by future instances of RecordingCubit.
-    if (state is RecordingInProgress) {
+    if (state is RecordingInProgress || state is RecordingPaused) {
       try {
         await _recorderService.cancelRecording();
       } catch (_) {}
