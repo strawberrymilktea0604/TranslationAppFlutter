@@ -15,6 +15,13 @@
 .secrets/
 secrets.json
 
+# Mobile signing secrets
+frontend/android/key.properties
+frontend/android/app/*.jks
+frontend/android/app/*.keystore
+frontend/ios/ExportOptions.plist
+frontend/ios/Runner/Signing.xcconfig
+
 # Database
 *.db
 *.sqlite

@@ -1,88 +1,270 @@
-name: Build and Distribute APK
+name: Frontend Release Build
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Chọn môi trường để Build APK'
+        description: Build environment
         required: true
-        default: 'dev'
+        default: prod
         type: choice
         options:
           - dev
           - staging
           - prod
+      android_artifact:
+        description: Android artifact to build
+        required: true
+        default: both
+        type: choice
+        options:
+          - apk
+          - appbundle
+          - both
+      build_ios:
+        description: Build iOS IPA on macOS runner
+        required: true
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "frontend-v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.environment || 'prod' }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.38.7"
+  FRONTEND_DIR: frontend
+  BUILD_ENV: ${{ github.event.inputs.environment || 'prod' }}
 
 jobs:
-  build_and_distribute:
-    name: Build & Upload to Firebase
+  android-release:
+    name: Android release (${{ github.event.inputs.environment || 'prod' }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
-      - name: 📥 Clone Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: ☕ Setup Java
-        uses: actions/setup-java@v3
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: zulu
+          java-version: "17"
+          cache: gradle
 
-      - name: 🐦 Setup Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.38.7' # Cập nhật đúng bản Flutter của máy bạn
-          channel: 'stable'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
 
-      - name: 📦 Install Dependencies
-        working-directory: frontend
+      - name: Resolve target entrypoint
+        id: target
+        shell: bash
+        run: |
+          case "${BUILD_ENV}" in
+            dev) echo "entrypoint=lib/main_dev.dart" >> "$GITHUB_OUTPUT" ;;
+            staging) echo "entrypoint=lib/main_staging.dart" >> "$GITHUB_OUTPUT" ;;
+            prod) echo "entrypoint=lib/main_prod.dart" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unsupported environment: ${BUILD_ENV}" >&2; exit 1 ;;
+          esac
+
+      - name: Install dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: flutter pub get
 
-      - name: 🔐 Inject google-services.json
-        working-directory: frontend
+      - name: Inject google-services.json
+        working-directory: ${{ env.FRONTEND_DIR }}
         env:
-          # Chỉ cần 1 Secret chứa file JSON "3 trong 1" của Firebase
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: bash
         run: |
-          # Đặt file JSON chung ở cấp thư mục app, Gradle sẽ tự lục tìm đúng config
-          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > android/app/google-services.json
-
-      - name: ⚙️ Build APK (Dev)
-        if: github.event.inputs.environment == 'dev'
-        working-directory: frontend
-        run: flutter build apk --flavor dev -t lib/main_dev.dart --debug --build-number=${{ github.run_number }}
-
-      - name: ⚙️ Build APK (Staging)
-        if: github.event.inputs.environment == 'staging'
-        working-directory: frontend
-        run: flutter build apk --flavor staging -t lib/main_staging.dart --release --build-number=${{ github.run_number }}
-
-      - name: ⚙️ Build APK (Prod)
-        if: github.event.inputs.environment == 'prod'
-        working-directory: frontend
-        run: flutter build apk --flavor prod -t lib/main_prod.dart --release --build-number=${{ github.run_number }}
-
-      - name: 🔍 Find APK Path
-        id: apk_path
-        run: |
-          APK_FILE=$(find frontend/build/app/outputs/flutter-apk -name "*.apk" | head -n 1)
-          echo "APK_FILE_PATH=$APK_FILE" >> $GITHUB_ENV
-          echo "Found APK at: $APK_FILE"
-
-      - name: 🔀 Set Firebase App ID for Environment
-        run: |
-          if [ "${{ github.event.inputs.environment }}" == "dev" ]; then
-            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID_DEV }}" >> $GITHUB_ENV
-          elif [ "${{ github.event.inputs.environment }}" == "staging" ]; then
-            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID_STAGING }}" >> $GITHUB_ENV
+          if [ -n "${GOOGLE_SERVICES_JSON_BASE64}" ]; then
+            echo "${GOOGLE_SERVICES_JSON_BASE64}" | base64 --decode > android/app/google-services.json
+          elif [ -n "${GOOGLE_SERVICES_JSON}" ]; then
+            echo "${GOOGLE_SERVICES_JSON}" | base64 --decode > android/app/google-services.json
           else
-            echo "FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID_PROD }}" >> $GITHUB_ENV
+            echo "Missing GOOGLE_SERVICES_JSON_BASE64 secret." >&2
+            exit 1
           fi
 
-      - name: 🚀 Upload to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+      - name: Configure Android release signing
+        working-directory: ${{ env.FRONTEND_DIR }}
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        shell: bash
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64}" ]; then
+            echo "ANDROID_KEYSTORE_BASE64 is not set. Build will use debug signing fallback and is not store-ready."
+            exit 0
+          fi
+
+          mkdir -p android/app
+          echo "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=${ANDROID_KEYSTORE_PASSWORD}
+          keyPassword=${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}
+          keyAlias=${ANDROID_KEY_ALIAS:-upload}
+          storeFile=app/upload-keystore.jks
+          EOF
+
+      - name: Analyze
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: flutter analyze
+
+      - name: Run widget smoke test
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: flutter test test/widget_test.dart
+
+      - name: Build release APKs
+        if: ${{ github.event.inputs.android_artifact == 'apk' || github.event.inputs.android_artifact == 'both' || github.event_name == 'push' }}
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: >
+          flutter build apk
+          --release
+          --flavor ${{ env.BUILD_ENV }}
+          --target ${{ steps.target.outputs.entrypoint }}
+          --build-number ${{ github.run_number }}
+          --obfuscate
+          --split-debug-info build/symbols/android/${{ env.BUILD_ENV }}
+          --split-per-abi
+
+      - name: Build release App Bundle
+        if: ${{ github.event.inputs.android_artifact == 'appbundle' || github.event.inputs.android_artifact == 'both' || github.event_name == 'push' }}
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: >
+          flutter build appbundle
+          --release
+          --flavor ${{ env.BUILD_ENV }}
+          --target ${{ steps.target.outputs.entrypoint }}
+          --build-number ${{ github.run_number }}
+          --obfuscate
+          --split-debug-info build/symbols/android/${{ env.BUILD_ENV }}
+
+      - name: Upload Android APK artifacts
+        if: ${{ github.event.inputs.android_artifact == 'apk' || github.event.inputs.android_artifact == 'both' || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
         with:
-          appId: ${{ env.FIREBASE_APP_ID }}
-          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
-          groups: testers
-          file: ${{ env.APK_FILE_PATH }}
+          name: android-apk-${{ env.BUILD_ENV }}-${{ github.run_number }}
+          path: |
+            frontend/build/app/outputs/flutter-apk/*-${{ env.BUILD_ENV }}-release.apk
+            frontend/build/app/outputs/flutter-apk/*-${{ env.BUILD_ENV }}-release.apk.sha1
+          if-no-files-found: error
+
+      - name: Upload Android App Bundle artifact
+        if: ${{ github.event.inputs.android_artifact == 'appbundle' || github.event.inputs.android_artifact == 'both' || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab-${{ env.BUILD_ENV }}-${{ github.run_number }}
+          path: frontend/build/app/outputs/bundle/**/app-*-release.aab
+          if-no-files-found: error
+
+      - name: Upload Android obfuscation symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-symbols-${{ env.BUILD_ENV }}-${{ github.run_number }}
+          path: frontend/build/symbols/android/${{ env.BUILD_ENV }}
+          if-no-files-found: error
+
+  ios-release:
+    name: iOS release (${{ github.event.inputs.environment || 'prod' }})
+    runs-on: macos-latest
+    timeout-minutes: 60
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_ios == 'true' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve target entrypoint
+        id: target
+        shell: bash
+        run: |
+          case "${BUILD_ENV}" in
+            dev) echo "entrypoint=lib/main_dev.dart" >> "$GITHUB_OUTPUT" ;;
+            staging) echo "entrypoint=lib/main_staging.dart" >> "$GITHUB_OUTPUT" ;;
+            prod) echo "entrypoint=lib/main_prod.dart" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unsupported environment: ${BUILD_ENV}" >&2; exit 1 ;;
+          esac
+
+      - name: Install dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: flutter pub get
+
+      - name: Import Apple signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+
+      - name: Install provisioning profile
+        working-directory: ${{ env.FRONTEND_DIR }}
+        env:
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+        shell: bash
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/translationapp.mobileprovision"
+          echo "${IOS_PROVISIONING_PROFILE_BASE64}" | base64 --decode > "$PROFILE_PATH"
+
+      - name: Configure iOS signing
+        working-directory: ${{ env.FRONTEND_DIR }}
+        env:
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_EXPORT_OPTIONS_PLIST_BASE64: ${{ secrets.IOS_EXPORT_OPTIONS_PLIST_BASE64 }}
+        shell: bash
+        run: |
+          cat > ios/Runner/Signing.xcconfig <<EOF
+          DEVELOPMENT_TEAM = ${IOS_TEAM_ID}
+          CODE_SIGN_STYLE = Automatic
+          CODE_SIGN_IDENTITY = Apple Distribution
+          EOF
+
+          if [ -n "${IOS_EXPORT_OPTIONS_PLIST_BASE64}" ]; then
+            echo "${IOS_EXPORT_OPTIONS_PLIST_BASE64}" | base64 --decode > ios/ExportOptions.plist
+          else
+            cp ios/ExportOptions.example.plist ios/ExportOptions.plist
+          fi
+
+      - name: Build IPA
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: >
+          flutter build ipa
+          --target ${{ steps.target.outputs.entrypoint }}
+          --build-number ${{ github.run_number }}
+          --obfuscate
+          --split-debug-info build/symbols/ios/${{ env.BUILD_ENV }}
+          --export-options-plist ios/ExportOptions.plist
+
+      - name: Upload iOS IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ env.BUILD_ENV }}-${{ github.run_number }}
+          path: frontend/build/ios/ipa/*.ipa
+          if-no-files-found: error
+
+      - name: Upload iOS obfuscation symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-symbols-${{ env.BUILD_ENV }}-${{ github.run_number }}
+          path: frontend/build/symbols/ios/${{ env.BUILD_ENV }}
+          if-no-files-found: error
