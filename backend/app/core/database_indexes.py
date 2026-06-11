@@ -5,7 +5,7 @@ from app.core.database import engine
 
 logger = logging.getLogger(__name__)
 
-INDEX_SQL_PATH = Path(__file__).resolve().parent.parent / "db_indexes.sql"
+INDEX_SQL_PATH = Path(__file__).resolve().parents[2] / "db_indexes.sql"
 
 
 async def ensure_database_indexes() -> None:

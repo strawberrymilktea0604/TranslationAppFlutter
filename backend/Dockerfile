@@ -57,6 +57,7 @@ COPY --from=builder /root/.local /root/.local
 
 # Copy application code
 COPY alembic.ini ./
+COPY db_indexes.sql ./
 COPY ./app ./app
 COPY ./alembic ./alembic
 
