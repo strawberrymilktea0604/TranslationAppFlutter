@@ -133,6 +133,7 @@ class ConversationPipeline:
 
         Returns the assigned sequence number.
         """
+        self.start()
         seq = self.next_sequence_number()
         item = _UtteranceItem(
             pcm_bytes=pcm_bytes,

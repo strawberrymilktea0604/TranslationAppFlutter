@@ -547,7 +547,6 @@ async def websocket_conversation(
                 conversation_manager.set_pipeline(
                     session.session_id, pipeline
                 )
-                pipeline.start()
 
                 session_logger.log_event(
                     event_type=SessionEventType.SESSION_START,
