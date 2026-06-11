@@ -1,33 +1,6 @@
 version: "3.9"
 
 services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: translation_app
-    volumes:
-      - db_prod_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  redis:
-    image: redis:7
-    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru", "--save", "60 1000", "--appendonly", "yes", "--appendfsync", "everysec"]
-    volumes:
-      - redis_prod_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend
@@ -47,11 +20,6 @@ services:
     volumes:
       - backups_prod:/backups
       - hf_cache_prod:/models
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     restart: unless-stopped
 
   nginx:
@@ -66,7 +34,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  db_prod_data:
-  redis_prod_data:
   backups_prod:
   hf_cache_prod:

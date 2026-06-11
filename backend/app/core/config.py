@@ -1,10 +1,10 @@
 import json
 import os
 from functools import lru_cache
-from typing import Optional
+from typing import Annotated, Optional
 
 from pydantic import Field, field_validator # Đổi sang field_validator chuẩn V2
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -124,7 +124,7 @@ class Settings(BaseSettings):
     QUERY_PROFILER_THRESHOLD: int = 10  # warn when a single request runs more than N queries
 
     # CORS configuration
-    BACKEND_CORS_ORIGINS: list[str] = Field(
+    BACKEND_CORS_ORIGINS: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["*"],
         description="Allowed CORS origins. Use comma-separated values in env."
     )
