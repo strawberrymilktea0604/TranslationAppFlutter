@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:developer';
 import 'dart:io';
 
-/// Environment variable set via `--dart-define=API_HOST=<ip>`.
-/// Takes highest priority when resolving the API host.
+/// Full API base URL set via `--dart-define=API_BASE_URL=<url>`.
+/// Takes highest priority when resolving the API URL.
+const String _kApiBaseUrlOverride = String.fromEnvironment('API_BASE_URL');
+
+/// API host override set via `--dart-define=API_HOST=<ip>`.
 const String _kApiHostOverride = String.fromEnvironment('API_HOST');
 
 /// Utility class to resolve the correct API base URL based on the runtime
@@ -29,6 +32,10 @@ class ApiUrlResolver {
     int port = 8000,
     String apiPrefix = '/api/v1',
   }) async {
+    if (_kApiBaseUrlOverride.isNotEmpty) {
+      return _apiUrlFromBase(_kApiBaseUrlOverride, apiPrefix);
+    }
+
     // Highest priority: explicit --dart-define override.
     // Usage: flutter run --dart-define=API_HOST=192.168.1.100 -t lib/main_dev.dart
     if (_kApiHostOverride.isNotEmpty) {
@@ -44,7 +51,7 @@ class ApiUrlResolver {
     if (Platform.isAndroid && await _isAndroidEmulator()) {
       return 'http://10.0.2.2:$port$apiPrefix';
     }
-    
+
     if (Platform.isIOS) {
       // iOS Simulator often maps localhost directly
       final localhostPing = await _pingIp('127.0.0.1', port, apiPrefix);
@@ -86,7 +93,10 @@ class ApiUrlResolver {
     if (ipParts.length != 4) return null;
     ipParts.removeLast();
     final subnet = ipParts.join('.');
-    log('Bắt đầu quét mạng LAN trên dải: $subnet.x:$port...', name: 'ApiUrlResolver');
+    log(
+      'Bắt đầu quét mạng LAN trên dải: $subnet.x:$port...',
+      name: 'ApiUrlResolver',
+    );
 
     // 3. Quét đồng thời, trả về ngay khi có IP đầu tiên phản hồi
     final completer = Completer<String?>();
@@ -95,7 +105,7 @@ class ApiUrlResolver {
     for (int i = 1; i <= 254; i++) {
       final targetIp = '$subnet.$i';
       if (targetIp == deviceIp) continue;
-      
+
       _pingIp(targetIp, port, apiPrefix).then((url) {
         if (url != null && !completer.isCompleted) {
           completer.complete(url);
@@ -109,13 +119,20 @@ class ApiUrlResolver {
     }
 
     // Nếu timeout tổng cộng 1.5s chưa xong thì trả về null luôn để tránh treo
-    return await completer.future.timeout(const Duration(milliseconds: 1500), onTimeout: () => null);
+    return await completer.future.timeout(
+      const Duration(milliseconds: 1500),
+      onTimeout: () => null,
+    );
   }
 
   /// Thử mở socket kết nối. Timeout ngắn (300ms) để quét lướt qua nhanh.
   static Future<String?> _pingIp(String ip, int port, String apiPrefix) async {
     try {
-      final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 1000));
+      final socket = await Socket.connect(
+        ip,
+        port,
+        timeout: const Duration(milliseconds: 1000),
+      );
       socket.destroy(); // Kết nối thành công -> đóng lại ngay
       return 'http://$ip:$port$apiPrefix';
     } catch (_) {
@@ -186,5 +203,13 @@ class ApiUrlResolver {
       // Ignore errors — fall through to default.
     }
     return 'localhost';
+  }
+
+  static String _apiUrlFromBase(String baseUrl, String apiPrefix) {
+    final normalized = baseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+    if (normalized.endsWith(apiPrefix)) {
+      return normalized;
+    }
+    return '$normalized$apiPrefix';
   }
 }

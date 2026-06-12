@@ -2,9 +2,9 @@ import 'main.dart' as app;
 import 'app_config.dart';
 
 void main() {
-  app.config = const AppConfig(
+  app.config = AppConfig.fromEnvironment(
     appName: "TranslationApp",
-    apiUrl: "https://api.com",
+    defaultBaseUrl: "https://api.com",
   );
 
   app.main();

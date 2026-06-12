@@ -1,0 +1,99 @@
+name: Deploy Flutter Web to Vercel
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/deploy-flutter-web-vercel.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-flutter-web-vercel-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.38.7"
+  FRONTEND_DIR: frontend
+
+jobs:
+  deploy-web:
+    name: Build and deploy Flutter Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        shell: bash
+        run: |
+          if [ -z "${API_BASE_URL}" ]; then
+            echo "Missing API_BASE_URL secret." >&2
+            exit 1
+          fi
+
+          if [ -z "${VERCEL_TOKEN}" ]; then
+            echo "Missing VERCEL_TOKEN secret." >&2
+            exit 1
+          fi
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: flutter analyze
+
+      - name: Build Flutter Web
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: >
+          flutter build web
+          --release
+          --target=lib/main_web.dart
+          --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
+
+      - name: Add Vercel SPA routing config
+        shell: bash
+        run: |
+          cat > frontend/build/web/vercel.json <<'EOF'
+          {
+            "rewrites": [
+              {
+                "source": "/(.*)",
+                "destination": "/index.html"
+              }
+            ]
+          }
+          EOF
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npm i -g vercel
+          vercel deploy frontend/build/web \
+            --prod \
+            --yes \
+            --token="${VERCEL_TOKEN}"

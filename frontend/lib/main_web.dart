@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -29,9 +27,9 @@ void main() async {
   _configureWebRenderer();
 
   // Initialize config for web environment
-  config = const AppConfig(
+  config = AppConfig.fromEnvironment(
     appName: 'Translation Admin',
-    apiUrl: 'http://localhost:8000/api/v1',
+    defaultBaseUrl: 'http://localhost:8000',
   );
 
   // Initialize all dependencies — Web version (no Isar)
@@ -49,12 +47,12 @@ void _configureWebRenderer() {
   // - Text rendering consistency
   // - Shader support
   // - Stability across different browsers
-  
+
   // This is set via URL parameter: ?canvaskit=true or in web/index.html
   // For production, configure in pubspec.yaml:
   // flutter_web:
   //   renderer: canvaskit  # or 'html'
-  
+
   // You can also check at runtime:
   debugPrint('Web Renderer check skipped to avoid dart:html dependency');
 }
@@ -112,10 +110,7 @@ class _AdminAppWithRouterState extends State<_AdminAppWithRouter> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('en', ''),
-        Locale('vi', ''),
-      ],
+      supportedLocales: const [Locale('en', ''), Locale('vi', '')],
       routerConfig: _router,
       debugShowCheckedModeBanner: false,
     );

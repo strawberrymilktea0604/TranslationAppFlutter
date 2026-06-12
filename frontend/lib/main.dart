@@ -31,9 +31,9 @@ void main() async {
   try {
     config;
   } catch (e) {
-    config = const AppConfig(
+    config = AppConfig.fromEnvironment(
       appName: 'Translation App',
-      apiUrl: 'http://localhost:8000/api/v1',
+      defaultBaseUrl: 'http://localhost:8000',
     );
   }
 
