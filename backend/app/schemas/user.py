@@ -1,6 +1,18 @@
 from datetime import datetime
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+
+def normalize_avatar_url(value: str | None) -> str | None:
+    if not value:
+        return value
+
+    parsed = urlparse(value)
+    if parsed.scheme and parsed.netloc:
+        return parsed.path if parsed.path.startswith("/api/v1/users/avatar/") else value
+
+    return value
 
 
 class UserBase(BaseModel):
@@ -8,6 +20,11 @@ class UserBase(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     avatar_url: str | None = None
+
+    @field_validator("avatar_url")
+    @classmethod
+    def normalize_avatar_url_field(cls, v: str | None) -> str | None:
+        return normalize_avatar_url(v)
 
 
 class UserCreate(UserBase):
@@ -43,6 +60,11 @@ class UserUpdate(BaseModel):
 class UserAvatarResponse(BaseModel):
     avatar_url: str
 
+    @field_validator("avatar_url")
+    @classmethod
+    def normalize_avatar_url_field(cls, v: str) -> str:
+        return normalize_avatar_url(v) or v
+
 
 class UserPasswordUpdate(BaseModel):
     old_password: str
@@ -60,6 +82,11 @@ class UserListItem(BaseModel):
     role: str
     status: str
     created_at: datetime
+
+    @field_validator("avatar_url")
+    @classmethod
+    def normalize_avatar_url_field(cls, v: str | None) -> str | None:
+        return normalize_avatar_url(v)
 
 
 class UserListResponse(BaseModel):

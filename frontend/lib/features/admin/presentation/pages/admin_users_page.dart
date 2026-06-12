@@ -8,6 +8,7 @@ import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/error/api_error_handler.dart';
+import 'package:frontend/core/utils/backend_url.dart';
 import 'package:http/http.dart' as http;
 
 /// Admin Users Management Page
@@ -642,6 +643,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     if (authState is AuthAuthenticated) {
       currentUserId = authState.user.id;
     }
+    final avatarUrl = resolveBackendUrl(
+      user.avatarUrl,
+      apiBaseUrl: config.apiUrl,
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -653,13 +658,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundImage: user.avatarUrl != null
-                      ? NetworkImage(user.avatarUrl!)
+                  backgroundImage: avatarUrl != null
+                      ? NetworkImage(avatarUrl)
                       : null,
                   backgroundColor: Theme.of(
                     context,
                   ).colorScheme.primaryContainer,
-                  child: user.avatarUrl == null
+                  child: avatarUrl == null
                       ? Text(
                           user.displayName.isNotEmpty
                               ? user.displayName[0].toUpperCase()

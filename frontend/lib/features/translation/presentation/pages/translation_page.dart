@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
+import 'package:frontend/core/utils/backend_url.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
@@ -26,6 +27,7 @@ import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabular
 import 'package:frontend/features/learning/presentation/pages/learning_dashboard_page.dart';
 import 'package:frontend/features/conversation/presentation/pages/conversation_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:frontend/main.dart' show config;
 
 // ---------------------------------------------------------------------------
 // Language model
@@ -275,6 +277,12 @@ class _TranslationViewState extends State<_TranslationView>
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
         final isAuth = authState is AuthAuthenticated;
+        final avatarUrl = isAuth
+            ? resolveBackendUrl(
+                authState.user.avatarUrl,
+                apiBaseUrl: config.apiUrl,
+              )
+            : null;
 
         return BlocListener<VocabularyCubit, VocabularyState>(
           listener: (context, vocabState) {
@@ -344,101 +352,93 @@ class _TranslationViewState extends State<_TranslationView>
                 }
               },
               child: Scaffold(
-            drawer: _AppDrawer(onActionSelected: _handleDrawerAction),
-            appBar: AppBar(
-              title: const Text('Dịch thuật'),
-              centerTitle: true,
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 12.0, left: 4.0),
-                  child: InkWell(
-                    onTap: () {
-                      context.push('/profile');
-                    },
-                    customBorder: const CircleBorder(),
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: isAuth
-                          ? cs.primaryContainer
-                          : cs.surfaceContainerHighest,
-                      backgroundImage:
-                          (isAuth &&
-                              authState.user.avatarUrl != null &&
-                              authState.user.avatarUrl!.isNotEmpty)
-                          ? CachedNetworkImageProvider(
-                              authState.user.avatarUrl!,
-                            )
-                          : null,
-                      child:
-                          (isAuth &&
-                              authState.user.avatarUrl != null &&
-                              authState.user.avatarUrl!.isNotEmpty)
-                          ? null
-                          : Icon(
-                              isAuth
-                                  ? Icons.person_rounded
-                                  : Icons.person_outline_rounded,
-                              size: 22,
-                              color: isAuth
-                                  ? cs.onPrimaryContainer
-                                  : cs.onSurfaceVariant,
-                            ),
+                drawer: _AppDrawer(onActionSelected: _handleDrawerAction),
+                appBar: AppBar(
+                  title: const Text('Dịch thuật'),
+                  centerTitle: true,
+                  actions: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12.0, left: 4.0),
+                      child: InkWell(
+                        onTap: () {
+                          context.push('/profile');
+                        },
+                        customBorder: const CircleBorder(),
+                        child: CircleAvatar(
+                          radius: 18,
+                          backgroundColor: isAuth
+                              ? cs.primaryContainer
+                              : cs.surfaceContainerHighest,
+                          backgroundImage: avatarUrl != null
+                              ? CachedNetworkImageProvider(avatarUrl)
+                              : null,
+                          child: avatarUrl != null
+                              ? null
+                              : Icon(
+                                  isAuth
+                                      ? Icons.person_rounded
+                                      : Icons.person_outline_rounded,
+                                  size: 22,
+                                  color: isAuth
+                                      ? cs.onPrimaryContainer
+                                      : cs.onSurfaceVariant,
+                                ),
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                // Use LayoutBuilder to prevent bottom overflow on small screens.
+                body: SafeArea(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.05),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _buildCurrentTab(context, cs, theme, isAuth),
                   ),
                 ),
-              ],
-            ),
-            // Use LayoutBuilder to prevent bottom overflow on small screens.
-            body: SafeArea(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0, 0.05),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
-                  );
-                },
-                child: _buildCurrentTab(context, cs, theme, isAuth),
-              ),
-            ),
-            bottomNavigationBar: isAuth
-                ? NavigationBar(
-                    selectedIndex: _currentIndex,
-                    onDestinationSelected: (index) {
-                      setState(() {
-                        _currentIndex = index;
-                      });
-                    },
-                    destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.translate_rounded),
-                        label: 'Dịch',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.lens_blur_rounded),
-                        label: 'Lens',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.bookmark_rounded),
-                        label: 'Từ vựng',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.school_rounded),
-                        label: 'Học tập',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.forum_rounded),
-                        label: 'Hội thoại',
-                      ),
-                    ],
-                  )
-                : null,
+                bottomNavigationBar: isAuth
+                    ? NavigationBar(
+                        selectedIndex: _currentIndex,
+                        onDestinationSelected: (index) {
+                          setState(() {
+                            _currentIndex = index;
+                          });
+                        },
+                        destinations: const [
+                          NavigationDestination(
+                            icon: Icon(Icons.translate_rounded),
+                            label: 'Dịch',
+                          ),
+                          NavigationDestination(
+                            icon: Icon(Icons.lens_blur_rounded),
+                            label: 'Lens',
+                          ),
+                          NavigationDestination(
+                            icon: Icon(Icons.bookmark_rounded),
+                            label: 'Từ vựng',
+                          ),
+                          NavigationDestination(
+                            icon: Icon(Icons.school_rounded),
+                            label: 'Học tập',
+                          ),
+                          NavigationDestination(
+                            icon: Icon(Icons.forum_rounded),
+                            label: 'Hội thoại',
+                          ),
+                        ],
+                      )
+                    : null,
               ), // closes Scaffold
             ), // closes SyncCubit listener
           ), // closes TranslationCubit listener

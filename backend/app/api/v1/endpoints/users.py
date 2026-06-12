@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Request
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.responses import FileResponse
 
 from app.core import security
@@ -74,7 +74,6 @@ async def update_password(
 
 @router.post("/me/avatar", response_model=schemas.UserAvatarResponse)
 async def upload_avatar(
-    request: Request,
     db: DBSession,
     current_user: Annotated[User, Depends(get_current_user)],
     file: UploadFile = File(...)
@@ -105,9 +104,7 @@ async def upload_avatar(
     with open(file_path, "wb") as f:
         f.write(optimized_bytes)
         
-    # Build URL using request
-    base_url = str(request.base_url).rstrip("/")
-    avatar_url = f"{base_url}{str(request.scope.get('root_path', ''))}/api/v1/users/avatar/{filename}"
+    avatar_url = f"/api/v1/users/avatar/{filename}"
     
     current_user.avatar_url = avatar_url
     db.add(current_user)

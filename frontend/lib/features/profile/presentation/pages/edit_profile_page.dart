@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:frontend/core/utils/backend_url.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
+import 'package:frontend/main.dart' show config;
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -49,10 +51,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (pickedFile == null) return;
 
     setState(() => _isLoading = true);
-    
+
     try {
       final File file = File(pickedFile.path);
-      
+
       // Compress to WebP format to save bandwidth and caching size
       final compressedBytes = await FlutterImageCompress.compressWithFile(
         file.absolute.path,
@@ -66,16 +68,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
         final tempDir = Directory.systemTemp;
         final tempFile = File('${tempDir.path}/avatar_compressed.webp');
         await tempFile.writeAsBytes(compressedBytes);
-        
+
         setState(() {
           _avatarFile = tempFile;
         });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xử lý ảnh: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi xử lý ảnh: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -84,17 +86,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _saveProfile() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final authCubit = context.read<AuthCubit>();
-      
+
       if (_avatarFile != null) {
         await authCubit.uploadAvatar(filePath: _avatarFile!.path);
       }
-      
+
       await authCubit.updateProfile(
-        firstName: _firstNameController.text.trim().isNotEmpty ? _firstNameController.text.trim() : null,
-        lastName: _lastNameController.text.trim().isNotEmpty ? _lastNameController.text.trim() : null,
+        firstName: _firstNameController.text.trim().isNotEmpty
+            ? _firstNameController.text.trim()
+            : null,
+        lastName: _lastNameController.text.trim().isNotEmpty
+            ? _lastNameController.text.trim()
+            : null,
       );
 
       if (mounted) {
@@ -106,7 +112,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}')),
+          SnackBar(
+            content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}'),
+          ),
         );
       }
     } finally {
@@ -117,7 +125,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chỉnh sửa tài khoản'),
@@ -129,7 +137,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
             return const Center(child: Text('Vui lòng đăng nhập'));
           }
           final user = state.user;
-          
+          final avatarUrl = resolveBackendUrl(
+            user.avatarUrl,
+            apiBaseUrl: config.apiUrl,
+          );
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -141,13 +153,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       CircleAvatar(
                         radius: 60,
                         backgroundColor: cs.surfaceContainerHighest,
-                        backgroundImage: _avatarFile != null 
+                        backgroundImage: _avatarFile != null
                             ? FileImage(_avatarFile!) as ImageProvider
-                            : (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                                ? CachedNetworkImageProvider(user.avatarUrl!)
-                                : null,
-                        child: (_avatarFile == null && (user.avatarUrl == null || user.avatarUrl!.isEmpty))
-                            ? Icon(Icons.person_rounded, size: 60, color: cs.onSurfaceVariant)
+                            : avatarUrl != null
+                            ? CachedNetworkImageProvider(avatarUrl)
+                            : null,
+                        child: (_avatarFile == null && avatarUrl == null)
+                            ? Icon(
+                                Icons.person_rounded,
+                                size: 60,
+                                color: cs.onSurfaceVariant,
+                              )
                             : null,
                       ),
                       Positioned(
@@ -158,7 +174,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           child: CircleAvatar(
                             radius: 20,
                             backgroundColor: cs.primary,
-                            child: Icon(Icons.camera_alt_rounded, color: cs.onPrimary, size: 20),
+                            child: Icon(
+                              Icons.camera_alt_rounded,
+                              color: cs.onPrimary,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ),
@@ -189,9 +209,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     backgroundColor: cs.primary,
                     foregroundColor: cs.onPrimary,
                   ),
-                  child: _isLoading 
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Lưu thay đổi', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Lưu thay đổi',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ),

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/utils/backend_url.dart';
+import 'package:frontend/main.dart' show config;
 import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -16,7 +18,7 @@ class ProfilePage extends StatelessWidget {
 
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
-        // Lắng nghe trạng thái, nếu biến thành Unauthenticated (ví dụ sau khi gọi logout) 
+        // Lắng nghe trạng thái, nếu biến thành Unauthenticated (ví dụ sau khi gọi logout)
         // thì tự động điều hướng về login. Cách này chuẩn BLoC (Reactive Navigation) hơn.
         if (state is AuthUnauthenticated) {
           context.go('/login');
@@ -46,7 +48,11 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildGuestView(BuildContext context, ColorScheme cs, ThemeData theme) {
+  Widget _buildGuestView(
+    BuildContext context,
+    ColorScheme cs,
+    ThemeData theme,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -55,18 +61,26 @@ class ProfilePage extends StatelessWidget {
           CircleAvatar(
             radius: 50,
             backgroundColor: cs.surfaceContainerHighest,
-            child: Icon(Icons.person_outline_rounded, size: 50, color: cs.onSurfaceVariant),
+            child: Icon(
+              Icons.person_outline_rounded,
+              size: 50,
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 24),
           Text(
             'Khách',
-            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
             'Đăng nhập để đồng bộ dữ liệu, mở khóa các tính năng giọng nói, hình ảnh và lưu từ vựng.',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 32),
           ElevatedButton(
@@ -75,27 +89,46 @@ class ProfilePage extends StatelessWidget {
               minimumSize: const Size(double.infinity, 50),
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Đăng nhập', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Đăng nhập',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
           const SizedBox(height: 16),
           OutlinedButton(
             onPressed: () => context.push('/signup'),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: const Text('Đăng ký tài khoản mới', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Đăng ký tài khoản mới',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAuthView(BuildContext context, ColorScheme cs, ThemeData theme, dynamic user) {
+  Widget _buildAuthView(
+    BuildContext context,
+    ColorScheme cs,
+    ThemeData theme,
+    dynamic user,
+  ) {
     final name = user?.name ?? 'Người dùng';
     final email = user?.email ?? '';
+    final avatarUrl = resolveBackendUrl(
+      user?.avatarUrl,
+      apiBaseUrl: config.apiUrl,
+    );
 
     return Column(
       children: [
@@ -106,23 +139,31 @@ class ProfilePage extends StatelessWidget {
               CircleAvatar(
                 radius: 50,
                 backgroundColor: cs.primaryContainer,
-                backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                    ? CachedNetworkImageProvider(user.avatarUrl!)
+                backgroundImage: avatarUrl != null
+                    ? CachedNetworkImageProvider(avatarUrl)
                     : null,
-                child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
-                    ? Icon(Icons.person_rounded, size: 50, color: cs.onPrimaryContainer)
+                child: avatarUrl == null
+                    ? Icon(
+                        Icons.person_rounded,
+                        size: 50,
+                        color: cs.onPrimaryContainer,
+                      )
                     : null,
               ),
               const SizedBox(height: 16),
               Text(
                 name,
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               if (email.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
               ],
               const SizedBox(height: 16),
@@ -133,7 +174,9 @@ class ProfilePage extends StatelessWidget {
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 label: const Text('Chỉnh sửa tài khoản'),
                 style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                 ),
               ),
             ],
@@ -206,10 +249,15 @@ class ProfilePage extends StatelessWidget {
             minimumSize: const Size(double.infinity, 50),
             backgroundColor: cs.errorContainer,
             foregroundColor: cs.onErrorContainer,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           icon: const Icon(Icons.logout_rounded),
-          label: const Text('Đăng xuất', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          label: const Text(
+            'Đăng xuất',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ),
         const SizedBox(height: 16),
       ],
@@ -255,7 +303,12 @@ class ProfilePage extends StatelessWidget {
           child: Icon(icon, color: cs.primary, size: 20),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)) : null,
+        subtitle: subtitle != null
+            ? Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              )
+            : null,
         trailing: Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
         onTap: onTap,
       ),
