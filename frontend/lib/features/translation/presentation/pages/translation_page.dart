@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:frontend/injection_container.dart';
 import 'package:frontend/core/theme/app_theme.dart';
 import 'package:frontend/core/tts/widgets/tts_icon_button.dart';
-import 'package:frontend/core/utils/backend_url.dart';
+import 'package:frontend/core/widgets/backend_avatar.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/features/ocr/presentation/bloc/ocr_cubit.dart';
@@ -26,7 +26,6 @@ import 'package:frontend/features/vocabulary/presentation/pages/vocabulary_page.
 import 'package:frontend/features/vocabulary/presentation/widgets/save_vocabulary_dialog.dart';
 import 'package:frontend/features/learning/presentation/pages/learning_dashboard_page.dart';
 import 'package:frontend/features/conversation/presentation/pages/conversation_page.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:frontend/main.dart' show config;
 
 // ---------------------------------------------------------------------------
@@ -277,13 +276,6 @@ class _TranslationViewState extends State<_TranslationView>
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, authState) {
         final isAuth = authState is AuthAuthenticated;
-        final avatarUrl = isAuth
-            ? resolveBackendUrl(
-                authState.user.avatarUrl,
-                apiBaseUrl: config.apiUrl,
-              )
-            : null;
-
         return BlocListener<VocabularyCubit, VocabularyState>(
           listener: (context, vocabState) {
             if (vocabState is VocabularySaveSuccess) {
@@ -364,25 +356,22 @@ class _TranslationViewState extends State<_TranslationView>
                           context.push('/profile');
                         },
                         customBorder: const CircleBorder(),
-                        child: CircleAvatar(
+                        child: BackendAvatar(
                           radius: 18,
                           backgroundColor: isAuth
                               ? cs.primaryContainer
                               : cs.surfaceContainerHighest,
-                          backgroundImage: avatarUrl != null
-                              ? CachedNetworkImageProvider(avatarUrl)
-                              : null,
-                          child: avatarUrl != null
-                              ? null
-                              : Icon(
-                                  isAuth
-                                      ? Icons.person_rounded
-                                      : Icons.person_outline_rounded,
-                                  size: 22,
-                                  color: isAuth
-                                      ? cs.onPrimaryContainer
-                                      : cs.onSurfaceVariant,
-                                ),
+                          url: isAuth ? authState.user.avatarUrl : null,
+                          apiBaseUrl: config.apiUrl,
+                          fallback: Icon(
+                            isAuth
+                                ? Icons.person_rounded
+                                : Icons.person_outline_rounded,
+                            size: 22,
+                            color: isAuth
+                                ? cs.onPrimaryContainer
+                                : cs.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ),

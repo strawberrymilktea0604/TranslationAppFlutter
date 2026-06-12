@@ -4,8 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:frontend/core/utils/backend_url.dart';
+import 'package:frontend/core/widgets/backend_avatar.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/main.dart' show config;
@@ -137,11 +136,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             return const Center(child: Text('Vui lòng đăng nhập'));
           }
           final user = state.user;
-          final avatarUrl = resolveBackendUrl(
-            user.avatarUrl,
-            apiBaseUrl: config.apiUrl,
-          );
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -150,22 +144,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 Center(
                   child: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 60,
-                        backgroundColor: cs.surfaceContainerHighest,
-                        backgroundImage: _avatarFile != null
-                            ? FileImage(_avatarFile!) as ImageProvider
-                            : avatarUrl != null
-                            ? CachedNetworkImageProvider(avatarUrl)
-                            : null,
-                        child: (_avatarFile == null && avatarUrl == null)
-                            ? Icon(
+                      _avatarFile != null
+                          ? CircleAvatar(
+                              radius: 60,
+                              backgroundColor: cs.surfaceContainerHighest,
+                              backgroundImage: FileImage(_avatarFile!),
+                            )
+                          : BackendAvatar(
+                              radius: 60,
+                              backgroundColor: cs.surfaceContainerHighest,
+                              url: user.avatarUrl,
+                              apiBaseUrl: config.apiUrl,
+                              fallback: Icon(
                                 Icons.person_rounded,
                                 size: 60,
                                 color: cs.onSurfaceVariant,
-                              )
-                            : null,
-                      ),
+                              ),
+                            ),
                       Positioned(
                         bottom: 0,
                         right: 0,

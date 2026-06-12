@@ -4,9 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/core/theme/app_theme.dart';
-import 'package:frontend/core/utils/backend_url.dart';
+import 'package:frontend/core/widgets/backend_avatar.dart';
 import 'package:frontend/main.dart' show config;
-import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -125,30 +124,22 @@ class ProfilePage extends StatelessWidget {
   ) {
     final name = user?.name ?? 'Người dùng';
     final email = user?.email ?? '';
-    final avatarUrl = resolveBackendUrl(
-      user?.avatarUrl,
-      apiBaseUrl: config.apiUrl,
-    );
-
     return Column(
       children: [
         // User Info Section
         Center(
           child: Column(
             children: [
-              CircleAvatar(
+              BackendAvatar(
                 radius: 50,
                 backgroundColor: cs.primaryContainer,
-                backgroundImage: avatarUrl != null
-                    ? CachedNetworkImageProvider(avatarUrl)
-                    : null,
-                child: avatarUrl == null
-                    ? Icon(
-                        Icons.person_rounded,
-                        size: 50,
-                        color: cs.onPrimaryContainer,
-                      )
-                    : null,
+                url: user?.avatarUrl,
+                apiBaseUrl: config.apiUrl,
+                fallback: Icon(
+                  Icons.person_rounded,
+                  size: 50,
+                  color: cs.onPrimaryContainer,
+                ),
               ),
               const SizedBox(height: 16),
               Text(

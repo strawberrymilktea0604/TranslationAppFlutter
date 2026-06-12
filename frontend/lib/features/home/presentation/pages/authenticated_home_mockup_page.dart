@@ -3,9 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:frontend/core/router/app_router.dart';
 import 'package:frontend/core/theme/app_theme.dart';
+import 'package:frontend/core/widgets/backend_avatar.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
 import 'package:frontend/features/translation/presentation/widgets/translation_widgets.dart';
+import 'package:frontend/main.dart' show config;
 
 class AuthenticatedHomeMockupPage extends StatelessWidget {
   const AuthenticatedHomeMockupPage({super.key});
@@ -40,19 +42,29 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: AppTheme.primaryColor.withValues(
-                            alpha: 0.2,
-                          ),
-                          child: const Text(
-                            'MT',
-                            style: TextStyle(
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
+                        BlocBuilder<AuthCubit, AuthState>(
+                          builder: (context, state) {
+                            final user = state is AuthAuthenticated
+                                ? state.user
+                                : null;
+
+                            return BackendAvatar(
+                              radius: 24,
+                              url: user?.avatarUrl,
+                              apiBaseUrl: config.apiUrl,
+                              backgroundColor: AppTheme.primaryColor.withValues(
+                                alpha: 0.2,
+                              ),
+                              fallback: Text(
+                                _initials(user?.name, user?.email),
+                                style: const TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -66,11 +78,21 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
                                   color: Colors.grey[600],
                                 ),
                               ),
-                              Text(
-                                'Minh Trí',
-                                style: textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              BlocBuilder<AuthCubit, AuthState>(
+                                builder: (context, state) {
+                                  final user = state is AuthAuthenticated
+                                      ? state.user
+                                      : null;
+
+                                  return Text(
+                                    user?.name?.isNotEmpty == true
+                                        ? user!.name!
+                                        : user?.email ?? 'User',
+                                    style: textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -194,6 +216,22 @@ class AuthenticatedHomeMockupPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _initials(String? name, String? email) {
+    final source = (name?.trim().isNotEmpty == true ? name : email)?.trim();
+    if (source == null || source.isEmpty) return '?';
+
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+    }
+
+    return source.substring(0, 1).toUpperCase();
   }
 
   Widget _buildStatCard(
