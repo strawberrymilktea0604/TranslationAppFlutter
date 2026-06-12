@@ -72,14 +72,26 @@ jobs:
           flutter build web
           --release
           --target=lib/main_web.dart
-          --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL }}
 
-      - name: Add Vercel SPA routing config
+      - name: Add Vercel proxy routing config
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
         shell: bash
         run: |
-          cat > frontend/build/web/vercel.json <<'EOF'
+          BACKEND_API_BASE_URL="${API_BASE_URL%/}"
+          BACKEND_API_BASE_URL="${BACKEND_API_BASE_URL%/api/v1}"
+
+          cat > frontend/build/web/vercel.json <<EOF
           {
             "rewrites": [
+              {
+                "source": "/api/v1/:path*",
+                "destination": "${BACKEND_API_BASE_URL}/api/v1/:path*"
+              },
+              {
+                "source": "/health",
+                "destination": "${BACKEND_API_BASE_URL}/health"
+              },
               {
                 "source": "/(.*)",
                 "destination": "/index.html"

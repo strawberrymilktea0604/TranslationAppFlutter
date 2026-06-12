@@ -29,7 +29,7 @@ void main() async {
   // Initialize config for web environment
   config = AppConfig.fromEnvironment(
     appName: 'Translation Admin',
-    defaultBaseUrl: 'http://localhost:8000',
+    defaultBaseUrl: '',
   );
 
   // Initialize all dependencies — Web version (no Isar)
