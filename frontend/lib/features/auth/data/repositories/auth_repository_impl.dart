@@ -59,22 +59,30 @@ class AuthRepositoryImpl implements AuthRepository {
 
       // 4. Fetch profile to get name and avatar
       try {
-        final profileData = await _remoteDataSource.getCurrentUserProfile(accessToken: tokenModel.accessToken);
-        final name = '${profileData['first_name'] ?? ''} ${profileData['last_name'] ?? ''}'.trim();
+        final profileData = await _remoteDataSource.getCurrentUserProfile(
+          accessToken: tokenModel.accessToken,
+        );
+        final firstName = profileData['first_name'] as String?;
+        final lastName = profileData['last_name'] as String?;
+        final name = '${firstName ?? ''} ${lastName ?? ''}'.trim();
         await _localDataSource.saveUserData(
           userId: userId,
           email: email,
           name: name.isEmpty ? null : name,
+          firstName: firstName,
+          lastName: lastName,
           role: profileData['role'],
           status: profileData['status'],
           avatarUrl: profileData['avatar_url'],
         );
-        
+
         return Right(
           UserEntity(
             id: userId,
             email: email,
             name: name.isEmpty ? null : name,
+            firstName: firstName,
+            lastName: lastName,
             role: profileData['role'] ?? 'user',
             status: profileData['status'] ?? 'active',
             avatarUrl: profileData['avatar_url'],
@@ -84,7 +92,9 @@ class AuthRepositoryImpl implements AuthRepository {
       } catch (e) {
         // Fallback to minimal data if profile fetch fails
         await _localDataSource.saveUserData(userId: userId, email: email);
-        return Right(UserEntity(id: userId, email: email, createdAt: DateTime.now()));
+        return Right(
+          UserEntity(id: userId, email: email, createdAt: DateTime.now()),
+        );
       }
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
@@ -151,6 +161,8 @@ class AuthRepositoryImpl implements AuthRepository {
         userId: userId,
         email: email,
         name: '$firstName $lastName'.trim(),
+        firstName: firstName,
+        lastName: lastName,
       );
 
       // 5. Return UserEntity to the domain layer.
@@ -159,6 +171,8 @@ class AuthRepositoryImpl implements AuthRepository {
           id: userId,
           email: email,
           name: '$firstName $lastName'.trim(),
+          firstName: firstName,
+          lastName: lastName,
           createdAt: DateTime.now(),
         ),
       );
@@ -192,10 +206,12 @@ class AuthRepositoryImpl implements AuthRepository {
       if (accessToken != null && refreshTokenValue != null) {
         _networkInfo.isConnected.then((connected) {
           if (connected) {
-            _remoteDataSource.logout(
-              accessToken: accessToken,
-              refreshToken: refreshTokenValue,
-            ).catchError((_) {});
+            _remoteDataSource
+                .logout(
+                  accessToken: accessToken,
+                  refreshToken: refreshTokenValue,
+                )
+                .catchError((_) {});
           }
         });
       }
@@ -240,20 +256,28 @@ class AuthRepositoryImpl implements AuthRepository {
       // 4. Fetch latest profile from server to ensure session is valid and sync data
       if (await _networkInfo.isConnected) {
         try {
-          final currentAccessToken = await _localDataSource.getAccessToken() ?? accessToken;
-          final profileData = await _remoteDataSource.getCurrentUserProfile(accessToken: currentAccessToken);
-          
-          final name = '${profileData['first_name'] ?? ''} ${profileData['last_name'] ?? ''}'.trim();
+          final currentAccessToken =
+              await _localDataSource.getAccessToken() ?? accessToken;
+          final profileData = await _remoteDataSource.getCurrentUserProfile(
+            accessToken: currentAccessToken,
+          );
+
+          final firstName = profileData['first_name'] as String?;
+          final lastName = profileData['last_name'] as String?;
+          final name = '${firstName ?? ''} ${lastName ?? ''}'.trim();
           await _localDataSource.saveUserData(
             userId: profileData['id'].toString(),
             email: profileData['email'] ?? '',
             name: name.isEmpty ? null : name,
+            firstName: firstName,
+            lastName: lastName,
             role: profileData['role'],
             status: profileData['status'],
             avatarUrl: profileData['avatar_url'],
           );
         } catch (e) {
-          if (e is ServerException && (e.statusCode == 401 || e.statusCode == 404)) {
+          if (e is ServerException &&
+              (e.statusCode == 401 || e.statusCode == 404)) {
             // Token is truly invalid according to backend or user deleted
             await _localDataSource.clearAll();
             return const Left(AuthFailure('Session expired or invalid'));
@@ -273,6 +297,8 @@ class AuthRepositoryImpl implements AuthRepository {
           id: userData['userId']!,
           email: userData['email'] ?? '',
           name: userData['name'],
+          firstName: userData['firstName'],
+          lastName: userData['lastName'],
           role: userData['role'] ?? 'user',
           status: userData['status'] ?? 'active',
           avatarUrl: userData['avatarUrl'],
@@ -330,23 +356,33 @@ class AuthRepositoryImpl implements AuthRepository {
     }
     try {
       final accessToken = await _localDataSource.getAccessToken();
-      if (accessToken == null) return const Left(AuthFailure('No access token'));
-      
+      if (accessToken == null) {
+        return const Left(AuthFailure('No access token'));
+      }
+
       final result = await _remoteDataSource.updateProfile(
         accessToken: accessToken,
         firstName: firstName,
         lastName: lastName,
       );
-      
+
       final userData = await _localDataSource.getUserData();
-      final String name = '${result['first_name'] ?? ''} ${result['last_name'] ?? ''}'.trim();
-      
+      final resultFirstName = result['first_name'] as String?;
+      final resultLastName = result['last_name'] as String?;
+      final String name = '${resultFirstName ?? ''} ${resultLastName ?? ''}'
+          .trim();
+
       await _localDataSource.saveUserData(
         userId: userData?['userId'] ?? result['id'].toString(),
         email: result['email'] ?? userData?['email'] ?? '',
         name: name.isEmpty ? null : name,
+        firstName: resultFirstName,
+        lastName: resultLastName,
+        role: result['role'] ?? userData?['role'],
+        status: result['status'] ?? userData?['status'],
+        avatarUrl: result['avatar_url'] ?? userData?['avatarUrl'],
       );
-      
+
       return getCurrentUser();
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
@@ -365,8 +401,10 @@ class AuthRepositoryImpl implements AuthRepository {
     }
     try {
       final accessToken = await _localDataSource.getAccessToken();
-      if (accessToken == null) return const Left(AuthFailure('No access token'));
-      
+      if (accessToken == null) {
+        return const Left(AuthFailure('No access token'));
+      }
+
       await _remoteDataSource.updatePassword(
         accessToken: accessToken,
         oldPassword: oldPassword,
@@ -389,25 +427,29 @@ class AuthRepositoryImpl implements AuthRepository {
     }
     try {
       final accessToken = await _localDataSource.getAccessToken();
-      if (accessToken == null) return const Left(AuthFailure('No access token'));
-      
+      if (accessToken == null) {
+        return const Left(AuthFailure('No access token'));
+      }
+
       final avatarUrl = await _remoteDataSource.uploadAvatar(
         accessToken: accessToken,
         filePath: filePath,
       );
-      
+
       final userData = await _localDataSource.getUserData();
       if (userData != null) {
         await _localDataSource.saveUserData(
           userId: userData['userId']!,
           email: userData['email'] ?? '',
           name: userData['name'],
+          firstName: userData['firstName'],
+          lastName: userData['lastName'],
           role: userData['role'],
           status: userData['status'],
           avatarUrl: avatarUrl,
         );
       }
-      
+
       return getCurrentUser();
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));

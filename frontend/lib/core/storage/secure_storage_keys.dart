@@ -20,6 +20,12 @@ class SecureStorageKeys {
   /// Cached user display name (may be null).
   static const String userName = 'user_name';
 
+  /// Cached given name / first name (may be null).
+  static const String userFirstName = 'user_first_name';
+
+  /// Cached family name / last name (may be null).
+  static const String userLastName = 'user_last_name';
+
   /// Cached user role ('user' or 'admin').
   static const String userRole = 'user_role';
 }

@@ -25,6 +25,8 @@ abstract class AuthLocalDataSource {
     required String userId,
     required String email,
     String? name,
+    String? firstName,
+    String? lastName,
     String? role,
     String? status,
     String? avatarUrl,
@@ -82,18 +84,41 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     required String userId,
     required String email,
     String? name,
+    String? firstName,
+    String? lastName,
     String? role,
     String? status,
     String? avatarUrl,
   }) async {
     try {
       await _secureStorage.write(key: SecureStorageKeys.userId, value: userId);
-      await _secureStorage.write(key: SecureStorageKeys.userEmail, value: email);
+      await _secureStorage.write(
+        key: SecureStorageKeys.userEmail,
+        value: email,
+      );
       if (name != null) {
-        await _secureStorage.write(key: SecureStorageKeys.userName, value: name);
+        await _secureStorage.write(
+          key: SecureStorageKeys.userName,
+          value: name,
+        );
+      }
+      if (firstName != null) {
+        await _secureStorage.write(
+          key: SecureStorageKeys.userFirstName,
+          value: firstName,
+        );
+      }
+      if (lastName != null) {
+        await _secureStorage.write(
+          key: SecureStorageKeys.userLastName,
+          value: lastName,
+        );
       }
       if (role != null) {
-        await _secureStorage.write(key: SecureStorageKeys.userRole, value: role);
+        await _secureStorage.write(
+          key: SecureStorageKeys.userRole,
+          value: role,
+        );
       }
       if (status != null) {
         await _secureStorage.write(key: 'user_status', value: status);
@@ -115,11 +140,24 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
 
     final email = await _secureStorage.read(SecureStorageKeys.userEmail);
     final name = await _secureStorage.read(SecureStorageKeys.userName);
+    final firstName = await _secureStorage.read(
+      SecureStorageKeys.userFirstName,
+    );
+    final lastName = await _secureStorage.read(SecureStorageKeys.userLastName);
     final role = await _secureStorage.read(SecureStorageKeys.userRole);
     final status = await _secureStorage.read('user_status');
     final avatarUrl = await _secureStorage.read('user_avatar');
 
-    return {'userId': userId, 'email': email, 'name': name, 'role': role, 'status': status, 'avatarUrl': avatarUrl};
+    return {
+      'userId': userId,
+      'email': email,
+      'name': name,
+      'firstName': firstName,
+      'lastName': lastName,
+      'role': role,
+      'status': status,
+      'avatarUrl': avatarUrl,
+    };
   }
 
   @override
@@ -135,6 +173,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       await _secureStorage.delete(SecureStorageKeys.userId);
       await _secureStorage.delete(SecureStorageKeys.userEmail);
       await _secureStorage.delete(SecureStorageKeys.userName);
+      await _secureStorage.delete(SecureStorageKeys.userFirstName);
+      await _secureStorage.delete(SecureStorageKeys.userLastName);
       await _secureStorage.delete(SecureStorageKeys.userRole);
       await _secureStorage.delete('user_status');
       await _secureStorage.delete('user_avatar');

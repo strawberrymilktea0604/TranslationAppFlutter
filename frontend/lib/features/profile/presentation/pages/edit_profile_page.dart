@@ -27,13 +27,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     super.initState();
     final state = context.read<AuthCubit>().state;
     if (state is AuthAuthenticated) {
-      final parts = state.user.name?.split(' ') ?? [];
-      if (parts.isNotEmpty) {
-        _firstNameController.text = parts.first;
-        if (parts.length > 1) {
-          _lastNameController.text = parts.sublist(1).join(' ');
-        }
-      }
+      _firstNameController.text = state.user.firstName ?? state.user.name ?? '';
+      _lastNameController.text = state.user.lastName ?? '';
     }
   }
 
@@ -65,7 +60,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (compressedBytes != null) {
         final tempDir = Directory.systemTemp;
-        final tempFile = File('${tempDir.path}/avatar_compressed.webp');
+        final timestamp = DateTime.now().microsecondsSinceEpoch;
+        final tempFile = File(
+          '${tempDir.path}/avatar_compressed_$timestamp.webp',
+        );
         await tempFile.writeAsBytes(compressedBytes);
 
         setState(() {
