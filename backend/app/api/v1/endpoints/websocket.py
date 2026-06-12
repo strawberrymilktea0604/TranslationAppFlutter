@@ -590,6 +590,14 @@ async def websocket_conversation(
                     continue
 
                 try:
+                    sample_rate_value = data.get("sample_rate", data.get("sampleRate"))
+                    if type(sample_rate_value) is not int:
+                        await _send_error_locked(
+                            "INVALID_AUDIO_METADATA",
+                            "audio_metadata validation error: sample_rate must be an integer.",
+                        )
+                        continue
+
                     evt = WsAudioMetadataEvent(**data)
                 except Exception as parse_exc:  # noqa: BLE001
                     await _send_error_locked(
