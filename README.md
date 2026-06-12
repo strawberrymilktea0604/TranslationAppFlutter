@@ -1,5 +1,10 @@
 # TranslationAppFlutter
 
+WEB Api: https://refactored-space-winner-4jw4vqrppjq4f4xv-8000.app.github.dev/docs
+WEB Admin: https://web-five-cyan-81.vercel.app/
+
+
+
 ## FastAPI Backend Scaffold (Clean Architecture)
 
 Project has been scaffolded with this backend structure:
