@@ -1,6 +1,5 @@
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
-import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 import 'package:frontend/core/network/network_info.dart';
 import 'package:frontend/core/network/bloc/network_cubit.dart';
@@ -119,7 +118,10 @@ Future<void> initDependencies() async {
 
   // Network connectivity checker — verifies real internet access.
   sl.registerLazySingleton<NetworkInfo>(
-    () => NetworkInfoImpl(InternetConnection()),
+    () => NetworkInfoImpl(
+      client: sl(),
+      healthUri: backendHealthUri(config.apiUrl),
+    ),
   );
 
   // Global network connectivity state

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:frontend/main.dart' show config;
 import 'package:frontend/app_config.dart';
+import 'package:frontend/core/network/network_info.dart';
 import 'package:frontend/core/utils/api_url_resolver.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_cubit.dart';
 import 'package:frontend/features/auth/presentation/bloc/auth_state.dart';
@@ -83,14 +84,16 @@ class _SplashPageState extends State<SplashPage>
   Future<void> _checkServerHealth() async {
     // Thử kết nối tối đa 3 lần, mỗi lần 2 giây. Nếu thất bại thì vẫn cho vào app (Offline mode).
     const maxRetries = 3;
-    
+
     for (int i = 0; i < maxRetries; i++) {
       if (!mounted) return;
-      
+
       try {
-        final healthUrl = Uri.parse(config.apiUrl).replace(path: '/health');
-        
-        final response = await http.get(healthUrl).timeout(const Duration(seconds: 2));
+        final healthUrl = backendHealthUri(config.apiUrl);
+
+        final response = await http
+            .get(healthUrl)
+            .timeout(const Duration(seconds: 2));
         if (response.statusCode == 200) {
           if (mounted) {
             setState(() {
@@ -111,12 +114,12 @@ class _SplashPageState extends State<SplashPage>
           } catch (_) {}
         }
       }
-      
+
       if (i < maxRetries - 1) {
         await Future.delayed(const Duration(seconds: 1));
       }
     }
-    
+
     // Hết số lần thử mà vẫn chưa được -> Chấp nhận cho vào app (Offline mode)
     if (mounted) {
       setState(() {
@@ -142,7 +145,8 @@ class _SplashPageState extends State<SplashPage>
     final currentState = state ?? context.read<AuthCubit>().state;
     if (currentState is AuthAuthenticated) {
       context.go(AppRoutes.home);
-    } else if (currentState is AuthUnauthenticated || currentState is AuthFailureState) {
+    } else if (currentState is AuthUnauthenticated ||
+        currentState is AuthFailureState) {
       context.go(AppRoutes.welcome);
     }
     // Nếu vẫn đang AuthInProgress, thì không làm gì, sẽ do BlocListener lo phần việc sau.
@@ -218,7 +222,7 @@ class _SplashPageState extends State<SplashPage>
                 ),
               ),
             ),
-            
+
             // Connecting Text (hiện lên nếu animation xong mà server chưa dậy)
             if (_showConnectingText)
               const Align(

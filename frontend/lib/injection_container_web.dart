@@ -4,7 +4,6 @@
 // datasources with lightweight Web stubs (no offline DB on web).
 
 import 'package:http/http.dart' as http;
-import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 import 'package:frontend/core/network/network_info.dart';
 import 'package:frontend/core/network/bloc/network_cubit.dart';
@@ -120,7 +119,10 @@ Future<void> initDependenciesWeb() async {
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
   sl.registerLazySingleton<NetworkInfo>(
-    () => NetworkInfoImpl(InternetConnection()),
+    () => NetworkInfoImpl(
+      client: sl(),
+      healthUri: backendHealthUri(config.apiUrl),
+    ),
   );
 
   sl.registerLazySingleton<NetworkCubit>(() => NetworkCubit(networkInfo: sl()));

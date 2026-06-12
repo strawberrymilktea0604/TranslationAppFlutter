@@ -68,9 +68,6 @@ dependencies:
   # Secure token storage — JWT must NOT be in SharedPreferences (copilot-instructions §3.5)
   flutter_secure_storage: ^9.2.4
 
-  # Network connectivity checker (verifies real internet access)
-  internet_connection_checker_plus: 2.2.0
-
   # JSON serialization annotations
   json_annotation: ^4.9.0
 
