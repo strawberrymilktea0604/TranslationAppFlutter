@@ -22,36 +22,40 @@ Trong quá trình học ngoại ngữ, tụi em nhận thấy một vấn đề 
 Để mọi người có cái nhìn trực quan nhất, dưới đây là slide ảnh chụp thực tế giao diện ứng dụng di động Flutter và cổng Web Admin Portal do nhóm tụi em tự thiết kế và phát triển.
 
 ### 1. Giao diện ứng dụng di động (Flutter Client UI)
-````carousel
-![Màn hình Onboarding](docs/images/ui_onboarding.jpg)
-<!-- slide -->
-![Màn hình Đăng nhập](docs/images/ui_login.jpg)
-<!-- slide -->
-![Dịch văn bản & Lưu từ vựng](docs/images/ui_translation_main.jpg)
-<!-- slide -->
-![Dịch giọng nói hai chiều](docs/images/ui_voice_translation.jpg)
-<!-- slide -->
-![Dịch hình ảnh qua camera (OCR)](docs/images/ui_ocr_translation.jpg)
-<!-- slide -->
-![Hội thoại song ngữ WebSocket](docs/images/ui_realtime_conversation.jpg)
-<!-- slide -->
-![Ôn tập từ mới với Flashcard](docs/images/ui_flashcards.jpg)
-<!-- slide -->
-![Thống kê quá trình học tập](docs/images/ui_learning_dashboard.jpg)
-<!-- slide -->
-![Bài thi trắc nghiệm từ vựng](docs/images/ui_quiz.jpg)
-````
+
+Tụi em thiết kế giao diện di động theo phong cách hiện đại, trực quan, hỗ trợ đầy đủ Dark Mode. Dưới đây là lưới các màn hình chức năng của ứng dụng:
+
+<p align="center">
+  <img src="docs/images/ui_onboarding.jpg" width="30%" alt="Màn hình Onboarding" />
+  <img src="docs/images/ui_login.jpg" width="30%" alt="Màn hình Đăng nhập" />
+  <img src="docs/images/ui_translation_main.jpg" width="30%" alt="Dịch văn bản & Lưu từ vựng" />
+</p>
+
+<p align="center">
+  <img src="docs/images/ui_voice_translation.jpg" width="30%" alt="Dịch giọng nói hai chiều" />
+  <img src="docs/images/ui_ocr_translation.jpg" width="30%" alt="Dịch hình ảnh qua camera (OCR)" />
+  <img src="docs/images/ui_realtime_conversation.jpg" width="30%" alt="Hội thoại song ngữ WebSocket" />
+</p>
+
+<p align="center">
+  <img src="docs/images/ui_flashcards.jpg" width="30%" alt="Ôn tập từ mới với Flashcard" />
+  <img src="docs/images/ui_learning_dashboard.jpg" width="30%" alt="Thống kê quá trình học tập" />
+  <img src="docs/images/ui_quiz.jpg" width="30%" alt="Bài thi trắc nghiệm từ vựng" />
+</p>
 
 ### 2. Giao diện quản trị Web (Web Admin Portal UI)
-````carousel
-![Swagger UI API Documentation](docs/images/ui_swagger_api.jpg)
-<!-- slide -->
-![Trang tổng quan Admin Dashboard](docs/images/ui_admin_dashboard.jpg)
-<!-- slide -->
-![Thống kê hiệu năng hệ thống](docs/images/ui_admin_analytics.jpg)
-<!-- slide -->
-![Biên soạn câu hỏi Quiz trắc nghiệm](docs/images/ui_admin_quiz_editor.png)
-````
+
+Phân hệ quản trị Web Admin được xây dựng thân thiện, trực quan với các bảng thống kê chỉ số, quản lý câu hỏi trắc nghiệm và tài liệu Swagger API:
+
+<p align="center">
+  <img src="docs/images/ui_admin_dashboard.jpg" width="48%" alt="Trang tổng quan Admin Dashboard" />
+  <img src="docs/images/ui_admin_analytics.jpg" width="48%" alt="Thống kê hiệu năng hệ thống" />
+</p>
+
+<p align="center">
+  <img src="docs/images/ui_admin_quiz_editor.png" width="48%" alt="Biên soạn câu hỏi Quiz trắc nghiệm" />
+  <img src="docs/images/ui_swagger_api.jpg" width="48%" alt="Swagger UI API Documentation" />
+</p>
 
 ---
 
