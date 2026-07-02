@@ -141,7 +141,7 @@ Tụi em rất coi trọng chất lượng phần mềm nên đã xây dựng m�
 | **Flutter Client** | Integration E2E Tests | 12 | 100% | - | Xác thực tích hợp toàn trình, kiểm tra tính đúng đắn dữ liệu mẫu |
 
 ### Thành tích đạt được:
-Đề tài đồ án môn học Phát triển ứng dụng đa nền tảng nâng cao này của nhóm đã được Hội đồng chấm thi thuộc Khoa Công nghệ thông tin - Trường Đại học Xây dựng Hà Nội (HUCE) đánh giá rất cao, đạt điểm số xuất sắc nhờ quy trình DevOps chuẩn chỉ, độ phủ test lớn và thiết kế kiến trúc Clean Architecture chỉn chu trên thiết bị di động.
+Đề tài đồ án môn học Phát triển ứng dụng đa nền tảng nâng cao này của nhóm đã được đánh giá rất cao, đạt điểm số xuất sắc nhờ quy trình DevOps chuẩn chỉ, độ phủ test lớn và thiết kế kiến trúc Clean Architecture chỉn chu trên thiết bị di động.
 
 ---
 
